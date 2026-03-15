@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.7a
+   CUBENIX — script.js — v0.0.8a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -99,11 +99,11 @@
    };
    
    // Player stats
-   const STATS={
-     health:20,maxHealth:20,hunger:20,maxHunger:20,
-     shield:10,maxShield:10,armor:0,maxArmor:3,
-     energy:100,maxEnergy:100,
-   };
+  const STATS={
+    health:100,maxHealth:100,hunger:20,maxHunger:20,
+    shield:10,maxShield:10,armor:0,maxArmor:3,
+    energy:100,maxEnergy:100,
+  };
    
    // Inventory
    const INV={
@@ -378,10 +378,54 @@
      for(let i=0;i<o;i++){v+=noise2(x*f,z*f)*a;mx+=a;a*=per;f*=lac;}
      return v/mx;
    }
-   function getHeight(wx,wz){
-     const n=octNoise(wx*0.007,wz*0.007,6,2.0,0.55);
-     return Math.round(CFG.seaLevel+n*30);
-   }
+  function getHeight(wx,wz){
+    const base=octNoise(wx*0.006,wz*0.006,6,2.0,0.55)*22;
+    const detail=octNoise(wx*0.019+180,wz*0.019-90,3,2.0,0.48)*6;
+    const ridge=(1-Math.abs(octNoise(wx*0.012+320,wz*0.012+45,4,2.05,0.52)))*8-4;
+    const dist=Math.hypot(wx,wz);
+    const centerLift=Math.max(0,1-dist/120)*8;
+    const h=Math.round(CFG.seaLevel+base+detail+ridge+centerLift);
+    return Math.max(3,Math.min(CFG.chunkH-2,h));
+  }
+
+  function ensureChunkGenerated(cx,cz){
+    if(!getArr(cx,cz,false))generateChunk(cx,cz);
+  }
+
+  function getSurfaceY(wx,wz){
+    const cx=Math.floor(wx/16),cz=Math.floor(wz/16);
+    ensureChunkGenerated(cx,cz);
+    for(let y=CFG.chunkH-2;y>=1;y--){
+      const id=worldGet(wx,y,wz);
+      if(!isSolid(id)||isFluid(id))continue;
+      if(worldGet(wx,y+1,wz)===B.AIR&&worldGet(wx,y+2,wz)===B.AIR)return y;
+    }
+    return -1;
+  }
+
+  function findSafeSpawn(radius=100){
+    let best=null;
+    for(let r=0;r<=radius;r+=4){
+      const circ=Math.max(8,Math.ceil((2*Math.PI*Math.max(r,1))/8));
+      for(let i=0;i<circ;i++){
+        const ang=(i/circ)*Math.PI*2;
+        const wx=Math.round(Math.cos(ang)*r);
+        const wz=Math.round(Math.sin(ang)*r);
+        if(Math.hypot(wx,wz)>radius)continue;
+        const y=getSurfaceY(wx,wz);
+        if(y<=CFG.seaLevel+1)continue;
+        const here=worldGet(wx,y,wz);
+        if(here===B.WATER||here===B.LAVA)continue;
+        const n1=getSurfaceY(wx+1,wz),n2=getSurfaceY(wx-1,wz),n3=getSurfaceY(wx,wz+1),n4=getSurfaceY(wx,wz-1);
+        const steep=Math.max(Math.abs(n1-y),Math.abs(n2-y),Math.abs(n3-y),Math.abs(n4-y));
+        if(steep>3)continue;
+        const score=(y-CFG.seaLevel)*4-Math.hypot(wx,wz)-steep*6;
+        if(!best||score>best.score)best={wx,wz,y,score};
+      }
+      if(best&&r>=20)break;
+    }
+    return best;
+  }
    
    // ═══════════════════════════════════════════════════════════
    // 4.  WORLD DATA
@@ -668,7 +712,7 @@
    const vF=new THREE.Vector3(),vR=new THREE.Vector3();
    let isPaused=false,isInvOpen=false;
    
-   function movePlayer(dt){
+  function movePlayer(dt){
      if(isPaused||isInvOpen)return;
      const sprint=KEYS['ControlLeft'];
      const spd=sprint?CFG.sprintSpeed:CFG.walkSpeed;
@@ -691,12 +735,18 @@
      for(let s=0;s<steps;s++)resolveCollision(player.pos,player.vel);
    
      // Energy
-     if(sprint&&(KEYS['KeyW']||KEYS['KeyS']||KEYS['KeyA']||KEYS['KeyD'])){
-       STATS.energy=Math.max(0,STATS.energy-18*dt);
-     } else {
-       STATS.energy=Math.min(STATS.maxEnergy,STATS.energy+7*dt);
-     }
-     camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
+    if(sprint&&(KEYS['KeyW']||KEYS['KeyS']||KEYS['KeyA']||KEYS['KeyD'])){
+      STATS.energy=Math.max(0,STATS.energy-18*dt);
+    } else {
+      STATS.energy=Math.min(STATS.maxEnergy,STATS.energy+7*dt);
+    }
+
+    if(player.pos.y<0){
+      const voidDamageRate=STATS.maxHealth*0.20;
+      STATS.health=Math.max(0,STATS.health-voidDamageRate*dt);
+    }
+
+    camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
      camera.rotation.order='YXZ';camera.rotation.y=player.yaw;camera.rotation.x=player.pitch;camera.rotation.z=0;
    }
    
@@ -1321,16 +1371,30 @@
    // ═══════════════════════════════════════════════════════════
    // 18. STATUS UI
    // ═══════════════════════════════════════════════════════════
-   function updateStatusUI(){
-     document.getElementById('health-bar').style.width=(STATS.health/STATS.maxHealth*100)+'%';
-     document.getElementById('shield-bar').style.width=(STATS.shield/STATS.maxShield*100)+'%';
-     document.getElementById('hunger-bar').style.width=(STATS.hunger/STATS.maxHunger*100)+'%';
-     document.getElementById('energy-bar').style.width=(STATS.energy/STATS.maxEnergy*100)+'%';
-     for(let i=0;i<3;i++)document.getElementById(`ab${i}`).classList.toggle('full',i<STATS.armor);
-     const ew=document.getElementById('energy-bar-wrap');
-     if(STATS.energy>=STATS.maxEnergy){ew.classList.add('hidden');ew.classList.remove('flash');}
-     else{ew.classList.remove('hidden');ew.classList.toggle('flash',STATS.energy<15);}
-   }
+  function updateStatusUI(){
+    const hpPct=Math.round(Math.max(0,Math.min(100,STATS.health/STATS.maxHealth*100)));
+    const shieldPct=Math.round(Math.max(0,Math.min(100,STATS.shield/STATS.maxShield*100)));
+    const hungerPct=Math.round(Math.max(0,Math.min(100,STATS.hunger/STATS.maxHunger*100)));
+    const energyPct=Math.round(Math.max(0,Math.min(100,STATS.energy/STATS.maxEnergy*100)));
+    const armorPct=Math.round(Math.max(0,Math.min(100,STATS.armor/STATS.maxArmor*100)));
+
+    document.getElementById('health-bar').style.width=hpPct+'%';
+    document.getElementById('shield-bar').style.width=shieldPct+'%';
+    document.getElementById('hunger-bar').style.width=hungerPct+'%';
+    document.getElementById('energy-bar').style.width=energyPct+'%';
+    document.getElementById('armor-bar').style.width=armorPct+'%';
+
+    document.getElementById('health-pct').textContent=`${hpPct}%`;
+    document.getElementById('shield-pct').textContent=`${shieldPct}%`;
+    document.getElementById('hunger-pct').textContent=`${hungerPct}%`;
+    document.getElementById('energy-pct').textContent=`${energyPct}%`;
+    document.getElementById('armor-pct').textContent=`${armorPct}%`;
+
+    document.getElementById('armor-bar-wrap').style.display=STATS.armor>0?'flex':'none';
+    const ew=document.getElementById('energy-bar-wrap');
+    if(STATS.energy>=STATS.maxEnergy){ew.classList.add('hidden');ew.classList.remove('flash');}
+    else{ew.classList.remove('hidden');ew.classList.toggle('flash',STATS.energy<15);}
+  }
    
    // ═══════════════════════════════════════════════════════════
    // 19. DEBUG HUD
@@ -1387,12 +1451,17 @@
        setLoad(15+(done/tot*55)|0,'GENERATING TERRAIN');await delay(4);
      }
    
-     // Find spawn — ensure above ground, not water
-     let sx=8,sz=8;
-     let spH=getHeight(sx,sz);
-     while(spH<=CFG.seaLevel){sx+=8;spH=getHeight(sx,sz);}
-     player.pos.set(sx+0.5,spH+CFG.playerH+1,sz+0.5);
-     camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
+    // Find spawn in a safe land spot within 100m, above terrain
+    const spawn=findSafeSpawn(100);
+    if(spawn){
+      player.pos.set(spawn.wx+0.5,spawn.y+1,spawn.wz+0.5);
+    }else{
+      const y=Math.max(CFG.seaLevel+2,getHeight(0,0)+1);
+      player.pos.set(0.5,y,0.5);
+    }
+    player.vel.set(0,0,0);
+    player.onGround=false;
+    camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
    
      setLoad(72,'BUILDING MESHES');await delay(50);
      for(let dx=-R;dx<=R;dx++)for(let dz=-R;dz<=R;dz++){

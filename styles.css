@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — styles.css — v0.0.7a
+   CUBENIX — styles.css — v0.0.8a
    ============================================================ */
    @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&display=swap');
 
@@ -110,27 +110,51 @@
    .item-count { position:absolute; bottom:1px; right:2px; font-size:0.6rem; color:#fff; text-shadow:1px 1px 0 #000; font-weight:600; line-height:1; }
    
    /* ══ STATUS BARS ══ */
-   #status-left, #status-right {
-     position: fixed; bottom: 55px; z-index: 15; pointer-events: none;
-     display: flex; flex-direction: column; gap: 3px;
-   }
-   #status-left  { left: calc(50% - 208px); align-items: flex-start; }
-   #status-right { right: calc(50% - 208px); align-items: flex-end; }
-   .stat-row { display: flex; align-items: center; gap: 4px; }
-   .stat-icon { font-size: 0.7rem; width: 14px; text-align: center; }
-   .bar-bg { width: 78px; height: 6px; background: #1a1a1a; border: 1px solid #3a3a3a; }
-   .bar { height: 100%; width: 100%; transition: width 0.22s; }
-   .bar-health  { background: #c82020; }
-   .bar-shield  { background: #3a4eaa; }
-   .bar-energy  { background: #d4b820; }
-   .bar-hunger  { background: #9a4e1a; }
-   #armor-display { display: flex; align-items: center; gap: 4px; }
-   #armor-bars { display: flex; gap: 2px; }
-   .armor-bar { width: 20px; height: 4px; background: #3a3a3a; border: 1px solid #2a2a2a; }
-   .armor-bar.full { background: #999; }
-   #energy-bar-wrap { transition: opacity 0.3s; }
-   #energy-bar-wrap.hidden { opacity: 0; }
-   #energy-bar-wrap.flash { animation: flash-e 0.35s ease infinite; }
+#status-left, #status-right {
+  position: fixed; bottom: 55px; z-index: 15; pointer-events: none;
+  display: flex; flex-direction: column; gap: 6px;
+}
+#status-left  { left: calc(50% - 208px); align-items: flex-start; }
+#status-right { right: calc(50% - 208px); align-items: flex-end; }
+.stat-row { display: flex; align-items: center; }
+.bar-bg {
+  position: relative;
+  width: 188px;
+  height: 18px;
+  background: #171717;
+  border: 2px solid #474747;
+  overflow: hidden;
+}
+.bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 100%;
+  transition: width 0.22s;
+}
+.bar-health  { background: #c82020; }
+.bar-shield  { background: #3a4eaa; }
+.bar-armor   { background: #8a8a8a; }
+.bar-energy  { background: #d4b820; }
+.bar-hunger  { background: #9a4e1a; }
+.bar-label,
+.bar-pct {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 1px 1px 0 #000;
+  z-index: 1;
+  pointer-events: none;
+}
+.bar-label { left: 6px; letter-spacing: 0.04em; }
+.bar-pct { right: 6px; }
+#energy-bar-wrap { transition: opacity 0.3s; }
+#energy-bar-wrap.hidden { opacity: 0; }
+#energy-bar-wrap.flash { animation: flash-e 0.35s ease infinite; }
    @keyframes flash-e { 0%,100%{opacity:1} 50%{opacity:0.12} }
    
    /* ══ INVENTORY ══ */
