@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.20a
+   CUBENIX — script.js — v0.0.21a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -915,7 +915,8 @@ function getItemName(id){
     const headY=Math.floor(player.pos.y+CFG.eyeOffset);
     const headBlock=worldGet(Math.floor(player.pos.x),headY,Math.floor(player.pos.z));
     if(headBlock===B.WATER){
-      STATS.air=Math.max(0,STATS.air-35*dt);
+      // ~13.3 seconds to fully deplete from 100 air while submerged
+      STATS.air=Math.max(0,STATS.air-7.5*dt);
       if(STATS.air<=0)STATS.health=Math.max(0,STATS.health-12*dt);
     }else{
       STATS.air=Math.min(STATS.maxAir,STATS.air+45*dt);
@@ -983,21 +984,46 @@ function getItemName(id){
   function flowFluidOnce(fluidId,range=12){
     const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
     const changes=[];
+    const queued=new Set();
+    const queueChange=(wx,wy,wz,id)=>{
+      const k=`${wx},${wy},${wz}`;
+      if(queued.has(k))return;
+      queued.add(k);
+      changes.push([wx,wy,wz,id]);
+    };
     const maxChanges=fluidId===B.LAVA?10:24;
     for(let dx=-range;dx<=range;dx++)for(let dz=-range;dz<=range;dz++)for(let dy=8;dy>=-12;dy--){
       if(changes.length>=maxChanges)break;
       const wx=px+dx,wy=py+dy,wz=pz+dz;
       if(worldGet(wx,wy,wz)!==fluidId)continue;
-      if(worldGet(wx,wy-1,wz)===B.AIR){changes.push([wx,wy-1,wz,fluidId]);continue;}
-      const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+      if(worldGet(wx,wy-1,wz)===B.AIR){queueChange(wx,wy-1,wz,fluidId);continue;}
+      const dirs=[[1,0],[-1,0],[0,1],[0,-1]].sort(()=>Math.random()-0.5);
       for(const [sx,sz] of dirs){
         if(changes.length>=maxChanges)break;
         if(worldGet(wx+sx,wy,wz+sz)!==B.AIR||worldGet(wx+sx,wy-1,wz+sz)===B.AIR)continue;
+        const curveN=frac(Math.abs(h2((wx+sx)*0.7+(fluidId*33), (wz+sz)*0.7-(wy*0.25))));
+        const spreadChance=fluidId===B.LAVA?0.35:0.72;
+        if(curveN>spreadChance)continue;
         if(fluidId===B.LAVA){
           const support=[worldGet(wx+sx+1,wy,wz+sz),worldGet(wx+sx-1,wy,wz+sz),worldGet(wx+sx,wy,wz+sz+1),worldGet(wx+sx,wy,wz+sz-1)].filter(isSolid).length;
           if(support<2)continue;
         }
-        changes.push([wx+sx,wy,wz+sz,fluidId]);
+        queueChange(wx+sx,wy,wz+sz,fluidId);
+      }
+
+      // Corner rounding pass: fill diagonal pockets between two touching fluid sides.
+      const corners=[
+        [[1,0],[0,1]],[[1,0],[0,-1]],[[-1,0],[0,1]],[[-1,0],[0,-1]],
+      ];
+      for(const [[ax,az],[bx,bz]] of corners){
+        if(changes.length>=maxChanges)break;
+        const tx=wx+ax+bx,tz=wz+az+bz;
+        if(worldGet(tx,wy,tz)!==B.AIR||worldGet(tx,wy-1,tz)===B.AIR)continue;
+        if(worldGet(wx+ax,wy,wz+az)!==fluidId||worldGet(wx+bx,wy,wz+bz)!==fluidId)continue;
+        const cornerN=frac(Math.abs(h2(tx*1.13+wy*0.37,tz*1.09-fluidId)));
+        const cornerChance=fluidId===B.LAVA?0.26:0.52;
+        if(cornerN>cornerChance)continue;
+        queueChange(tx,wy,tz,fluidId);
       }
     }
     for(const [wx,wy,wz,id] of changes){
@@ -1860,7 +1886,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.20a',
+        version:'0.0.21a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
