@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.41a
+   CUBENIX — script.js — v0.0.42a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -142,6 +142,11 @@ function getItemName(id){
     if(t.type==='pickaxe'&&isHardMaterial(blockId))return 1+t.eff/100;
     if(t.type==='axe'&&isWoodMaterial(blockId))return 1+t.eff/100;
     return 1;
+   }
+   function getAttackDamage(){
+    const t=getActiveToolStats();
+    if(!t)return 1;
+    return Math.max(1,t.atk);
    }
    function getItemDescription(id){
     const t=TOOL_STATS[id];
@@ -928,10 +933,11 @@ function getItemName(id){
    const boats=[];
    let ridingBoat=null;
 
-   function spawnBoat(wx,wy,wz){
+   function spawnBoat(wx,wy,wz,yaw=0){
     const hull=new THREE.Mesh(new THREE.BoxGeometry(1.28,0.42,2.08),new THREE.MeshLambertMaterial({map:TEX.boat,color:0xffffff}));
     hull.position.set(wx+0.5,wy+0.35,wz+0.5);
-    hull.userData={vx:0,vz:0};
+    hull.rotation.y=yaw;
+    hull.userData={vx:0,vz:0,hp:20};
     scene.add(hull);
     boats.push(hull);
     return hull;
@@ -968,7 +974,9 @@ function getItemName(id){
    function tryHitBoat(){
     const b=nearestBoat(3.0);
     if(!b)return false;
-    destroyBoat(b);
+    b.userData.hp=Math.max(0,(b.userData.hp||20)-getAttackDamage());
+    b.material.color.setHex(b.userData.hp<=8?0xffcaca:0xffffff);
+    if(b.userData.hp<=0)destroyBoat(b);
     return true;
    }
    camera.position.copy(player.pos);
@@ -1751,10 +1759,18 @@ function getItemName(id){
      if(!held)return;
      if(held.id===IT.BOAT){
       const waterY=targetBlock.wy;
-      const tx=targetBlock.wx+0.5,tz=targetBlock.wz+0.5;
-      const waterHere=worldGet(targetBlock.wx,waterY,targetBlock.wz)===B.WATER||worldGet(targetBlock.wx,waterY-1,targetBlock.wz)===B.WATER;
-      if(!waterHere)return;
-      spawnBoat(Math.floor(tx),waterY,Math.floor(tz));
+      const yawCard=Math.round(player.yaw/(Math.PI/2))*(Math.PI/2);
+      const dirX=Math.round(-Math.sin(yawCard));
+      const dirZ=Math.round(-Math.cos(yawCard));
+      const bx=targetBlock.wx,bz=targetBlock.wz;
+      const cells=[[bx,bz],[bx+dirX,bz+dirZ]];
+      const ok=cells.every(([cx,cz])=>{
+        const fluid=worldGet(cx,waterY,cz)===B.WATER||worldGet(cx,waterY-1,cz)===B.WATER;
+        const free=!isSolid(worldGet(cx,waterY,cz))&&!isSolid(worldGet(cx,waterY+1,cz));
+        return fluid&&free;
+      });
+      if(!ok)return;
+      spawnBoat(bx,waterY,bz,yawCard);
       held.count--;if(held.count<=0)INV.hotbar[INV.active]=null;
       updateHotbarUI();drawHand();
       return;
@@ -2411,7 +2427,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.41a',
+        version:'0.0.42a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
