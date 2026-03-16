@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.20a
+   CUBENIX — script.js — v0.0.31a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -30,7 +30,8 @@
      chunkW:16, chunkH:256, seaLevel:63,
      maxReach:4.5,
      playerH:1.8, eyeOffset:1.62,
-     walkSpeed:4.5, sprintSpeed:7.5, flySpeed:0,  // no fly in survival
+    walkSpeed:4.5, sprintSpeed:8.3, sneakSpeed:2.6, flySpeed:0,  // no fly in survival
+    sprintEnergyDrain:11,
      jumpVel:8.0, gravity:22.0,
      mouseSens:0.0022,
      worldLimit:812600,
@@ -40,6 +41,10 @@
     leavesQuality:'default', // low | default | medium | high
     autosave:true,
     guiScale:3,
+    enableVSync:true,
+    enableNixPlus:false,
+    enableCubenixMobile:false,
+    enableCubenixConnect:false,
    };
 
    const AUTOSAVE_KEY='cubenix.autosave.v1';
@@ -745,7 +750,8 @@ function getItemName(id){
      vel:new THREE.Vector3(0,0,0),
      yaw:0,pitch:0,pitchMax:Math.PI/2-0.01,
      onGround:false,
-     width:0.6,height:1.8,
+     width:0.6,height:1.8,standHeight:1.8,sneakHeight:1.5,
+     eyeOffset:1.62,standEyeOffset:1.62,sneakEyeOffset:1.32,
    };
    camera.position.copy(player.pos);
    
@@ -767,22 +773,213 @@ function getItemName(id){
      player.pitch=Math.max(-player.pitchMax,Math.min(player.pitchMax,player.pitch));
    });
    
-   const KEYS={};
-  let wLastTap=0,sprintTap=false,showHud=true;
-   window.addEventListener('keydown',e=>{
-     KEYS[e.code]=true;
-     if(['Space','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();
-     if(e.code.startsWith('Digit')){const n=parseInt(e.code.slice(5))-1;if(n>=0&&n<9){INV.active=n;updateHotbarUI();drawHand();}}
-     if(e.code==='KeyP')togglePause();
-     if(e.code==='KeyE')toggleInventory();
-     if(e.code==='KeyH'){showHud=!showHud;document.getElementById('hud').style.display=showHud?'block':'none';}
+  const KEYS={};
+  let wLastTap=0,sprintTap=false,showHud=true,isChatOpen=false;
+  const CHAT={messages:[],maxLines:9};
+  const TOUCH={
+    enabled:false,
+    keySources:new Map(),
+    lookTouchId:null,lastLookX:0,lastLookY:0,
+  };
+  const CONTROLLER={
+    active:false,
+    prevButtons:[],
+  };
+
+  function isShiftDown(){return !!(KEYS['ShiftLeft']||KEYS['ShiftRight']);}
+  function setVirtualKey(code,source,pressed){
+    if(!TOUCH.keySources.has(code))TOUCH.keySources.set(code,new Set());
+    const set=TOUCH.keySources.get(code);
+    if(pressed)set.add(source);else set.delete(source);
+    KEYS[code]=set.size>0;
+  }
+  function clearMovementKeys(){
+    ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft','ShiftRight','ControlLeft'].forEach(k=>{KEYS[k]=false;});
+  }
+  function renderChatLog(){
+    const log=document.getElementById('chat-log');
+    log.innerHTML='';
+    CHAT.messages.forEach(msg=>{
+      const line=document.createElement('div');
+      line.className='chat-line';
+      line.textContent=msg;
+      log.appendChild(line);
+    });
+    log.scrollTop=log.scrollHeight;
+  }
+  function pushChatMessage(msg){
+    const text=(msg||'').trim();
+    if(!text)return;
+    CHAT.messages.push(text);
+    while(CHAT.messages.length>CHAT.maxLines)CHAT.messages.shift();
+    renderChatLog();
+  }
+  function trySendChatMessage(){
+    const input=document.getElementById('chat-input');
+    const text=input.value.trim();
+    if(!text)return;
+    pushChatMessage(`You: ${text}`);
+    closeChat();
+  }
+  function closeChat(){
+    isChatOpen=false;
+    const panel=document.getElementById('chat-panel');
+    panel.style.display='none';
+    const input=document.getElementById('chat-input');
+    input.value='';
+    input.blur();
+    if(document.getElementById('game-ui').style.display==='block'&&!isPaused&&!isInvOpen&&document.getElementById('settings-menu').style.display!=='flex'){
+      canvas.requestPointerLock();
+    }
+  }
+  function openChat(){
+    if(isPaused||isInvOpen||document.getElementById('settings-menu').style.display==='flex')return;
+    isChatOpen=true;
+    clearMovementKeys();
+    document.getElementById('chat-panel').style.display='flex';
+    renderChatLog();
+    if(document.pointerLockElement)document.exitPointerLock();
+    document.getElementById('chat-input').focus();
+  }
+
+  window.addEventListener('keydown',e=>{
+    if(isChatOpen){
+      if(e.code==='Escape'){e.preventDefault();closeChat();}
+      return;
+    }
+    KEYS[e.code]=true;
+    if(['Space','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();
+    if(e.code.startsWith('Digit')){const n=parseInt(e.code.slice(5))-1;if(n>=0&&n<9){INV.active=n;updateHotbarUI();drawHand();}}
+    if(e.code==='KeyP')togglePause();
+    if(e.code==='KeyE')toggleInventory();
+    if(e.code==='KeyT'){e.preventDefault();openChat();return;}
+    if(e.code==='KeyH'){showHud=!showHud;document.getElementById('hud').style.display=showHud?'block':'none';}
      if(e.code==='KeyW'&&!e.repeat){
        const now=performance.now()*0.001;
        if(now-wLastTap<0.3)sprintTap=true;
        wLastTap=now;
      }
-   });
-   window.addEventListener('keyup',e=>{KEYS[e.code]=false;if(e.code==='KeyW')sprintTap=false;});
+  });
+  window.addEventListener('keyup',e=>{KEYS[e.code]=false;if(e.code==='KeyW')sprintTap=false;});
+  document.getElementById('chat-input').addEventListener('keydown',e=>{
+    if(e.code==='Enter'){
+      e.preventDefault();
+      trySendChatMessage();
+      return;
+    }
+    if(e.code==='Escape'){
+      e.preventDefault();
+      closeChat();
+    }
+  });
+  document.getElementById('chat-send').addEventListener('click',trySendChatMessage);
+
+  function applyTouchControllerVisibility(){
+    const show=!!CFG.enableCubenixMobile;
+    document.getElementById('touch-ui').style.display=show?'block':'none';
+    TOUCH.enabled=show;
+    if(!show){
+      ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft'].forEach(k=>setVirtualKey(k,'touch',false));
+      stopBreaking();
+    }
+  }
+
+  function bindTouchButton(id,code){
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.addEventListener('touchstart',e=>{e.preventDefault();setVirtualKey(code,'touch',true);},{passive:false});
+    el.addEventListener('touchend',e=>{e.preventDefault();setVirtualKey(code,'touch',false);},{passive:false});
+    el.addEventListener('touchcancel',e=>{e.preventDefault();setVirtualKey(code,'touch',false);},{passive:false});
+  }
+
+  function setupTouchControls(){
+    bindTouchButton('touch-forward','KeyW');
+    bindTouchButton('touch-left','KeyA');
+    bindTouchButton('touch-back','KeyS');
+    bindTouchButton('touch-right','KeyD');
+    bindTouchButton('touch-jump','Space');
+    bindTouchButton('touch-sneak','ShiftLeft');
+
+    const breakBtn=document.getElementById('touch-break');
+    breakBtn.addEventListener('touchstart',e=>{e.preventDefault();if(!isPaused&&!isInvOpen)startBreaking();},{passive:false});
+    breakBtn.addEventListener('touchend',e=>{e.preventDefault();stopBreaking();},{passive:false});
+    breakBtn.addEventListener('touchcancel',e=>{e.preventDefault();stopBreaking();},{passive:false});
+
+    const placeBtn=document.getElementById('touch-place');
+    placeBtn.addEventListener('touchstart',e=>{
+      e.preventDefault();
+      if(isPaused||isInvOpen)return;
+      if(!tryOpenInteractable())placeBlock();
+    },{passive:false});
+
+    const gameUi=document.getElementById('game-ui');
+    gameUi.addEventListener('touchstart',e=>{
+      if(!TOUCH.enabled||isPaused||isInvOpen||isChatOpen)return;
+      for(const t of e.changedTouches){
+        if(t.clientX<window.innerWidth*0.55)continue;
+        if(TOUCH.lookTouchId!==null)continue;
+        TOUCH.lookTouchId=t.identifier;
+        TOUCH.lastLookX=t.clientX;TOUCH.lastLookY=t.clientY;
+      }
+    },{passive:true});
+    gameUi.addEventListener('touchmove',e=>{
+      if(!TOUCH.enabled||TOUCH.lookTouchId===null||isPaused||isInvOpen||isChatOpen)return;
+      for(const t of e.changedTouches){
+        if(t.identifier!==TOUCH.lookTouchId)continue;
+        const dx=t.clientX-TOUCH.lastLookX;
+        const dy=t.clientY-TOUCH.lastLookY;
+        TOUCH.lastLookX=t.clientX;TOUCH.lastLookY=t.clientY;
+        player.yaw-=dx*CFG.mouseSens*0.75;
+        player.pitch-=dy*CFG.mouseSens*0.75;
+        player.pitch=Math.max(-player.pitchMax,Math.min(player.pitchMax,player.pitch));
+      }
+    },{passive:true});
+    gameUi.addEventListener('touchend',e=>{
+      for(const t of e.changedTouches){
+        if(t.identifier===TOUCH.lookTouchId)TOUCH.lookTouchId=null;
+      }
+    },{passive:true});
+    gameUi.addEventListener('touchcancel',e=>{
+      for(const t of e.changedTouches){
+        if(t.identifier===TOUCH.lookTouchId)TOUCH.lookTouchId=null;
+      }
+    },{passive:true});
+  }
+
+  function updateControllerInput(){
+    if(!CFG.enableCubenixConnect)return;
+    const pads=navigator.getGamepads?.()||[];
+    const gp=[...pads].find(Boolean);
+    CONTROLLER.active=!!gp;
+    if(!gp)return;
+    const ax0=gp.axes?.[0]||0,ax1=gp.axes?.[1]||0,ax2=gp.axes?.[2]||0,ax3=gp.axes?.[3]||0;
+    const dead=0.2;
+    setVirtualKey('KeyA','pad',ax0<-dead);
+    setVirtualKey('KeyD','pad',ax0>dead);
+    setVirtualKey('KeyW','pad',ax1<-dead);
+    setVirtualKey('KeyS','pad',ax1>dead);
+    if(Math.abs(ax2)>dead){player.yaw-=ax2*CFG.mouseSens*35;}
+    if(Math.abs(ax3)>dead){
+      player.pitch-=ax3*CFG.mouseSens*35;
+      player.pitch=Math.max(-player.pitchMax,Math.min(player.pitchMax,player.pitch));
+    }
+    const jump=gp.buttons?.[0]?.pressed||false;
+    const sneak=gp.buttons?.[1]?.pressed||false;
+    const openChatBtn=gp.buttons?.[3]?.pressed||false;
+    const breakBtn=gp.buttons?.[6]?.pressed||false;
+    const placeBtn=gp.buttons?.[7]?.pressed||false;
+    setVirtualKey('Space','pad',jump);
+    setVirtualKey('ShiftLeft','pad',sneak);
+    if(openChatBtn&&!CONTROLLER.prevButtons[3])openChat();
+    if(breakBtn&&!CONTROLLER.prevButtons[6])startBreaking();
+    if(!breakBtn&&CONTROLLER.prevButtons[6])stopBreaking();
+    if(placeBtn&&!CONTROLLER.prevButtons[7]){if(!tryOpenInteractable())placeBlock();}
+    CONTROLLER.prevButtons[3]=openChatBtn;
+    CONTROLLER.prevButtons[6]=breakBtn;
+    CONTROLLER.prevButtons[7]=placeBtn;
+  }
+
+  setupTouchControls();
    
    // ── AABB collision sweep ──────────────────────────────────
   function getAABBBlocks(px,py,pz){
@@ -860,10 +1057,34 @@ function getItemName(id){
     }
   }
 
+  function hasHeadroomForHeight(targetHeight){
+    const w=player.width/2;
+    for(let ix=Math.floor(player.pos.x-w);ix<=Math.floor(player.pos.x+w);ix++)
+    for(let iy=Math.floor(player.pos.y);iy<=Math.floor(player.pos.y+targetHeight-0.001);iy++)
+    for(let iz=Math.floor(player.pos.z-w);iz<=Math.floor(player.pos.z+w);iz++){
+      if(isSolid(worldGet(ix,iy,iz)))return false;
+    }
+    return true;
+  }
+
+  function updatePlayerStance(){
+    if(isShiftDown()){
+      player.height=player.sneakHeight;
+      player.eyeOffset=player.sneakEyeOffset;
+      return;
+    }
+    if(player.height!==player.standHeight&&hasHeadroomForHeight(player.standHeight)){
+      player.height=player.standHeight;
+      player.eyeOffset=player.standEyeOffset;
+    }
+  }
+
   function movePlayer(dt){
-     if(isPaused||isInvOpen)return;
-     const sprint=KEYS['ControlLeft']||(sprintTap&&KEYS['KeyW']&&!KEYS['KeyS']);
-     const spd=sprint?CFG.sprintSpeed:CFG.walkSpeed;
+     if(isPaused||isInvOpen||isChatOpen)return;
+     updatePlayerStance();
+     const sneaking=player.height===player.sneakHeight;
+     const sprint=(sprintTap&&KEYS['KeyW']&&!KEYS['KeyS']&&!sneaking&&STATS.energy>0);
+     const spd=sneaking?CFG.sneakSpeed:(sprint?CFG.sprintSpeed:CFG.walkSpeed);
      vF.set(-Math.sin(player.yaw),0,-Math.cos(player.yaw));
      vR.set(Math.cos(player.yaw),0,-Math.sin(player.yaw));
      let mx=0,mz=0;
@@ -877,12 +1098,12 @@ function getItemName(id){
      const bodyFluid=playerBodyFluid();
      // Gravity / buoyancy
      if(bodyFluid===B.WATER){
-       player.vel.y+=(2.7-(KEYS['ShiftLeft']?1.2:0))*dt;
+       player.vel.y+=(2.7-(isShiftDown()?1.2:0))*dt;
        player.vel.y-=CFG.gravity*0.22*dt;
        if(KEYS['Space'])player.vel.y=Math.min(player.vel.y+11*dt,3.6);
        player.vel.x*=0.7;player.vel.z*=0.7;
      }else if(bodyFluid===B.LAVA){
-       player.vel.y+=(1.8-(KEYS['ShiftLeft']?0.8:0))*dt;
+       player.vel.y+=(1.8-(isShiftDown()?0.8:0))*dt;
        player.vel.y-=CFG.gravity*0.3*dt;
        if(KEYS['Space'])player.vel.y=Math.min(player.vel.y+9*dt,2.8);
        player.vel.x*=0.55;player.vel.z*=0.55;
@@ -901,8 +1122,8 @@ function getItemName(id){
     else if(player.pos.z<-borderClamp){player.pos.z=-borderClamp;player.vel.z=Math.max(0,player.vel.z);} 
    
      // Energy
-    if(sprint&&(KEYS['KeyW']||KEYS['KeyS']||KEYS['KeyA']||KEYS['KeyD'])){
-      STATS.energy=Math.max(0,STATS.energy-18*dt);
+    if(sprint&&KEYS['KeyW']){
+      STATS.energy=Math.max(0,STATS.energy-CFG.sprintEnergyDrain*dt);
     } else {
       STATS.energy=Math.min(STATS.maxEnergy,STATS.energy+7*dt);
     }
@@ -912,10 +1133,11 @@ function getItemName(id){
       STATS.health=Math.max(0,STATS.health-voidDamageRate*dt);
     }
 
-    const headY=Math.floor(player.pos.y+CFG.eyeOffset);
+    const headY=Math.floor(player.pos.y+player.eyeOffset);
     const headBlock=worldGet(Math.floor(player.pos.x),headY,Math.floor(player.pos.z));
     if(headBlock===B.WATER){
-      STATS.air=Math.max(0,STATS.air-35*dt);
+      // ~13.3 seconds to fully deplete from 100 air while submerged
+      STATS.air=Math.max(0,STATS.air-7.5*dt);
       if(STATS.air<=0)STATS.health=Math.max(0,STATS.health-12*dt);
     }else{
       STATS.air=Math.min(STATS.maxAir,STATS.air+45*dt);
@@ -932,7 +1154,7 @@ function getItemName(id){
       if(lavaContactT>0.11){lavaContactT=0;spawnContactParticle(0xff5500,0.45);spawnContactParticle(0xffaa33,0.4);}
     }else lavaContactT=0;
 
-    camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
+    camera.position.set(player.pos.x,player.pos.y+player.eyeOffset,player.pos.z);
      camera.rotation.order='YXZ';camera.rotation.y=player.yaw;camera.rotation.x=player.pitch;camera.rotation.z=0;
    }
    
@@ -983,21 +1205,46 @@ function getItemName(id){
   function flowFluidOnce(fluidId,range=12){
     const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
     const changes=[];
+    const queued=new Set();
+    const queueChange=(wx,wy,wz,id)=>{
+      const k=`${wx},${wy},${wz}`;
+      if(queued.has(k))return;
+      queued.add(k);
+      changes.push([wx,wy,wz,id]);
+    };
     const maxChanges=fluidId===B.LAVA?10:24;
     for(let dx=-range;dx<=range;dx++)for(let dz=-range;dz<=range;dz++)for(let dy=8;dy>=-12;dy--){
       if(changes.length>=maxChanges)break;
       const wx=px+dx,wy=py+dy,wz=pz+dz;
       if(worldGet(wx,wy,wz)!==fluidId)continue;
-      if(worldGet(wx,wy-1,wz)===B.AIR){changes.push([wx,wy-1,wz,fluidId]);continue;}
-      const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+      if(worldGet(wx,wy-1,wz)===B.AIR){queueChange(wx,wy-1,wz,fluidId);continue;}
+      const dirs=[[1,0],[-1,0],[0,1],[0,-1]].sort(()=>Math.random()-0.5);
       for(const [sx,sz] of dirs){
         if(changes.length>=maxChanges)break;
         if(worldGet(wx+sx,wy,wz+sz)!==B.AIR||worldGet(wx+sx,wy-1,wz+sz)===B.AIR)continue;
+        const curveN=frac(Math.abs(h2((wx+sx)*0.7+(fluidId*33), (wz+sz)*0.7-(wy*0.25))));
+        const spreadChance=fluidId===B.LAVA?0.35:0.72;
+        if(curveN>spreadChance)continue;
         if(fluidId===B.LAVA){
           const support=[worldGet(wx+sx+1,wy,wz+sz),worldGet(wx+sx-1,wy,wz+sz),worldGet(wx+sx,wy,wz+sz+1),worldGet(wx+sx,wy,wz+sz-1)].filter(isSolid).length;
           if(support<2)continue;
         }
-        changes.push([wx+sx,wy,wz+sz,fluidId]);
+        queueChange(wx+sx,wy,wz+sz,fluidId);
+      }
+
+      // Corner rounding pass: fill diagonal pockets between two touching fluid sides.
+      const corners=[
+        [[1,0],[0,1]],[[1,0],[0,-1]],[[-1,0],[0,1]],[[-1,0],[0,-1]],
+      ];
+      for(const [[ax,az],[bx,bz]] of corners){
+        if(changes.length>=maxChanges)break;
+        const tx=wx+ax+bx,tz=wz+az+bz;
+        if(worldGet(tx,wy,tz)!==B.AIR||worldGet(tx,wy-1,tz)===B.AIR)continue;
+        if(worldGet(wx+ax,wy,wz+az)!==fluidId||worldGet(wx+bx,wy,wz+bz)!==fluidId)continue;
+        const cornerN=frac(Math.abs(h2(tx*1.13+wy*0.37,tz*1.09-fluidId)));
+        const cornerChance=fluidId===B.LAVA?0.26:0.52;
+        if(cornerN>cornerChance)continue;
+        queueChange(tx,wy,tz,fluidId);
       }
     }
     for(const [wx,wy,wz,id] of changes){
@@ -1672,6 +1919,7 @@ function getItemName(id){
    }
 
   function openUiScreen(){
+    if(isChatOpen)closeChat();
     isInvOpen=true;
     const inv=document.getElementById('inventory-screen');
     buildInventoryUI();
@@ -1791,7 +2039,8 @@ function getItemName(id){
    // ═══════════════════════════════════════════════════════════
    // 14. PAUSE + SETTINGS
    // ═══════════════════════════════════════════════════════════
-   function togglePause(){
+  function togglePause(){
+     if(isChatOpen)closeChat();
      if(isInvOpen)return;
      isPaused=!isPaused;
      document.getElementById('pause-menu').style.display=isPaused?'flex':'none';
@@ -1803,6 +2052,10 @@ function getItemName(id){
   document.getElementById('pause-settings').addEventListener('click',openSettings);
   document.getElementById('pause-saveMenu').addEventListener('click',()=>{saveGameLocal();location.reload();});
   document.getElementById('settings-back').addEventListener('click',closeSettingsMenu);
+  document.getElementById('settings-experimental').addEventListener('click',()=>{
+    document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+    buildSettingsTab('experimental');
+  });
    document.querySelectorAll('.stab').forEach(btn=>btn.addEventListener('click',()=>{
      document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
      btn.classList.add('active');buildSettingsTab(btn.dataset.tab);
@@ -1824,8 +2077,14 @@ function getItemName(id){
   const PLAYER_SETTINGS=[
      {key:'mouseSens', label:'Mouse Sensitivity',type:'range',min:0.0005,max:0.008,step:0.0005,unit:''},
    ];
+  const EXPERIMENTAL_SETTINGS=[
+    {key:'enableVSync',label:'Enable V-Sync',type:'toggle'},
+    {key:'enableNixPlus',label:'Enable Nix+ (Enhanced Graphics)',type:'toggle'},
+    {key:'enableCubenixMobile',label:'Enable Cubenix Mobile',type:'toggle'},
+    {key:'enableCubenixConnect',label:'Enable Cubenix Connect',type:'toggle'},
+  ];
 
-   const SETTINGS_KEYS=['renderDist','simDist','fov','brightness','fogDensity','guiScale','leavesQuality','shadows','particles','clouds','mouseSens'];
+   const SETTINGS_KEYS=['renderDist','simDist','fov','brightness','fogDensity','guiScale','leavesQuality','shadows','particles','clouds','mouseSens','enableVSync','enableNixPlus','enableCubenixMobile','enableCubenixConnect'];
    let settingsContext='pause'; // pause | menu
 
    function saveSettingsLocal(){
@@ -1860,7 +2119,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.20a',
+        version:'0.0.31a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -1911,7 +2170,7 @@ function getItemName(id){
    
    function buildSettingsTab(tab){
      const body=document.getElementById('settings-body');body.innerHTML='';
-     const list=tab==='video'?VIDEO_SETTINGS:PLAYER_SETTINGS;
+     const list=tab==='video'?VIDEO_SETTINGS:(tab==='player'?PLAYER_SETTINGS:EXPERIMENTAL_SETTINGS);
      list.forEach(s=>{
        const row=document.createElement('div');row.className='setting-row';
        if(s.key==='_optimize')row.id='settings-optimize';
@@ -1945,10 +2204,18 @@ function getItemName(id){
    
   function applySettings(){
      camera.fov=CFG.fov;camera.updateProjectionMatrix();
-     renderer.shadowMap.enabled=CFG.shadows;
+     const nixPlus=!!CFG.enableNixPlus;
+     renderer.shadowMap.enabled=nixPlus?false:CFG.shadows;
+     renderer.setPixelRatio(nixPlus?1:Math.min(window.devicePixelRatio,2));
      const fn=CFG.renderDist*16*CFG.fogDensity;
     scene.fog.near=fn*0.5;scene.fog.far=fn;
     clouds.forEach(c=>c.visible=CFG.clouds);
+    applyTouchControllerVisibility();
+    if(!CFG.enableCubenixConnect){
+      ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft'].forEach(k=>setVirtualKey(k,'pad',false));
+      CONTROLLER.prevButtons.length=0;
+      stopBreaking();
+    }
     applyGuiScale();
     saveSettingsLocal();
   }
@@ -2093,9 +2360,10 @@ function getItemName(id){
    let lastNow=performance.now(),chunkT=0,fallT=0,autosaveT=0,waterFlowT=0,lavaFlowT=0;
    function loop(){
      requestAnimationFrame(loop);
-     const now=performance.now();const dt=Math.min((now-lastNow)*0.001,0.05);lastNow=now;
-     if(!isPaused&&!isInvOpen){
-       handPhase+=dt*9;
+    const now=performance.now();const dt=Math.min((now-lastNow)*0.001,0.05);lastNow=now;
+    if(!isPaused&&!isInvOpen){
+      updateControllerInput();
+      handPhase+=dt*9;
        movePlayer(dt);raycastWorld();tickBreaking(dt);
        updateParticles(dt);updateDrops(dt);updatePrimedTnts(dt);
        updateDayNight(dt);updateAnimTex(dt);
@@ -2173,7 +2441,9 @@ function getItemName(id){
     }
     player.vel.set(0,0,0);
     player.onGround=false;
-    camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
+    player.height=player.standHeight;
+    player.eyeOffset=player.standEyeOffset;
+    camera.position.set(player.pos.x,player.pos.y+player.eyeOffset,player.pos.z);
 
     // alpha test stash: force a diamond chest in front of spawn with 99x known IDs
     const frontX=Math.round(-Math.sin(player.yaw))||1;
