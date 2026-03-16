@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — styles.css — v0.0.15a
+   CUBENIX — styles.css — v0.0.20a
    ============================================================ */
    @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&display=swap');
 
@@ -175,7 +175,7 @@
      /* fits all content without scrolling */
    }
    #inv-header { font-size: 0.78rem; color: #2a2a2a; font-weight: 600; letter-spacing: 0.04em; }
-   #inv-craft-row { display: flex; align-items: center; }
+   #inv-craft-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 2px; }
    #inv-crafting { display: flex; align-items: center; gap: 4px; }
    .inv-label { font-size: 0.65rem; color: #444; font-weight: 600; white-space: nowrap; }
    #crafting-grid { display: grid; grid-template-columns: repeat(var(--craft-cols,2),1fr); gap: 2px; }

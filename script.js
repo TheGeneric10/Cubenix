@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.15a
+   CUBENIX — script.js — v0.0.20a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -33,7 +33,7 @@
      walkSpeed:4.5, sprintSpeed:7.5, flySpeed:0,  // no fly in survival
      jumpVel:8.0, gravity:22.0,
      mouseSens:0.0022,
-     worldLimit:2000,
+     worldLimit:812600,
      fov:70, brightness:1.0,
      particles:true, clouds:true, shadows:true,
      fogDensity:0.8,
@@ -45,6 +45,7 @@
    const AUTOSAVE_KEY='cubenix.autosave.v1';
    const SETTINGS_KEY='cubenix.settings.v1';
    const SEED_KEY='cubenix.seed.v1';
+const WORLD_BORDER_BLOCKS=13000000;
    
    // Block IDs
    const B={
@@ -717,6 +718,25 @@ function getItemName(id){
      scene.add(c);clouds.push(c);
    }
    
+
+  const worldBorderGroup=new THREE.Group();
+  (function initWorldBorder(){
+    const mat=new THREE.MeshBasicMaterial({color:0x3ba3ff,transparent:true,opacity:0.28,side:THREE.DoubleSide});
+    const h=CFG.chunkH;
+    const span=WORLD_BORDER_BLOCKS*2;
+    const thick=0.8;
+    const wallN=new THREE.Mesh(new THREE.BoxGeometry(span,h,thick),mat);
+    const wallS=wallN.clone();
+    const wallE=new THREE.Mesh(new THREE.BoxGeometry(thick,h,span),mat);
+    const wallW=wallE.clone();
+    wallN.position.set(0,h*0.5,WORLD_BORDER_BLOCKS+0.5);
+    wallS.position.set(0,h*0.5,-WORLD_BORDER_BLOCKS-0.5);
+    wallE.position.set(WORLD_BORDER_BLOCKS+0.5,h*0.5,0);
+    wallW.position.set(-WORLD_BORDER_BLOCKS-0.5,h*0.5,0);
+    worldBorderGroup.add(wallN,wallS,wallE,wallW);
+    scene.add(worldBorderGroup);
+  })();
+
    // ═══════════════════════════════════════════════════════════
    // 8.  PLAYER (survival: gravity, jump, collision)
    // ═══════════════════════════════════════════════════════════
@@ -748,14 +768,21 @@ function getItemName(id){
    });
    
    const KEYS={};
+  let wLastTap=0,sprintTap=false,showHud=true;
    window.addEventListener('keydown',e=>{
      KEYS[e.code]=true;
      if(['Space','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();
      if(e.code.startsWith('Digit')){const n=parseInt(e.code.slice(5))-1;if(n>=0&&n<9){INV.active=n;updateHotbarUI();drawHand();}}
      if(e.code==='KeyP')togglePause();
      if(e.code==='KeyE')toggleInventory();
+     if(e.code==='KeyH'){showHud=!showHud;document.getElementById('hud').style.display=showHud?'block':'none';}
+     if(e.code==='KeyW'&&!e.repeat){
+       const now=performance.now()*0.001;
+       if(now-wLastTap<0.3)sprintTap=true;
+       wLastTap=now;
+     }
    });
-   window.addEventListener('keyup',e=>{KEYS[e.code]=false;});
+   window.addEventListener('keyup',e=>{KEYS[e.code]=false;if(e.code==='KeyW')sprintTap=false;});
    
    // ── AABB collision sweep ──────────────────────────────────
   function getAABBBlocks(px,py,pz){
@@ -835,7 +862,7 @@ function getItemName(id){
 
   function movePlayer(dt){
      if(isPaused||isInvOpen)return;
-     const sprint=KEYS['ControlLeft'];
+     const sprint=KEYS['ControlLeft']||(sprintTap&&KEYS['KeyW']&&!KEYS['KeyS']);
      const spd=sprint?CFG.sprintSpeed:CFG.walkSpeed;
      vF.set(-Math.sin(player.yaw),0,-Math.cos(player.yaw));
      vR.set(Math.cos(player.yaw),0,-Math.sin(player.yaw));
@@ -866,6 +893,12 @@ function getItemName(id){
      const stepDt=dt/steps;
      for(let s=0;s<steps;s++)resolveCollision(player.pos,player.vel,stepDt);
     unphasePlayerIfNeeded();
+
+    const borderClamp=WORLD_BORDER_BLOCKS-0.35;
+    if(player.pos.x>borderClamp){player.pos.x=borderClamp;player.vel.x=Math.min(0,player.vel.x);} 
+    else if(player.pos.x<-borderClamp){player.pos.x=-borderClamp;player.vel.x=Math.max(0,player.vel.x);} 
+    if(player.pos.z>borderClamp){player.pos.z=borderClamp;player.vel.z=Math.min(0,player.vel.z);} 
+    else if(player.pos.z<-borderClamp){player.pos.z=-borderClamp;player.vel.z=Math.max(0,player.vel.z);} 
    
      // Energy
     if(sprint&&(KEYS['KeyW']||KEYS['KeyS']||KEYS['KeyA']||KEYS['KeyD'])){
@@ -1125,7 +1158,7 @@ function getItemName(id){
     const mesh=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.9,0.9),new THREE.MeshLambertMaterial({map:TEX.tntSide,color:0xffffff}));
     mesh.position.set(wx+0.5,wy+0.5,wz+0.5);
     scene.add(mesh);
-    primedTnts.push({mesh,time:1.5,flash:0});
+    primedTnts.push({mesh,time:1.5,flash:0,vy:0});
   }
 
   function explodeTnt(wx,wy,wz){
@@ -1137,7 +1170,8 @@ function getItemName(id){
       const id=worldGet(x,y,z);
       if(id===B.AIR||id===B.BEDROCK)continue;
       if(id===B.TNT){igniteTnt(x,y,z);continue;}
-      spawnDrops(x,y,z,id,0.8);
+      const hard=id===B.STONE||id===B.COAL_ORE||id===B.IRON_ORE||id===B.GOLD_ORE||id===B.DIAMOND_ORE||id===B.IRON_BLOCK||id===B.GOLD_BLOCK||id===B.DIAMOND_BLOCK;
+      if(!hard||Math.random()<0.24)spawnDrops(x,y,z,id,0.8);
       worldSet(x,y,z,B.AIR);
       spawnParticles(x,y,z,id);
       buildChunkMesh(Math.floor(x/16),Math.floor(z/16));
@@ -1157,7 +1191,10 @@ function getItemName(id){
       const t=primedTnts[i];
       t.time-=dt;t.flash+=dt*12;
       t.mesh.material.color.setHex((Math.floor(t.flash)%2)?0xffdddd:0xffffff);
-      t.mesh.position.y+=Math.sin(t.flash*2.4)*0.004;
+      t.vy=Math.max(-24,t.vy-28*dt);
+      t.mesh.position.y+=t.vy*dt;
+      const bx=Math.floor(t.mesh.position.x),bz=Math.floor(t.mesh.position.z),by=Math.floor(t.mesh.position.y-0.45);
+      if(isSolid(worldGet(bx,by,bz))){t.mesh.position.y=by+1.45;t.vy=0;}
       if(t.time<=0){
         const p=t.mesh.position;
         scene.remove(t.mesh);t.mesh.geometry.dispose();t.mesh.material.dispose();
@@ -1523,16 +1560,21 @@ function getItemName(id){
      return s;
    }
 
-   function setCraftingSize(size){
-     INV.craftGridSize=size;
-     INV.craftGrid=Array(size*size).fill(null);
+   function setCraftingSize(size,preserve=false){
+     const target=size===3?3:2;
+     const prev=Array.isArray(INV.craftGrid)?INV.craftGrid:[];
+     INV.craftGridSize=target;
+     INV.craftGrid=Array(target*target).fill(null);
+     if(preserve){
+       for(let i=0;i<Math.min(prev.length,INV.craftGrid.length);i++)INV.craftGrid[i]=prev[i];
+     }
      INV.craftResult=null;
    }
 
    function openInventoryMode(){
      INV.uiMode='inventory';
      openContainerKey=null;openContainerStorageKey=null;openContainerSlots=null;
-     setCraftingSize(2);
+     setCraftingSize(2,false);
    }
 
    function openCraftingTableMode(){
@@ -1549,7 +1591,7 @@ function getItemName(id){
      if(!KEYS['ShiftLeft']&&!getPairKey(openContainerKey))tryPairChest(wx,wy,wz,blockId);
      openContainerStorageKey=chestStorageKey(openContainerKey);
      openContainerSlots=ensureContainer(openContainerStorageKey,chestCapacity(blockId,openContainerKey));
-     setCraftingSize(2);
+     setCraftingSize(2,false);
    }
    
    function renderCraftOutput(){
@@ -1573,9 +1615,16 @@ function getItemName(id){
      panel.classList.add('compact');
 
      const craftingGrid=document.getElementById('crafting-grid');
-     craftingGrid.innerHTML='';
-     craftingGrid.style.setProperty('--craft-cols',String(INV.craftGridSize));
-     document.getElementById('crafting-label').textContent=INV.craftGridSize===3?'Crafting Table':'Crafting';
+    if(INV.uiMode==='inventory'&&INV.craftGridSize!==2){
+      setCraftingSize(2,false);
+    }
+    const craftSize=INV.craftGridSize===3?3:2;
+    if(!Array.isArray(INV.craftGrid)||INV.craftGrid.length!==craftSize*craftSize){
+      setCraftingSize(craftSize,false);
+    }
+    craftingGrid.innerHTML='';
+     craftingGrid.style.setProperty('--craft-cols',String(craftSize));
+     document.getElementById('crafting-label').textContent=craftSize===3?'Crafting Table':'Crafting';
 
      const craftRow=document.getElementById('inv-craft-row');
      craftRow.style.display=INV.uiMode==='chest'?'none':'flex';
@@ -1637,7 +1686,7 @@ function getItemName(id){
     document.getElementById('inventory-screen').style.display='none';
     INV.uiMode='inventory';
     openContainerKey=null;openContainerStorageKey=null;openContainerSlots=null;
-    setCraftingSize(2);
+    setCraftingSize(2,false);
     if(document.getElementById('game-ui').style.display==='block')canvas.requestPointerLock();
   }
 
@@ -1667,7 +1716,8 @@ function getItemName(id){
         dropItemFromUI(dragItem.item);
       }else{
         const arr=getSourceArray(dragItem.origin.source);
-        arr[dragItem.origin.idx]=dragItem.item;
+        if(arr)arr[dragItem.origin.idx]=dragItem.item;
+        else dropItemFromUI(dragItem.item);
       }
       dragItem=null;hideDragGhost();buildInventoryUI();updateHotbarUI();
     }
@@ -1810,7 +1860,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.15a',
+        version:'0.0.20a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -2034,7 +2084,7 @@ function getItemName(id){
      const p=player.pos,tod=dayTime<0.5?'Day':'Night';
      document.getElementById('hud-debug').innerHTML=
        `XYZ: ${p.x.toFixed(1)} / ${p.y.toFixed(1)} / ${p.z.toFixed(1)}<br>`+
-      `FPS: ${fps} | Chunks: ${loadedChunks.size} | ${tod} | Seed: ${CURRENT_SEED}`;
+      `FPS: ${fps} | Chunks: ${loadedChunks.size} | ${tod} | Seed: ${CURRENT_SEED}<br>`+`Border: ${(WORLD_BORDER_BLOCKS-Math.max(Math.abs(p.x),Math.abs(p.z))).toFixed(0)} blocks`;
    }
    
    // ═══════════════════════════════════════════════════════════
@@ -2111,8 +2161,7 @@ function getItemName(id){
     STATS.armor=0;
     INV.hotbar=Array(9).fill(null);
     INV.main=Array(27).fill(null);
-    INV.craftGridSize=2;
-    INV.craftGrid=Array(4).fill(null);
+    setCraftingSize(2,false);
     INV.uiMode='inventory';
     INV.active=0;
     const spawn=findSafeSpawn(100,cx0*16,cz0*16);
