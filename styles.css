@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — styles.css — v0.0.10a
+   CUBENIX — styles.css — v0.0.11a
    ============================================================ */
    @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&display=swap');
 
@@ -98,8 +98,8 @@
      display: flex; gap: 2px; z-index: 15; pointer-events: none;
      background: rgba(0,0,0,0.42); border: 2px solid #555; padding: 2px;
    }
-   #hotbar,#status-left,#status-right,#inv-panel,#pause-panel,#settings-panel{transform:scale(var(--gui-scale));}
-   #hotbar,#status-left,#status-right,#pause-panel,#settings-panel{transform-origin:center bottom;}
+   #status-left,#status-right,#inv-panel,#pause-panel,#settings-panel{transform:scale(var(--gui-scale));}
+   #status-left,#status-right,#pause-panel,#settings-panel{transform-origin:center bottom;}
    #inv-panel{transform-origin:center center;}
 .hb-slot {
   width: 44px; height: 44px;
