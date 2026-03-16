@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.52a
+   CUBENIX — script.js — v0.0.53a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -32,11 +32,13 @@
      playerH:1.8, eyeOffset:1.62,
     walkSpeed:4.5, sprintSpeed:8.3, sneakSpeed:2.6, flySpeed:0,  // no fly in survival
     sprintEnergyDrain:11,
-     jumpVel:8.0, gravity:22.0,
+     jumpVel:8.25, gravity:22.0,
      mouseSens:0.0022,
+    touchLookSens:1.0,
+    autoJump:false,
      worldLimit:812600,
      fov:70, brightness:1.0,
-     particles:true, clouds:true, shadows:true,
+     particlesMode:'default', cloudsMode:'default', shadowsMode:'default',
      fogDensity:0.8,
     leavesQuality:'default', // low | default | medium | high
     autosave:true,
@@ -158,7 +160,7 @@ function getItemName(id){
     [IT.DIAMOND_PICKAXE]:1561,[IT.DIAMOND_AXE]:1561,[IT.DIAMOND_BLADE]:1561,
    };
    function isDurableItemId(id){return !!TOOL_STATS[id];}
-   function getMaxStackForId(id){return isDurableItemId(id)?1:99;}
+   function getMaxStackForId(id){return isDurableItemId(id)||id===IT.BOAT?1:99;}
    function getMaxDurabilityForItem(id){return DURABILITY_MAX[id]||1;}
    function makeItemStack(id,count=1){
     const stack={id,count:Math.max(1,Math.min(getMaxStackForId(id),Math.floor(count||1)))};
@@ -719,9 +721,12 @@ function getItemName(id){
     if(curve*curve+curve2*curve2<0.032)return true;
     const conn=octNoise(wx*0.02+210,wz*0.02-90,2,2,0.5);
     if(Math.abs(conn)<0.06&&wy>8&&wy<80)return true;
-    // ravine
-    const rv=frac(Math.abs(h2(Math.floor(wx/5)*5,Math.floor(wz/5)*5+77)));
-    if(rv<0.014&&wy>4&&wy<55){const rw=frac(Math.abs(h2(wx+999,wz+888)));if(rw<0.6)return true;}
+    const ravine=getRavineProfile(wx,wz);
+    if(ravine&&wy>ravine.bottom&&wy<ravine.top){
+      const axisOff=ravine.orient==='x'?Math.abs(wz-ravine.axis):Math.abs(wx-ravine.axis);
+      const width=ravine.half*(1-(wy-ravine.bottom)/(ravine.top-ravine.bottom)*0.35);
+      if(axisOff<Math.max(1.2,width))return true;
+    }
     return false;
   }
    
@@ -737,6 +742,37 @@ function getItemName(id){
      if(q==='high')return 1.0;
      return 0.85;
    }
+
+  function qualityFactor(mode){
+    if(mode==='none')return 0;
+    if(mode==='low')return 0.35;
+    if(mode==='medium')return 0.7;
+    if(mode==='high')return 1;
+    return 0.55;
+  }
+  function particlesEnabled(){return qualityFactor(CFG.particlesMode)>0;}
+  function particleCountScale(){return qualityFactor(CFG.particlesMode);}
+  function cloudsEnabled(){return qualityFactor(CFG.cloudsMode)>0;}
+  function cloudCountScale(){return qualityFactor(CFG.cloudsMode);}
+  function shadowsEnabled(){return qualityFactor(CFG.shadowsMode)>0;}
+
+  function getRavineProfile(wx,wz){
+    const base=Math.floor(wx/8)*8;
+    const baseZ=Math.floor(wz/8)*8;
+    const seed=frac(Math.abs(h2(base+431,baseZ-219)));
+    if(seed>=0.018)return null;
+    const orient=seed<0.009?'x':'z';
+    const axis=orient==='x'?Math.floor(baseZ/6)*6:Math.floor(base/6)*6;
+    const widthN=frac(Math.abs(h2(base+777,baseZ+333)));
+    const half=widthN<0.33?1.6:(widthN<0.76?2.4:3.4);
+    const tallN=frac(Math.abs(h2(base-91,baseZ+517)));
+    const top=tallN<0.2?34:(tallN<0.82?58:86);
+    const depth=tallN<0.2?18:(tallN<0.82?34:54);
+    const bottom=Math.max(8,top-depth);
+    const flood=tallN>0.66?Math.min(top-6,CFG.seaLevel):null;
+    return {orient,axis,half,top,bottom,flood};
+  }
+
    
    function generateChunk(cx,cz){
      const arr=getArr(cx,cz,true);
@@ -758,6 +794,8 @@ function getItemName(id){
            else id=B.GRASS;
          }
          else if(y<=CFG.seaLevel&&h<CFG.seaLevel)id=B.WATER;
+         const rav=getRavineProfile(wx,wz);
+         if(rav&&id===B.AIR&&rav.flood!==null&&y<=rav.flood&&y>rav.bottom+2&&isCave(wx,y,wz))id=B.WATER;
          arr[vKey(lx,y,lz)]=id;
        }
    
@@ -896,7 +934,7 @@ function getItemName(id){
        geo.setAttribute('uv',      new THREE.Float32BufferAttribute(d.uvs,2));
        geo.setIndex(d.idx);
        const mesh=new THREE.Mesh(geo,getMats(id)[0]);
-       mesh.castShadow=CFG.shadows;mesh.receiveShadow=CFG.shadows;
+       const sh=shadowsEnabled();mesh.castShadow=sh;mesh.receiveShadow=sh;
        grp.add(mesh);
      });
      scene.add(grp);chunkMeshes.set(key,grp);
@@ -976,7 +1014,7 @@ function getItemName(id){
     const hull=new THREE.Mesh(new THREE.BoxGeometry(1.28,0.42,2.08),new THREE.MeshLambertMaterial({map:TEX.boat,color:0xffffff}));
     hull.position.set(wx+0.5,wy+0.35,wz+0.5);
     hull.rotation.y=yaw;
-    hull.userData={vx:0,vz:0,hp:20,riders:0,maxRiders:2};
+    hull.userData={vx:0,vz:0,vy:0,hp:20,riders:0,maxRiders:2,spanX:Math.abs(Math.round(Math.sin(yaw))),spanZ:Math.abs(Math.round(Math.cos(yaw)))};
     scene.add(hull);
     boats.push(hull);
     return hull;
@@ -989,6 +1027,10 @@ function getItemName(id){
     }
     return best;
    }
+  function tryUseBoat(){
+    if(ridingBoat){dismountBoat();return true;}
+    return mountNearestBoat();
+  }
   function mountNearestBoat(){
     const b=nearestBoat(3.4);
     if(!b)return false;
@@ -1051,6 +1093,7 @@ function getItemName(id){
     enabled:false,
     keySources:new Map(),
     lookTouchId:null,lastLookX:0,lastLookY:0,
+    forceSprint:false,forceSneak:false,
   };
   const CONTROLLER={
     active:false,
@@ -1162,6 +1205,9 @@ function getItemName(id){
     TOUCH.enabled=show;
     if(!show){
       ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft'].forEach(k=>setVirtualKey(k,'touch',false));
+      TOUCH.forceSprint=false;TOUCH.forceSneak=false;
+      document.getElementById('touch-sprint')?.classList.remove('active');
+      document.getElementById('touch-sneak')?.classList.remove('active');
       stopBreaking();
     }
   }
@@ -1180,7 +1226,10 @@ function getItemName(id){
     bindTouchButton('touch-back','KeyS');
     bindTouchButton('touch-right','KeyD');
     bindTouchButton('touch-jump','Space');
-    bindTouchButton('touch-sneak','ShiftLeft');
+    const sneakBtn=document.getElementById('touch-sneak');
+    const sprintBtn=document.getElementById('touch-sprint');
+    sneakBtn?.addEventListener('touchstart',e=>{e.preventDefault();TOUCH.forceSneak=!TOUCH.forceSneak;if(TOUCH.forceSneak)TOUCH.forceSprint=false;sneakBtn.classList.toggle('active',TOUCH.forceSneak);sprintBtn?.classList.toggle('active',TOUCH.forceSprint);},{passive:false});
+    sprintBtn?.addEventListener('touchstart',e=>{e.preventDefault();TOUCH.forceSprint=!TOUCH.forceSprint;if(TOUCH.forceSprint)TOUCH.forceSneak=false;sprintBtn.classList.toggle('active',TOUCH.forceSprint);sneakBtn?.classList.toggle('active',TOUCH.forceSneak);},{passive:false});
 
     const breakBtn=document.getElementById('touch-break');
     breakBtn.addEventListener('touchstart',e=>{e.preventDefault();if(!isPaused&&!isInvOpen)startBreaking();},{passive:false});
@@ -1211,8 +1260,9 @@ function getItemName(id){
         const dx=t.clientX-TOUCH.lastLookX;
         const dy=t.clientY-TOUCH.lastLookY;
         TOUCH.lastLookX=t.clientX;TOUCH.lastLookY=t.clientY;
-        player.yaw-=dx*CFG.mouseSens*0.75;
-        player.pitch-=dy*CFG.mouseSens*0.75;
+        const ts=Math.max(0.4,Math.min(2.5,CFG.touchLookSens||1));
+        player.yaw-=dx*CFG.mouseSens*0.75*ts;
+        player.pitch-=dy*CFG.mouseSens*0.75*ts;
         player.pitch=Math.max(-player.pitchMax,Math.min(player.pitchMax,player.pitch));
       }
     },{passive:true});
@@ -1369,9 +1419,9 @@ function getItemName(id){
      if(ridingBoat){
       const boat=ridingBoat;
       const onWater=worldGet(Math.floor(boat.position.x),Math.floor(boat.position.y-0.2),Math.floor(boat.position.z))===B.WATER;
-      const accel=onWater?16:5;
-      const maxSpd=onWater?9.5:2.4;
-      const drag=onWater?0.92:0.78;
+      const accel=onWater?22:6;
+      const maxSpd=onWater?12.5:3.1;
+      const drag=onWater?0.94:0.8;
       let drive=0;
       if(KEYS['KeyW'])drive+=1;
       if(KEYS['KeyS'])drive-=0.55;
@@ -1383,17 +1433,23 @@ function getItemName(id){
       if(vLen>maxSpd){const s=maxSpd/vLen;boat.userData.vx*=s;boat.userData.vz*=s;}
       boat.position.x+=boat.userData.vx*dt;
       boat.position.z+=boat.userData.vz*dt;
+      const fx=Math.floor(boat.position.x),fz=Math.floor(boat.position.z);
+      const waterHere=worldGet(fx,Math.floor(boat.position.y-0.25),fz)===B.WATER||worldGet(fx,Math.floor(boat.position.y-0.95),fz)===B.WATER;
+      if(waterHere){boat.position.y=Math.max(boat.position.y,Math.floor(boat.position.y)+0.35);boat.userData.vy=(boat.userData.vy||0)*0.65;}
+      else{boat.userData.vy=Math.max(-6,(boat.userData.vy||0)-14*dt);boat.position.y+=boat.userData.vy*dt;}
       const by=Math.floor(boat.position.y-0.5);
-      if(!onWater&&isSolid(worldGet(Math.floor(boat.position.x),by,Math.floor(boat.position.z)))){boat.userData.vx*=0.5;boat.userData.vz*=0.5;}
+      if(!onWater&&isSolid(worldGet(fx,by,fz))){boat.userData.vx*=0.5;boat.userData.vz*=0.5;boat.userData.vy=Math.max(0,boat.userData.vy||0);}
       player.pos.set(boat.position.x,boat.position.y+0.15,boat.position.z);
       player.vel.set(0,0,0);
       camera.position.set(player.pos.x,player.pos.y+player.standEyeOffset,player.pos.z);
       camera.rotation.order='YXZ';camera.rotation.y=player.yaw;camera.rotation.x=player.pitch;camera.rotation.z=0;
       return;
      }
+     if(TOUCH.forceSneak)setVirtualKey('ShiftLeft','touch-force',true);
+     else setVirtualKey('ShiftLeft','touch-force',false);
      updatePlayerStance();
-     const sneaking=player.height===player.sneakHeight;
-     const sprint=(sprintTap&&KEYS['KeyW']&&!KEYS['KeyS']&&!sneaking&&STATS.energy>0);
+     const sneaking=player.height===player.sneakHeight||TOUCH.forceSneak;
+     const sprint=(TOUCH.forceSprint||(sprintTap&&KEYS['KeyW']))&&!KEYS['KeyS']&&!sneaking&&STATS.energy>0;
      const spd=sneaking?CFG.sneakSpeed:(sprint?CFG.sprintSpeed:CFG.walkSpeed);
      vF.set(-Math.sin(player.yaw),0,-Math.cos(player.yaw));
      vR.set(Math.cos(player.yaw),0,-Math.sin(player.yaw));
@@ -1405,6 +1461,13 @@ function getItemName(id){
      player.vel.x=mx;player.vel.z=mz;
      // Jump
      if(KEYS['Space']&&player.onGround){player.vel.y=CFG.jumpVel;player.onGround=false;}
+     else if(CFG.autoJump&&player.onGround&&KEYS['KeyW']&&!KEYS['KeyS']){
+       const fx=-Math.sin(player.yaw),fz=-Math.cos(player.yaw);
+       const tx=Math.floor(player.pos.x+fx*0.6),tz=Math.floor(player.pos.z+fz*0.6),ty=Math.floor(player.pos.y);
+       const stepSolid=isSolid(worldGet(tx,ty,tz));
+       const aboveFree=!isSolid(worldGet(tx,ty+1,tz))&&!isSolid(worldGet(tx,ty+2,tz));
+       if(stepSolid&&aboveFree){player.vel.y=CFG.jumpVel*0.98;player.onGround=false;}
+     }
      const bodyFluid=playerBodyFluid();
      // Gravity / buoyancy
      if(bodyFluid===B.WATER){
@@ -1652,13 +1715,14 @@ function getItemName(id){
    // Particles
    const particles=[];
    function spawnParticles(wx,wy,wz,id){
-     if(!CFG.particles)return;
+     if(!particlesEnabled())return;
      const tx=getItemTex(id);
      const pc=document.createElement('canvas');pc.width=pc.height=1;
      const pg=pc.getContext('2d');pg.drawImage(tx.image,4,4,8,8,0,0,1,1);
      const d=pg.getImageData(0,0,1,1).data;
      const col=new THREE.Color(d[0]/255,d[1]/255,d[2]/255);
-     for(let i=0;i<10;i++){
+     const cnt=Math.max(2,Math.round(10*particleCountScale()));
+    for(let i=0;i<cnt;i++){
        const p=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,0.1),new THREE.MeshLambertMaterial({color:col}));
        p.position.set(wx+0.5+(Math.random()-0.5)*0.5,wy+0.5+(Math.random()-0.5)*0.5,wz+0.5+(Math.random()-0.5)*0.5);
        p.userData={vel:new THREE.Vector3((Math.random()-0.5)*3,(Math.random()*2+0.5),(Math.random()-0.5)*3),life:1.0};
@@ -1772,7 +1836,7 @@ function getItemName(id){
    canvas.addEventListener('mousedown',e=>{
      if(!document.pointerLockElement||isPaused||isInvOpen)return;
      if(e.button===0){if(!tryHitBoat())startBreaking();}
-     if(e.button===2){if(!tryOpenInteractable())placeBlock();}
+     if(e.button===2){if(!tryUseBoat()&&!tryOpenInteractable())placeBlock();}
    });
    canvas.addEventListener('mouseup',e=>{if(e.button===0)stopBreaking();});
    
@@ -1828,21 +1892,24 @@ function getItemName(id){
      const held=INV.hotbar[INV.active];
      if(!held)return;
      if(held.id===IT.BOAT){
-      const waterY=targetBlock.wy;
       const yawCard=Math.round(player.yaw/(Math.PI/2))*(Math.PI/2);
       const dirX=Math.round(-Math.sin(yawCard));
       const dirZ=Math.round(-Math.cos(yawCard));
-      const bx=targetBlock.wx,bz=targetBlock.wz;
-      const cells=[[bx,bz],[bx+dirX,bz+dirZ]];
-      const ok=cells.every(([cx,cz])=>{
-        const fluid=worldGet(cx,waterY,cz)===B.WATER||worldGet(cx,waterY-1,cz)===B.WATER;
-        const free=!isSolid(worldGet(cx,waterY,cz))&&!isSolid(worldGet(cx,waterY+1,cz));
-        return fluid&&free;
-      });
-      if(!ok)return;
-      spawnBoat(bx,waterY,bz,yawCard);
+      const candidates=[[targetBlock.wx,targetBlock.wy,targetBlock.wz],[targetBlock.wx+targetBlock.face[0],targetBlock.wy+targetBlock.face[1],targetBlock.wz+targetBlock.face[2]]];
+      let placed=null;
+      for(const [bx,by,bz] of candidates){
+        const cells=[[bx,bz],[bx+dirX,bz+dirZ]];
+        const ok=cells.every(([cx,cz])=>{
+          const fluid=worldGet(cx,by,cz)===B.WATER||worldGet(cx,by-1,cz)===B.WATER;
+          const free=!isSolid(worldGet(cx,by,cz))&&!isSolid(worldGet(cx,by+1,cz));
+          return fluid&&free;
+        });
+        if(ok){placed=spawnBoat(bx,by,bz,yawCard);break;}
+      }
+      if(!placed)return;
       held.count--;if(held.count<=0)INV.hotbar[INV.active]=null;
       updateHotbarUI();drawHand();
+      if(!ridingBoat){ridingBoat=placed;placed.userData.riders=1;}
       return;
      }
      if(!isBlockItem(held.id))return;
@@ -2485,13 +2552,15 @@ function getItemName(id){
      {key:'fogDensity',label:'Fog Density',type:'range',min:0.1,max:1.0,step:0.05,unit:''},
      {key:'guiScale',  label:'GUI Scale',type:'range',min:1,max:4,step:1,unit:''},
      {key:'leavesQuality',label:'Leaves Quality',type:'select',opts:['default','low','medium','high']},
-     {key:'shadows',   label:'Shadows',type:'toggle'},
-     {key:'particles', label:'Particles',type:'toggle'},
-     {key:'clouds',    label:'Clouds',type:'toggle'},
+     {key:'shadowsMode', label:'Shadows',type:'select',opts:['default','none','low','medium','high']},
+     {key:'particlesMode',label:'Particles',type:'select',opts:['default','low','medium','high']},
+     {key:'cloudsMode',label:'Clouds',type:'select',opts:['default','none','low','medium','high']},
      {key:'_optimize', label:'Auto-Optimize for Device',type:'action',action:optimizeSettings},
    ];
   const PLAYER_SETTINGS=[
      {key:'mouseSens', label:'Mouse Sensitivity',type:'range',min:0.0005,max:0.008,step:0.0005,unit:''},
+     {key:'touchLookSens',label:'Touch Look Sensitivity',type:'range',min:0.4,max:2.5,step:0.1,unit:'x'},
+     {key:'autoJump',label:'Auto Jump',type:'toggle'},
    ];
   const EXPERIMENTAL_SETTINGS=[
     {key:'enableVSync',label:'Enable V-Sync',type:'toggle'},
@@ -2503,7 +2572,7 @@ function getItemName(id){
     {key:'nixGlow',label:'Nix+ Glow',type:'range',min:0,max:1,step:0.05,unit:''},
   ];
 
-   const SETTINGS_KEYS=['renderDist','simDist','fov','brightness','fogDensity','guiScale','leavesQuality','shadows','particles','clouds','mouseSens','enableVSync','enableNixPlus','enableCubenixMobile','enableCubenixConnect','nixSaturation','nixContrast','nixGlow'];
+   const SETTINGS_KEYS=['renderDist','simDist','fov','brightness','fogDensity','guiScale','leavesQuality','shadowsMode','particlesMode','cloudsMode','mouseSens','touchLookSens','autoJump','enableVSync','enableNixPlus','enableCubenixMobile','enableCubenixConnect','nixSaturation','nixContrast','nixGlow'];
    let settingsContext='pause'; // pause | menu
 
    function saveSettingsLocal(){
@@ -2519,6 +2588,9 @@ function getItemName(id){
        if(!raw)return;
        const data=JSON.parse(raw);
       SETTINGS_KEYS.forEach(k=>{if(data[k]!==undefined)CFG[k]=data[k];});
+      if(typeof data.shadows==='boolean'&&data.shadowsMode===undefined)CFG.shadowsMode=data.shadows?'default':'none';
+      if(typeof data.particles==='boolean'&&data.particlesMode===undefined)CFG.particlesMode=data.particles?'default':'none';
+      if(typeof data.clouds==='boolean'&&data.cloudsMode===undefined)CFG.cloudsMode=data.clouds?'default':'none';
       CFG.autosave=true;
     }catch{}
   }
@@ -2538,7 +2610,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.52a',
+        version:'0.0.53a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -2629,7 +2701,8 @@ function getItemName(id){
   function applySettings(){
      camera.fov=CFG.fov;camera.updateProjectionMatrix();
    const nixPlus=!!CFG.enableNixPlus;
-   renderer.shadowMap.enabled=nixPlus?false:CFG.shadows;
+   const shScale=qualityFactor(CFG.shadowsMode);
+   renderer.shadowMap.enabled=nixPlus?false:shScale>0;
    renderer.setPixelRatio(nixPlus?1:Math.min(window.devicePixelRatio,2));
    const canvasEl=document.getElementById('game-canvas');
    if(nixPlus){
@@ -2640,7 +2713,10 @@ function getItemName(id){
    }else canvasEl.style.filter='none';
      const fn=CFG.renderDist*16*CFG.fogDensity;
     scene.fog.near=fn*0.5;scene.fog.far=fn;
-    clouds.forEach(c=>c.visible=CFG.clouds);
+    const cScale=cloudCountScale();
+    clouds.forEach((c,i)=>{c.visible=cloudsEnabled()&&(i<Math.floor(clouds.length*Math.max(0.15,cScale)));});
+    sun.castShadow=!nixPlus&&shScale>0;
+    sun.shadow.mapSize.set(shScale>=0.95?2048:shScale>=0.7?1536:1024,shScale>=0.95?2048:shScale>=0.7?1536:1024);
     applyTouchControllerVisibility();
     if(!CFG.enableCubenixConnect){
       ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft'].forEach(k=>setVirtualKey(k,'pad',false));
@@ -2653,7 +2729,7 @@ function getItemName(id){
    
   function optimizeSettings(){
      const hi=window.devicePixelRatio>=2&&(navigator.hardwareConcurrency||4)>=8;
-     CFG.renderDist=hi?10:6;CFG.simDist=hi?8:4;CFG.shadows=hi;CFG.particles=true;CFG.clouds=hi;CFG.fogDensity=hi?0.8:0.55;
+     CFG.renderDist=hi?10:6;CFG.simDist=hi?8:4;CFG.shadowsMode=hi?'default':'low';CFG.particlesMode='default';CFG.cloudsMode=hi?'default':'medium';CFG.fogDensity=hi?0.8:0.55;
      renderer.setPixelRatio(hi?Math.min(window.devicePixelRatio,2):1);
      applySettings();
    }
@@ -2771,6 +2847,8 @@ function getItemName(id){
     aw.style.display=STATS.air<STATS.maxAir?'flex':'none';
     if(STATS.energy>=STATS.maxEnergy){ew.classList.add('hidden');ew.classList.remove('flash');}
     else{ew.classList.remove('hidden');ew.classList.toggle('flash',STATS.energy<15);}
+    const tsc=document.getElementById('touch-sprint-cooldown');
+    if(tsc)tsc.style.height=(100-energyPct)+'%';
   }
    
    // ═══════════════════════════════════════════════════════════

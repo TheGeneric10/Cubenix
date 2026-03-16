@@ -253,6 +253,10 @@
 #touch-left { grid-column:1; grid-row:2; }
 #touch-back { grid-column:2; grid-row:2; }
 #touch-right { grid-column:3; grid-row:2; }
-#touch-actions { right:16px; bottom:76px; grid-template-columns:repeat(2,70px); grid-template-rows:repeat(2,54px); }
+#touch-actions { right:16px; bottom:76px; grid-template-columns:repeat(3,70px); grid-template-rows:repeat(2,54px); }
 .touch-btn { border:1px solid rgba(255,255,255,0.4); background:rgba(18,18,18,0.55); color:#fff; font-size:0.72rem; font-family:'Titillium Web',monospace; text-shadow:0 1px 1px #000; border-radius:8px; }
 .touch-btn:active { background:rgba(90,90,90,0.75); }
+.touch-btn.active { background:rgba(90,140,90,0.78); border-color:rgba(180,255,180,0.65); }
+#touch-sprint { position:relative; overflow:hidden; }
+#touch-sprint-cooldown { position:absolute; left:0; right:0; bottom:0; height:0%; background:rgba(220,60,60,0.5); pointer-events:none; transition:height 0.12s; }
+
