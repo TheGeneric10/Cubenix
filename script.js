@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.14a
+   CUBENIX — script.js — v0.0.15a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -71,7 +71,11 @@
      [IT.GOLD_INGOT]:'Gold Ingot',[IT.DIAMOND]:'Diamond',
      [IT.STICK]:'Stick',[IT.WOOD_PICKAXE]:'Wooden Pickaxe',
    };
-   function getItemName(id){
+   function getAllKnownIds(){
+  const ids=[...Object.values(B),...Object.values(IT)].filter(Number.isFinite);
+  return [...new Set(ids)].sort((a,b)=>a-b);
+}
+function getItemName(id){
      if(id<100) return BLOCK_NAMES[id]||'Unknown';
      return ITEM_NAMES[id]||'Item '+id;
    }
@@ -584,6 +588,21 @@
          }
        }
    
+
+      // Deep under-level flat cave lava spaces
+      const flatMask=Math.abs(octNoise(wx*0.017+210,wz*0.017-140,3,2,0.5));
+      if(flatMask<0.05&&h>26){
+        const lavaY=6+((frac(Math.abs(h2(wx*1.2+77,wz*1.3-33)))*4)|0);
+        for(let dlx=-4;dlx<=4;dlx++)for(let dlz=-4;dlz<=4;dlz++){
+          const lx2=lx+dlx,lz2=lz+dlz;
+          if(lx2<0||lx2>=16||lz2<0||lz2>=16)continue;
+          const r=(dlx*dlx)/(4.8*4.8)+(dlz*dlz)/(4.2*4.2);
+          if(r>1)continue;
+          arr[vKey(lx2,lavaY,lz2)]=B.LAVA;
+          for(let y=lavaY+1;y<=lavaY+4;y++)arr[vKey(lx2,y,lz2)]=B.AIR;
+        }
+      }
+
        // Oak tree
 
        const tdChance=0.02;
@@ -1791,7 +1810,7 @@
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.14a',
+        version:'0.0.15a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -2108,15 +2127,15 @@
     camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
 
     // alpha test stash: force a diamond chest in front of spawn with 99x known IDs
-    const chestX=Math.floor(player.pos.x)+2;
-    const chestZ=Math.floor(player.pos.z);
+    const frontX=Math.round(-Math.sin(player.yaw))||1;
+    const frontZ=Math.round(-Math.cos(player.yaw));
+    const chestX=Math.floor(player.pos.x)+frontX;
+    const chestZ=Math.floor(player.pos.z)+frontZ;
     const chestY=Math.max(1,Math.floor(player.pos.y));
     worldSet(chestX,chestY,chestZ,B.DIAMOND_CHEST);
     const alphaKey=worldPosKey(chestX,chestY,chestZ);
     const alphaSlots=ensureContainer(alphaKey,chestCapacity(B.DIAMOND_CHEST,alphaKey));
-    const allIds=[];
-    for(let id=0;id<=B.DIAMOND_BLOCK;id++)allIds.push(id);
-    [IT.COAL,IT.IRON_INGOT,IT.GOLD_INGOT,IT.DIAMOND,IT.STICK,IT.WOOD_PICKAXE].forEach(id=>allIds.push(id));
+    const allIds=getAllKnownIds();
     for(let i=0;i<alphaSlots.length&&i<allIds.length;i++)alphaSlots[i]={id:allIds[i],count:99};
 
      setLoad(70,'BUILDING MESHES');
