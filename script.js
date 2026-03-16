@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.30a
+   CUBENIX — script.js — v0.0.31a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -773,11 +773,26 @@ function getItemName(id){
      player.pitch=Math.max(-player.pitchMax,Math.min(player.pitchMax,player.pitch));
    });
    
-   const KEYS={};
+  const KEYS={};
   let wLastTap=0,sprintTap=false,showHud=true,isChatOpen=false;
   const CHAT={messages:[],maxLines:9};
+  const TOUCH={
+    enabled:false,
+    keySources:new Map(),
+    lookTouchId:null,lastLookX:0,lastLookY:0,
+  };
+  const CONTROLLER={
+    active:false,
+    prevButtons:[],
+  };
 
   function isShiftDown(){return !!(KEYS['ShiftLeft']||KEYS['ShiftRight']);}
+  function setVirtualKey(code,source,pressed){
+    if(!TOUCH.keySources.has(code))TOUCH.keySources.set(code,new Set());
+    const set=TOUCH.keySources.get(code);
+    if(pressed)set.add(source);else set.delete(source);
+    KEYS[code]=set.size>0;
+  }
   function clearMovementKeys(){
     ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft','ShiftRight','ControlLeft'].forEach(k=>{KEYS[k]=false;});
   }
@@ -798,6 +813,13 @@ function getItemName(id){
     CHAT.messages.push(text);
     while(CHAT.messages.length>CHAT.maxLines)CHAT.messages.shift();
     renderChatLog();
+  }
+  function trySendChatMessage(){
+    const input=document.getElementById('chat-input');
+    const text=input.value.trim();
+    if(!text)return;
+    pushChatMessage(`You: ${text}`);
+    closeChat();
   }
   function closeChat(){
     isChatOpen=false;
@@ -842,9 +864,7 @@ function getItemName(id){
   document.getElementById('chat-input').addEventListener('keydown',e=>{
     if(e.code==='Enter'){
       e.preventDefault();
-      const text=e.currentTarget.value.trim();
-      if(text)pushChatMessage(`You: ${text}`);
-      closeChat();
+      trySendChatMessage();
       return;
     }
     if(e.code==='Escape'){
@@ -852,6 +872,114 @@ function getItemName(id){
       closeChat();
     }
   });
+  document.getElementById('chat-send').addEventListener('click',trySendChatMessage);
+
+  function applyTouchControllerVisibility(){
+    const show=!!CFG.enableCubenixMobile;
+    document.getElementById('touch-ui').style.display=show?'block':'none';
+    TOUCH.enabled=show;
+    if(!show){
+      ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft'].forEach(k=>setVirtualKey(k,'touch',false));
+      stopBreaking();
+    }
+  }
+
+  function bindTouchButton(id,code){
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.addEventListener('touchstart',e=>{e.preventDefault();setVirtualKey(code,'touch',true);},{passive:false});
+    el.addEventListener('touchend',e=>{e.preventDefault();setVirtualKey(code,'touch',false);},{passive:false});
+    el.addEventListener('touchcancel',e=>{e.preventDefault();setVirtualKey(code,'touch',false);},{passive:false});
+  }
+
+  function setupTouchControls(){
+    bindTouchButton('touch-forward','KeyW');
+    bindTouchButton('touch-left','KeyA');
+    bindTouchButton('touch-back','KeyS');
+    bindTouchButton('touch-right','KeyD');
+    bindTouchButton('touch-jump','Space');
+    bindTouchButton('touch-sneak','ShiftLeft');
+
+    const breakBtn=document.getElementById('touch-break');
+    breakBtn.addEventListener('touchstart',e=>{e.preventDefault();if(!isPaused&&!isInvOpen)startBreaking();},{passive:false});
+    breakBtn.addEventListener('touchend',e=>{e.preventDefault();stopBreaking();},{passive:false});
+    breakBtn.addEventListener('touchcancel',e=>{e.preventDefault();stopBreaking();},{passive:false});
+
+    const placeBtn=document.getElementById('touch-place');
+    placeBtn.addEventListener('touchstart',e=>{
+      e.preventDefault();
+      if(isPaused||isInvOpen)return;
+      if(!tryOpenInteractable())placeBlock();
+    },{passive:false});
+
+    const gameUi=document.getElementById('game-ui');
+    gameUi.addEventListener('touchstart',e=>{
+      if(!TOUCH.enabled||isPaused||isInvOpen||isChatOpen)return;
+      for(const t of e.changedTouches){
+        if(t.clientX<window.innerWidth*0.55)continue;
+        if(TOUCH.lookTouchId!==null)continue;
+        TOUCH.lookTouchId=t.identifier;
+        TOUCH.lastLookX=t.clientX;TOUCH.lastLookY=t.clientY;
+      }
+    },{passive:true});
+    gameUi.addEventListener('touchmove',e=>{
+      if(!TOUCH.enabled||TOUCH.lookTouchId===null||isPaused||isInvOpen||isChatOpen)return;
+      for(const t of e.changedTouches){
+        if(t.identifier!==TOUCH.lookTouchId)continue;
+        const dx=t.clientX-TOUCH.lastLookX;
+        const dy=t.clientY-TOUCH.lastLookY;
+        TOUCH.lastLookX=t.clientX;TOUCH.lastLookY=t.clientY;
+        player.yaw-=dx*CFG.mouseSens*0.75;
+        player.pitch-=dy*CFG.mouseSens*0.75;
+        player.pitch=Math.max(-player.pitchMax,Math.min(player.pitchMax,player.pitch));
+      }
+    },{passive:true});
+    gameUi.addEventListener('touchend',e=>{
+      for(const t of e.changedTouches){
+        if(t.identifier===TOUCH.lookTouchId)TOUCH.lookTouchId=null;
+      }
+    },{passive:true});
+    gameUi.addEventListener('touchcancel',e=>{
+      for(const t of e.changedTouches){
+        if(t.identifier===TOUCH.lookTouchId)TOUCH.lookTouchId=null;
+      }
+    },{passive:true});
+  }
+
+  function updateControllerInput(){
+    if(!CFG.enableCubenixConnect)return;
+    const pads=navigator.getGamepads?.()||[];
+    const gp=[...pads].find(Boolean);
+    CONTROLLER.active=!!gp;
+    if(!gp)return;
+    const ax0=gp.axes?.[0]||0,ax1=gp.axes?.[1]||0,ax2=gp.axes?.[2]||0,ax3=gp.axes?.[3]||0;
+    const dead=0.2;
+    setVirtualKey('KeyA','pad',ax0<-dead);
+    setVirtualKey('KeyD','pad',ax0>dead);
+    setVirtualKey('KeyW','pad',ax1<-dead);
+    setVirtualKey('KeyS','pad',ax1>dead);
+    if(Math.abs(ax2)>dead){player.yaw-=ax2*CFG.mouseSens*35;}
+    if(Math.abs(ax3)>dead){
+      player.pitch-=ax3*CFG.mouseSens*35;
+      player.pitch=Math.max(-player.pitchMax,Math.min(player.pitchMax,player.pitch));
+    }
+    const jump=gp.buttons?.[0]?.pressed||false;
+    const sneak=gp.buttons?.[1]?.pressed||false;
+    const openChatBtn=gp.buttons?.[3]?.pressed||false;
+    const breakBtn=gp.buttons?.[6]?.pressed||false;
+    const placeBtn=gp.buttons?.[7]?.pressed||false;
+    setVirtualKey('Space','pad',jump);
+    setVirtualKey('ShiftLeft','pad',sneak);
+    if(openChatBtn&&!CONTROLLER.prevButtons[3])openChat();
+    if(breakBtn&&!CONTROLLER.prevButtons[6])startBreaking();
+    if(!breakBtn&&CONTROLLER.prevButtons[6])stopBreaking();
+    if(placeBtn&&!CONTROLLER.prevButtons[7]){if(!tryOpenInteractable())placeBlock();}
+    CONTROLLER.prevButtons[3]=openChatBtn;
+    CONTROLLER.prevButtons[6]=breakBtn;
+    CONTROLLER.prevButtons[7]=placeBtn;
+  }
+
+  setupTouchControls();
    
    // ── AABB collision sweep ──────────────────────────────────
   function getAABBBlocks(px,py,pz){
@@ -1991,7 +2119,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.30a',
+        version:'0.0.31a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -2082,6 +2210,12 @@ function getItemName(id){
      const fn=CFG.renderDist*16*CFG.fogDensity;
     scene.fog.near=fn*0.5;scene.fog.far=fn;
     clouds.forEach(c=>c.visible=CFG.clouds);
+    applyTouchControllerVisibility();
+    if(!CFG.enableCubenixConnect){
+      ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft'].forEach(k=>setVirtualKey(k,'pad',false));
+      CONTROLLER.prevButtons.length=0;
+      stopBreaking();
+    }
     applyGuiScale();
     saveSettingsLocal();
   }
@@ -2226,9 +2360,10 @@ function getItemName(id){
    let lastNow=performance.now(),chunkT=0,fallT=0,autosaveT=0,waterFlowT=0,lavaFlowT=0;
    function loop(){
      requestAnimationFrame(loop);
-     const now=performance.now();const dt=Math.min((now-lastNow)*0.001,0.05);lastNow=now;
-     if(!isPaused&&!isInvOpen){
-       handPhase+=dt*9;
+    const now=performance.now();const dt=Math.min((now-lastNow)*0.001,0.05);lastNow=now;
+    if(!isPaused&&!isInvOpen){
+      updateControllerInput();
+      handPhase+=dt*9;
        movePlayer(dt);raycastWorld();tickBreaking(dt);
        updateParticles(dt);updateDrops(dt);updatePrimedTnts(dt);
        updateDayNight(dt);updateAnimTex(dt);
