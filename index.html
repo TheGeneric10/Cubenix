@@ -22,7 +22,7 @@
         <button class="menu-btn disabled">Multiplayer <span class="soon">Soon</span></button>
         <button class="menu-btn" id="btn-quit">Quit Game</button>
       </div>
-      <div id="menu-version">Cubenix v0.0.11a</div>
+      <div id="menu-version">Cubenix v0.0.14a</div>
     </div>
   </div>
 
@@ -41,7 +41,7 @@
 
     <!-- Debug HUD top-left -->
     <div id="hud">
-      <div id="hud-title">Cubenix &mdash; Version: 0.0.11a</div>
+      <div id="hud-title">Cubenix &mdash; Version: 0.0.14a</div>
       <div id="hud-debug"></div>
     </div>
 
@@ -125,16 +125,14 @@
     <div id="inventory-screen" style="display:none">
       <div id="inv-panel">
         <div id="inv-header"><span>Inventory</span></div>
-        <!-- Crafting 2×2 -->
+        <div id="container-area" style="display:none">
+          <div class="inv-label" id="container-title">Container</div>
+          <div id="container-grid"></div>
+        </div>
         <div id="inv-craft-row">
           <div id="inv-crafting">
-            <div class="inv-label">Crafting</div>
-            <div id="crafting-grid">
-              <div class="craft-slot" data-ci="0"></div>
-              <div class="craft-slot" data-ci="1"></div>
-              <div class="craft-slot" data-ci="2"></div>
-              <div class="craft-slot" data-ci="3"></div>
-            </div>
+            <div class="inv-label" id="crafting-label">Crafting</div>
+            <div id="crafting-grid"></div>
             <div id="craft-arrow">▶</div>
             <div class="craft-slot" id="craft-output"></div>
           </div>
