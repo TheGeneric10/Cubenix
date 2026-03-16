@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.7a
+   CUBENIX — script.js — v0.0.9a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -38,7 +38,12 @@
      particles:true, clouds:true, shadows:true,
      fogDensity:0.8,
      treeDensity:'default',  // low | default | high
+     autosave:true,
    };
+
+   const AUTOSAVE_KEY='cubenix.autosave.v1';
+   const SETTINGS_KEY='cubenix.settings.v1';
+   const SEED_KEY='cubenix.seed.v1';
    
    // Block IDs
    const B={
@@ -99,11 +104,11 @@
    };
    
    // Player stats
-   const STATS={
-     health:20,maxHealth:20,hunger:20,maxHunger:20,
-     shield:10,maxShield:10,armor:0,maxArmor:3,
-     energy:100,maxEnergy:100,
-   };
+  const STATS={
+    health:100,maxHealth:100,hunger:20,maxHunger:20,
+    shield:10,maxShield:10,armor:0,maxArmor:3,
+    energy:100,maxEnergy:100,
+  };
    
    // Inventory
    const INV={
@@ -114,7 +119,18 @@
      craftResult:null,
    };
    
-   const SEED=Math.floor(Math.random()*9007199254740991);
+   function randomSeed(){
+     return Math.floor(Math.random()*9007199254740991);
+   }
+   function getSavedSeed(){
+     try{
+       const v=localStorage.getItem(SEED_KEY);
+       if(v===null)return null;
+       const n=Number(v);
+       return Number.isFinite(n)?n:null;
+     }catch{return null;}
+   }
+   const SEED=getSavedSeed()??randomSeed();
    const FACTS=[
      'Seeds range from -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807!',
      'Cave tunnels can span hundreds of blocks underground.',
@@ -363,7 +379,12 @@
    // ═══════════════════════════════════════════════════════════
    // 3.  NOISE
    // ═══════════════════════════════════════════════════════════
-   function h2(x,z){return Math.sin(x*127.1+z*311.7)*43758.5453;}
+   const SEED_NORM=((SEED%1000000007)+1000000007)%1000000007;
+   function h2(x,z){
+     const sx=x+(SEED_NORM*0.000013);
+     const sz=z-(SEED_NORM*0.000017);
+     return Math.sin(sx*127.1+sz*311.7+SEED_NORM*0.0019)*43758.5453;
+   }
    function frac(v){return v-Math.floor(v);}
    function lp(a,b,t){return a+(b-a)*t;}
    function fade(t){return t*t*t*(t*(t*6-15)+10);}
@@ -378,10 +399,54 @@
      for(let i=0;i<o;i++){v+=noise2(x*f,z*f)*a;mx+=a;a*=per;f*=lac;}
      return v/mx;
    }
-   function getHeight(wx,wz){
-     const n=octNoise(wx*0.007,wz*0.007,6,2.0,0.55);
-     return Math.round(CFG.seaLevel+n*30);
-   }
+  function getHeight(wx,wz){
+    const base=octNoise(wx*0.006,wz*0.006,6,2.0,0.55)*22;
+    const detail=octNoise(wx*0.019+180,wz*0.019-90,3,2.0,0.48)*6;
+    const ridge=(1-Math.abs(octNoise(wx*0.012+320,wz*0.012+45,4,2.05,0.52)))*8-4;
+    const dist=Math.hypot(wx,wz);
+    const centerLift=Math.max(0,1-dist/120)*8;
+    const h=Math.round(CFG.seaLevel+base+detail+ridge+centerLift);
+    return Math.max(3,Math.min(CFG.chunkH-2,h));
+  }
+
+  function ensureChunkGenerated(cx,cz){
+    if(!getArr(cx,cz,false))generateChunk(cx,cz);
+  }
+
+  function getSurfaceY(wx,wz){
+    const cx=Math.floor(wx/16),cz=Math.floor(wz/16);
+    ensureChunkGenerated(cx,cz);
+    for(let y=CFG.chunkH-2;y>=1;y--){
+      const id=worldGet(wx,y,wz);
+      if(!isSolid(id)||isFluid(id))continue;
+      if(worldGet(wx,y+1,wz)===B.AIR&&worldGet(wx,y+2,wz)===B.AIR)return y;
+    }
+    return -1;
+  }
+
+  function findSafeSpawn(radius=100,ox=0,oz=0){
+    let best=null;
+    for(let r=0;r<=radius;r+=4){
+      const circ=Math.max(8,Math.ceil((2*Math.PI*Math.max(r,1))/8));
+      for(let i=0;i<circ;i++){
+        const ang=(i/circ)*Math.PI*2;
+        const wx=Math.round(ox+Math.cos(ang)*r);
+        const wz=Math.round(oz+Math.sin(ang)*r);
+        if(Math.hypot(wx-ox,wz-oz)>radius)continue;
+        const y=getSurfaceY(wx,wz);
+        if(y<=CFG.seaLevel+1)continue;
+        const here=worldGet(wx,y,wz);
+        if(here===B.WATER||here===B.LAVA)continue;
+        const n1=getSurfaceY(wx+1,wz),n2=getSurfaceY(wx-1,wz),n3=getSurfaceY(wx,wz+1),n4=getSurfaceY(wx,wz-1);
+        const steep=Math.max(Math.abs(n1-y),Math.abs(n2-y),Math.abs(n3-y),Math.abs(n4-y));
+        if(steep>3)continue;
+        const score=(y-CFG.seaLevel)*4-Math.hypot(wx-ox,wz-oz)-steep*6;
+        if(!best||score>best.score)best={wx,wz,y,score};
+      }
+      if(best&&r>=20)break;
+    }
+    return best;
+  }
    
    // ═══════════════════════════════════════════════════════════
    // 4.  WORLD DATA
@@ -642,23 +707,23 @@
      return results;
    }
    
-   function resolveCollision(pos,vel){
+   function resolveCollision(pos,vel,stepDt){
      const w=player.width/2;
      // Y axis
-     pos.y+=vel.y*(1/60);
+     pos.y+=vel.y*stepDt;
      const blocksY=getAABBBlocks(pos.x,pos.y,pos.z);
      for(const {iy} of blocksY){
        if(vel.y<0){const floor=iy+1;if(pos.y<floor){pos.y=floor;vel.y=0;player.onGround=true;}}
        else if(vel.y>0){const ceil=iy;if(pos.y+player.height>ceil){pos.y=ceil-player.height;vel.y=0;}}
      }
      // X axis
-     pos.x+=vel.x*(1/60);
+     pos.x+=vel.x*stepDt;
      for(const {ix,iy,iz} of getAABBBlocks(pos.x,pos.y,pos.z)){
        if(vel.x>0&&pos.x+w>ix){pos.x=ix-w;vel.x=0;}
        else if(vel.x<0&&pos.x-w<ix+1){pos.x=ix+1+w;vel.x=0;}
      }
      // Z axis
-     pos.z+=vel.z*(1/60);
+     pos.z+=vel.z*stepDt;
      for(const {ix,iy,iz} of getAABBBlocks(pos.x,pos.y,pos.z)){
        if(vel.z>0&&pos.z+w>iz){pos.z=iz-w;vel.z=0;}
        else if(vel.z<0&&pos.z-w<iz+1){pos.z=iz+1+w;vel.z=0;}
@@ -668,7 +733,7 @@
    const vF=new THREE.Vector3(),vR=new THREE.Vector3();
    let isPaused=false,isInvOpen=false;
    
-   function movePlayer(dt){
+  function movePlayer(dt){
      if(isPaused||isInvOpen)return;
      const sprint=KEYS['ControlLeft'];
      const spd=sprint?CFG.sprintSpeed:CFG.walkSpeed;
@@ -687,16 +752,22 @@
      player.onGround=false;
      // Resolve collision per sub-step
      const steps=3;
-     const sv=player.vel.clone().multiplyScalar(dt/steps);
-     for(let s=0;s<steps;s++)resolveCollision(player.pos,player.vel);
+     const stepDt=dt/steps;
+     for(let s=0;s<steps;s++)resolveCollision(player.pos,player.vel,stepDt);
    
      // Energy
-     if(sprint&&(KEYS['KeyW']||KEYS['KeyS']||KEYS['KeyA']||KEYS['KeyD'])){
-       STATS.energy=Math.max(0,STATS.energy-18*dt);
-     } else {
-       STATS.energy=Math.min(STATS.maxEnergy,STATS.energy+7*dt);
-     }
-     camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
+    if(sprint&&(KEYS['KeyW']||KEYS['KeyS']||KEYS['KeyA']||KEYS['KeyD'])){
+      STATS.energy=Math.max(0,STATS.energy-18*dt);
+    } else {
+      STATS.energy=Math.min(STATS.maxEnergy,STATS.energy+7*dt);
+    }
+
+    if(player.pos.y<0){
+      const voidDamageRate=STATS.maxHealth*0.20;
+      STATS.health=Math.max(0,STATS.health-voidDamageRate*dt);
+    }
+
+    camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
      camera.rotation.order='YXZ';camera.rotation.y=player.yaw;camera.rotation.x=player.pitch;camera.rotation.z=0;
    }
    
@@ -945,36 +1016,38 @@
    }
    
    // ── HOTBAR 3D ICON RENDERER ───────────────────────────────
-   function draw3DIcon(canvasEl, id){
+  function draw3DIcon(canvasEl, id){
      const g=canvasEl.getContext('2d');
      const w=canvasEl.width,h=canvasEl.height;
      g.clearRect(0,0,w,h);
      if(!id)return;
-     const tx=getItemTex(id);
-     if(!tx||!tx.image)return;
+    const bt=id<100?(BLOCK_TEX[id]||BLOCK_TEX[B.STONE]):null;
+    const topTex=bt?bt.top:getItemTex(id);
+    const sideTex=bt?bt.side:getItemTex(id);
+    if(!topTex?.image||!sideTex?.image)return;
      // Draw isometric-ish 3 faces
      const S=Math.floor(w*0.55);
      const ox=Math.floor(w*0.22),oy=Math.floor(h*0.3);
      const sh=Math.floor(S*0.32);
      // Top face
      g.save();g.transform(1,0.3,-1,0.3,ox+S,oy);
-     g.drawImage(tx.image,0,0,S,S);g.restore();
+    g.drawImage(topTex.image,0,0,S,S);g.restore();
      // Left face (darken)
      g.save();g.transform(1,-0.3,0,0.65,ox,oy+sh*0.55);
-     g.drawImage(tx.image,0,0,S,S);
+    g.drawImage(sideTex.image,0,0,S,S);
      g.fillStyle='rgba(0,0,0,0.28)';g.fillRect(0,0,S,S);
      g.restore();
      // Right face (darker)
      g.save();g.transform(1,0.3,0,0.65,ox+S,oy+sh*0.55);
-     g.drawImage(tx.image,0,0,S,S);
+    g.drawImage(sideTex.image,0,0,S,S);
      g.fillStyle='rgba(0,0,0,0.42)';g.fillRect(0,0,S,S);
      g.restore();
    }
    
-   function makeSlotCanvas(id){
-     const c=document.createElement('canvas');c.width=c.height=30;
-     draw3DIcon(c,id);return c;
-   }
+  function makeSlotCanvas(id,size=34){
+    const c=document.createElement('canvas');c.width=c.height=size;
+    draw3DIcon(c,id);return c;
+  }
    
    function updateHotbarUI(){
      const slots=document.querySelectorAll('.hb-slot');
@@ -985,7 +1058,7 @@
        const sn=document.createElement('span');sn.className='slot-num';sn.textContent=i+1;slot.appendChild(sn);
        if(INV.hotbar[i]){
          const item=INV.hotbar[i];
-         slot.appendChild(makeSlotCanvas(item.id));
+        slot.appendChild(makeSlotCanvas(item.id,34));
          if(item.count>1){
            const cnt=document.createElement('span');cnt.className='item-count';cnt.textContent=item.count;slot.appendChild(cnt);
          }
@@ -994,14 +1067,49 @@
      });
    }
    
-   // ── INVENTORY UI ─────────────────────────────────────────
-   let dragItem=null,dragFrom=null; // {item,slot,source}
+  // ── INVENTORY UI ─────────────────────────────────────────
+  let dragItem=null,dragFrom=null; // {item,slot,source}
+
+  function getSourceArray(source){
+    return source==='main'?INV.main:source==='hotbar'?INV.hotbar:INV.craftGrid;
+  }
+
+  function setDragFromSlot(arr,idx){
+    if(!arr[idx])return false;
+    dragItem={item:{...arr[idx]},origin:{source:arr===INV.main?'main':arr===INV.hotbar?'hotbar':'craft',idx}};
+    arr[idx]=null;
+    return true;
+  }
+
+  function splitStackToDrag(arr,idx){
+    const stack=arr[idx];
+    if(!stack||stack.count<=1)return false;
+    const give=Math.floor(stack.count/2);
+    stack.count-=give;
+    dragItem={item:{id:stack.id,count:give},origin:{source:arr===INV.main?'main':arr===INV.hotbar?'hotbar':'craft',idx}};
+    return true;
+  }
+
+  function placeSingleFromDrag(arr,idx){
+    if(!dragItem||dragItem.item.count<=0)return false;
+    const target=arr[idx];
+    if(!target){
+      arr[idx]={id:dragItem.item.id,count:1};
+    }else if(target.id===dragItem.item.id&&target.count<99){
+      target.count+=1;
+    }else{
+      return false;
+    }
+    dragItem.item.count-=1;
+    if(dragItem.item.count<=0){dragItem=null;hideDragGhost();}
+    return true;
+  }
    
    function makeInvSlot(item,idx,source){
      const s=document.createElement('div');s.className='inv-slot';
      s.dataset.idx=idx;s.dataset.source=source;
      if(item){
-       s.appendChild(makeSlotCanvas(item.id));
+      s.appendChild(makeSlotCanvas(item.id,34));
        if(item.count>1){const c=document.createElement('span');c.className='item-count';c.textContent=item.count;s.appendChild(c);}
      }
      // Hover tooltip
@@ -1011,29 +1119,52 @@
      s.addEventListener('mouseleave',()=>hideTooltip());
      // Drag start
      s.addEventListener('mousedown',e=>{
-       if(e.button!==0)return;
-       const arr=source==='main'?INV.main:source==='hotbar'?INV.hotbar:INV.craftGrid;
-       if(!arr[idx])return;
-       dragItem={item:arr[idx],origin:{source,idx}};
-       arr[idx]=null;
-       buildInventoryUI();
-       updateDragGhost(dragItem.item,e);
-       e.stopPropagation();
-     });
+      const arr=getSourceArray(source);
+      if(e.button===0){
+        if(!setDragFromSlot(arr,idx))return;
+      }else if(e.button===2){
+        if(dragItem){
+          if(!placeSingleFromDrag(arr,idx))return;
+          buildInventoryUI();updateHotbarUI();updateCraftResult();
+          if(dragItem)updateDragGhost(dragItem.item,e);
+          e.preventDefault();e.stopPropagation();
+          return;
+        }
+        if(!splitStackToDrag(arr,idx))return;
+      }else return;
+      buildInventoryUI();
+      updateDragGhost(dragItem.item,e);
+      updateHotbarUI();updateCraftResult();
+      e.preventDefault();
+      e.stopPropagation();
+    });
      // Drop
      s.addEventListener('mouseup',e=>{
        if(!dragItem)return;
-       const arr=source==='main'?INV.main:source==='hotbar'?INV.hotbar:INV.craftGrid;
-       if(arr[idx]&&arr[idx].id===dragItem.item.id&&arr[idx].count<99){
-         arr[idx].count=Math.min(99,arr[idx].count+dragItem.item.count);
-       } else {
-         const old=arr[idx];arr[idx]=dragItem.item;
-         if(old){const oa=dragItem.origin.source==='main'?INV.main:dragItem.origin.source==='hotbar'?INV.hotbar:INV.craftGrid;oa[dragItem.origin.idx]=old;}
-       }
-       dragItem=null;hideDragGhost();buildInventoryUI();updateHotbarUI();
-       if(source==='craft'||dragItem?.origin?.source==='craft')updateCraftResult();
-       e.stopPropagation();
-     });
+      const arr=getSourceArray(source);
+      let leftover=null;
+      if(arr[idx]&&arr[idx].id===dragItem.item.id&&arr[idx].count<99){
+        const room=99-arr[idx].count;
+        const take=Math.min(room,dragItem.item.count);
+        arr[idx].count+=take;
+        dragItem.item.count-=take;
+        if(dragItem.item.count>0)leftover={...dragItem.item};
+      } else {
+        const old=arr[idx];arr[idx]=dragItem.item;
+        if(old){
+          const oa=getSourceArray(dragItem.origin.source);
+          oa[dragItem.origin.idx]=old;
+        }
+      }
+      if(leftover){
+        const oa=getSourceArray(dragItem.origin.source);
+        if(!oa[dragItem.origin.idx])oa[dragItem.origin.idx]=leftover;
+        else if(oa[dragItem.origin.idx].id===leftover.id)oa[dragItem.origin.idx].count=Math.min(99,oa[dragItem.origin.idx].count+leftover.count);
+      }
+      dragItem=null;hideDragGhost();buildInventoryUI();updateHotbarUI();
+      updateCraftResult();
+      e.stopPropagation();
+    });
      return s;
    }
    
@@ -1041,7 +1172,7 @@
      const out=document.getElementById('craft-output');
      out.innerHTML='';
      if(INV.craftResult){
-       out.appendChild(makeSlotCanvas(INV.craftResult.id));
+       out.appendChild(makeSlotCanvas(INV.craftResult.id,34));
        if(INV.craftResult.count>1){const c=document.createElement('span');c.className='item-count';c.textContent=INV.craftResult.count;out.appendChild(c);}
        out.style.cursor='pointer';
        out.onclick=()=>{
@@ -1066,15 +1197,26 @@
        const ci=parseInt(el.dataset.ci);
        el.innerHTML='';
        if(INV.craftGrid[ci]){
-         el.appendChild(makeSlotCanvas(INV.craftGrid[ci].id));
+         el.appendChild(makeSlotCanvas(INV.craftGrid[ci].id,34));
          if(INV.craftGrid[ci].count>1){const c=document.createElement('span');c.className='item-count';c.textContent=INV.craftGrid[ci].count;el.appendChild(c);}
        }
-       el.addEventListener('mousedown',e=>{
-         if(e.button!==0)return;
-         if(!INV.craftGrid[ci])return;
-         dragItem={item:INV.craftGrid[ci],origin:{source:'craft',idx:ci}};
-         INV.craftGrid[ci]=null;buildInventoryUI();updateDragGhost(dragItem.item,e);e.stopPropagation();
-       });
+      el.addEventListener('mousedown',e=>{
+        if(e.button===0){
+          if(!setDragFromSlot(INV.craftGrid,ci))return;
+        }else if(e.button===2){
+          if(dragItem){
+            if(!placeSingleFromDrag(INV.craftGrid,ci))return;
+            buildInventoryUI();updateHotbarUI();updateCraftResult();
+            if(dragItem)updateDragGhost(dragItem.item,e);
+            e.preventDefault();e.stopPropagation();
+            return;
+          }
+          if(!splitStackToDrag(INV.craftGrid,ci))return;
+        }else return;
+        buildInventoryUI();updateDragGhost(dragItem.item,e);updateCraftResult();
+        e.preventDefault();
+        e.stopPropagation();
+      });
        el.addEventListener('mouseup',e=>{
          if(!dragItem)return;
          if(INV.craftGrid[ci]){}else{INV.craftGrid[ci]=dragItem.item;dragItem=null;hideDragGhost();buildInventoryUI();updateCraftResult();}
@@ -1093,14 +1235,14 @@
    document.getElementById('inv-close').addEventListener('click',()=>{isInvOpen=false;document.getElementById('inventory-screen').style.display='none';canvas.requestPointerLock();});
    
    // Cancel drag on mouseup anywhere
-   window.addEventListener('mouseup',()=>{
-     if(dragItem){
-       // Return to origin
-       const arr=dragItem.origin.source==='main'?INV.main:dragItem.origin.source==='hotbar'?INV.hotbar:INV.craftGrid;
-       arr[dragItem.origin.idx]=dragItem.item;
-       dragItem=null;hideDragGhost();buildInventoryUI();updateHotbarUI();
-     }
-   });
+  window.addEventListener('mouseup',()=>{
+    if(dragItem){
+      // Return to origin
+      const arr=getSourceArray(dragItem.origin.source);
+      arr[dragItem.origin.idx]=dragItem.item;
+      dragItem=null;hideDragGhost();buildInventoryUI();updateHotbarUI();
+    }
+  });
    window.addEventListener('mousemove',e=>{
      if(dragItem)updateDragGhost(dragItem.item,e);
      const tt=document.getElementById('item-tooltip');
@@ -1111,7 +1253,7 @@
      const g=document.getElementById('drag-ghost');
      g.style.display='block';g.innerHTML='';
      g.style.left=e.clientX+'px';g.style.top=e.clientY+'px';
-     g.appendChild(makeSlotCanvas(item.id));
+     g.appendChild(makeSlotCanvas(item.id,34));
      if(item.count>1){const c=document.createElement('span');c.className='dg-count';c.textContent=item.count;g.appendChild(c);}
    }
    function hideDragGhost(){document.getElementById('drag-ghost').style.display='none';}
@@ -1164,10 +1306,7 @@
    document.getElementById('pause-resume').addEventListener('click',()=>{isPaused=false;document.getElementById('pause-menu').style.display='none';canvas.requestPointerLock();});
    document.getElementById('pause-settings').addEventListener('click',openSettings);
    document.getElementById('pause-toMenu').addEventListener('click',()=>location.reload());
-   document.getElementById('settings-back').addEventListener('click',()=>{
-     document.getElementById('settings-menu').style.display='none';
-     document.getElementById('pause-menu').style.display='flex';
-   });
+   document.getElementById('settings-back').addEventListener('click',closeSettingsMenu);
    document.querySelectorAll('.stab').forEach(btn=>btn.addEventListener('click',()=>{
      document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
      btn.classList.add('active');buildSettingsTab(btn.dataset.tab);
@@ -1184,12 +1323,69 @@
      {key:'clouds',    label:'Clouds',type:'toggle'},
      {key:'_optimize', label:'Auto-Optimize for Device',type:'action',action:optimizeSettings},
    ];
-   const PLAYER_SETTINGS=[
+  const PLAYER_SETTINGS=[
      {key:'mouseSens', label:'Mouse Sensitivity',type:'range',min:0.0005,max:0.008,step:0.0005,unit:''},
      {key:'walkSpeed', label:'Walk Speed',type:'range',min:2,max:10,step:0.5,unit:' m/s'},
      {key:'jumpVel',   label:'Jump Height',type:'range',min:4,max:14,step:0.5,unit:''},
+     {key:'autosave',  label:'Local Autosave',type:'toggle'},
      {key:'treeDensity',label:'Tree Density',type:'select',opts:['low','default','high']},
    ];
+
+   const SETTINGS_KEYS=['renderDist','simDist','fov','brightness','fogDensity','shadows','particles','clouds','mouseSens','walkSpeed','jumpVel','treeDensity','autosave'];
+   let settingsContext='pause'; // pause | menu
+
+   function saveSettingsLocal(){
+     try{
+       const data={};
+       SETTINGS_KEYS.forEach(k=>{data[k]=CFG[k];});
+       localStorage.setItem(SETTINGS_KEY,JSON.stringify(data));
+     }catch{}
+   }
+   function loadSettingsLocal(){
+     try{
+       const raw=localStorage.getItem(SETTINGS_KEY);
+       if(!raw)return;
+       const data=JSON.parse(raw);
+       SETTINGS_KEYS.forEach(k=>{if(data[k]!==undefined)CFG[k]=data[k];});
+     }catch{}
+   }
+
+   function serializeInventory(arr){
+     return arr.map(s=>s?{id:s.id,count:s.count}:null);
+   }
+   function deserializeInventory(src,len){
+     const out=Array(len).fill(null);
+     for(let i=0;i<len;i++){
+       const it=src?.[i];
+       if(it&&Number.isFinite(it.id)&&Number.isFinite(it.count)&&it.count>0)out[i]={id:it.id,count:Math.min(99,Math.floor(it.count))};
+     }
+     return out;
+   }
+   function saveGameLocal(){
+     if(!CFG.autosave)return;
+     try{
+       const data={
+         version:'0.0.9a',
+         seed:SEED,
+         player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
+         stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
+         inv:{hotbar:serializeInventory(INV.hotbar),main:serializeInventory(INV.main),active:INV.active,craftGrid:serializeInventory(INV.craftGrid)},
+         ts:Date.now(),
+       };
+       localStorage.setItem(AUTOSAVE_KEY,JSON.stringify(data));
+       localStorage.setItem(SEED_KEY,String(SEED));
+       saveSettingsLocal();
+     }catch{}
+   }
+   function loadAutosaveLocal(){
+     try{
+       const raw=localStorage.getItem(AUTOSAVE_KEY);
+       if(!raw)return null;
+       const data=JSON.parse(raw);
+       if(!data||!data.player)return null;
+       return data;
+     }catch{return null;}
+   }
    
    function buildSettingsTab(tab){
      const body=document.getElementById('settings-body');body.innerHTML='';
@@ -1231,16 +1427,20 @@
      const fn=CFG.renderDist*16*CFG.fogDensity;
      scene.fog.near=fn*0.5;scene.fog.far=fn;
      clouds.forEach(c=>c.visible=CFG.clouds);
+     saveSettingsLocal();
    }
    
-   function optimizeSettings(){
+  function optimizeSettings(){
      const hi=window.devicePixelRatio>=2&&(navigator.hardwareConcurrency||4)>=8;
      CFG.renderDist=hi?10:6;CFG.simDist=hi?8:4;CFG.shadows=hi;CFG.particles=true;CFG.clouds=hi;CFG.fogDensity=hi?0.8:0.55;
      renderer.setPixelRatio(hi?Math.min(window.devicePixelRatio,2):1);
      applySettings();
    }
+
+   loadSettingsLocal();
    
    function openSettings(){
+     settingsContext='pause';
      document.getElementById('pause-menu').style.display='none';
      document.getElementById('settings-menu').style.display='flex';
      document.querySelector('.stab[data-tab="video"]').classList.add('active');
@@ -1248,15 +1448,16 @@
      buildSettingsTab('video');
    }
    function openSettingsFromMenu(){
+     settingsContext='menu';
      document.getElementById('settings-menu').style.display='flex';
+     document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+     document.querySelector('.stab[data-tab="video"]').classList.add('active');
      buildSettingsTab('video');
-     document.getElementById('settings-back').onclick=()=>{
-       document.getElementById('settings-menu').style.display='none';
-       document.getElementById('settings-back').onclick=()=>{
-         document.getElementById('settings-menu').style.display='none';
-         document.getElementById('pause-menu').style.display='flex';
-       };
-     };
+   }
+
+   function closeSettingsMenu(){
+     document.getElementById('settings-menu').style.display='none';
+     if(settingsContext==='pause')document.getElementById('pause-menu').style.display='flex';
    }
    
    // ═══════════════════════════════════════════════════════════
@@ -1321,16 +1522,30 @@
    // ═══════════════════════════════════════════════════════════
    // 18. STATUS UI
    // ═══════════════════════════════════════════════════════════
-   function updateStatusUI(){
-     document.getElementById('health-bar').style.width=(STATS.health/STATS.maxHealth*100)+'%';
-     document.getElementById('shield-bar').style.width=(STATS.shield/STATS.maxShield*100)+'%';
-     document.getElementById('hunger-bar').style.width=(STATS.hunger/STATS.maxHunger*100)+'%';
-     document.getElementById('energy-bar').style.width=(STATS.energy/STATS.maxEnergy*100)+'%';
-     for(let i=0;i<3;i++)document.getElementById(`ab${i}`).classList.toggle('full',i<STATS.armor);
-     const ew=document.getElementById('energy-bar-wrap');
-     if(STATS.energy>=STATS.maxEnergy){ew.classList.add('hidden');ew.classList.remove('flash');}
-     else{ew.classList.remove('hidden');ew.classList.toggle('flash',STATS.energy<15);}
-   }
+  function updateStatusUI(){
+    const hpPct=Math.round(Math.max(0,Math.min(100,STATS.health/STATS.maxHealth*100)));
+    const shieldPct=Math.round(Math.max(0,Math.min(100,STATS.shield/STATS.maxShield*100)));
+    const hungerPct=Math.round(Math.max(0,Math.min(100,STATS.hunger/STATS.maxHunger*100)));
+    const energyPct=Math.round(Math.max(0,Math.min(100,STATS.energy/STATS.maxEnergy*100)));
+    const armorPct=Math.round(Math.max(0,Math.min(100,STATS.armor/STATS.maxArmor*100)));
+
+    document.getElementById('health-bar').style.width=hpPct+'%';
+    document.getElementById('shield-bar').style.width=shieldPct+'%';
+    document.getElementById('hunger-bar').style.width=hungerPct+'%';
+    document.getElementById('energy-bar').style.width=energyPct+'%';
+    document.getElementById('armor-bar').style.width=armorPct+'%';
+
+    document.getElementById('health-pct').textContent=`${hpPct}%`;
+    document.getElementById('shield-pct').textContent=`${shieldPct}%`;
+    document.getElementById('hunger-pct').textContent=`${hungerPct}%`;
+    document.getElementById('energy-pct').textContent=`${energyPct}%`;
+    document.getElementById('armor-pct').textContent=`${armorPct}%`;
+
+    document.getElementById('armor-bar-wrap').style.display=STATS.armor>0?'flex':'none';
+    const ew=document.getElementById('energy-bar-wrap');
+    if(STATS.energy>=STATS.maxEnergy){ew.classList.add('hidden');ew.classList.remove('flash');}
+    else{ew.classList.remove('hidden');ew.classList.toggle('flash',STATS.energy<15);}
+  }
    
    // ═══════════════════════════════════════════════════════════
    // 19. DEBUG HUD
@@ -1347,7 +1562,7 @@
    // ═══════════════════════════════════════════════════════════
    // 20. MAIN LOOP
    // ═══════════════════════════════════════════════════════════
-   let lastNow=performance.now(),chunkT=0,fallT=0;
+   let lastNow=performance.now(),chunkT=0,fallT=0,autosaveT=0;
    function loop(){
      requestAnimationFrame(loop);
      const now=performance.now();const dt=Math.min((now-lastNow)*0.001,0.05);lastNow=now;
@@ -1360,6 +1575,8 @@
        fallT+=dt;if(fallT>0.25){fallT=0;updateFallingBlocks();}
        processChunkQueue(2);
      }
+     autosaveT+=dt;
+     if(autosaveT>=15){autosaveT=0;saveGameLocal();}
      updateStatusUI();updateHUD(dt);
      renderer.render(scene,camera);
    }
@@ -1378,34 +1595,76 @@
      document.getElementById('game-canvas').style.display='block';
      document.getElementById('game-ui').style.display='block';
    
-     setLoad(5,'BUILDING TEXTURES');await delay(50);
-     setLoad(15,'GENERATING TERRAIN');await delay(50);
-   
-     const R=3;let tot=(R*2+1)**2,done=0;
-     for(let dx=-R;dx<=R;dx++)for(let dz=-R;dz<=R;dz++){
-       generateChunk(dx,dz);done++;
-       setLoad(15+(done/tot*55)|0,'GENERATING TERRAIN');await delay(4);
+     setLoad(5,'PREPARING WORLD');
+
+     const autosave=loadAutosaveLocal();
+     const cx0=Math.floor((autosave?.player?.x||0)/16);
+     const cz0=Math.floor((autosave?.player?.z||0)/16);
+
+     setLoad(12,'GENERATING TERRAIN');
+     const R=3;
+     const coords=[];
+     for(let dx=-R;dx<=R;dx++)for(let dz=-R;dz<=R;dz++)coords.push({cx:cx0+dx,cz:cz0+dz});
+     const genTotal=coords.length;
+     let done=0,lastYield=performance.now();
+     for(const {cx,cz} of coords){
+       generateChunk(cx,cz);done++;
+       if(performance.now()-lastYield>10){
+         setLoad(12+Math.round(done/genTotal*52),'GENERATING TERRAIN');
+         await delay(0);lastYield=performance.now();
+       }
      }
-   
-     // Find spawn — ensure above ground, not water
-     let sx=8,sz=8;
-     let spH=getHeight(sx,sz);
-     while(spH<=CFG.seaLevel){sx+=8;spH=getHeight(sx,sz);}
-     player.pos.set(sx+0.5,spH+CFG.playerH+1,sz+0.5);
-     camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
-   
-     setLoad(72,'BUILDING MESHES');await delay(50);
-     for(let dx=-R;dx<=R;dx++)for(let dz=-R;dz<=R;dz++){
-       buildChunkMesh(dx,dz);loadedChunks.add(`${dx},${dz}`);
+     setLoad(64,'GENERATING TERRAIN');
+
+    if(autosave&&CFG.autosave){
+      player.pos.set(autosave.player.x,autosave.player.y,autosave.player.z);
+      player.yaw=autosave.player.yaw||0;player.pitch=autosave.player.pitch||0;
+      if(autosave.stats){
+        STATS.health=Math.max(0,Math.min(STATS.maxHealth,autosave.stats.health??STATS.health));
+        STATS.shield=Math.max(0,Math.min(STATS.maxShield,autosave.stats.shield??STATS.shield));
+        STATS.hunger=Math.max(0,Math.min(STATS.maxHunger,autosave.stats.hunger??STATS.hunger));
+        STATS.energy=Math.max(0,Math.min(STATS.maxEnergy,autosave.stats.energy??STATS.energy));
+        STATS.armor=Math.max(0,Math.min(STATS.maxArmor,autosave.stats.armor??STATS.armor));
+      }
+      if(autosave.inv){
+        INV.hotbar=deserializeInventory(autosave.inv.hotbar,9);
+        INV.main=deserializeInventory(autosave.inv.main,27);
+        INV.craftGrid=deserializeInventory(autosave.inv.craftGrid,4);
+        INV.active=Math.max(0,Math.min(8,autosave.inv.active||0));
+      }
+    }else{
+      // Find spawn in a safe land spot within 100m, above terrain
+      const spawn=findSafeSpawn(100,cx0*16,cz0*16);
+      if(spawn){
+        player.pos.set(spawn.wx+0.5,spawn.y+1,spawn.wz+0.5);
+      }else{
+        const y=Math.max(CFG.seaLevel+2,getHeight(cx0*16,cz0*16)+1);
+        player.pos.set(cx0*16+0.5,y,cz0*16+0.5);
+      }
+    }
+    player.vel.set(0,0,0);
+    player.onGround=false;
+    camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
+
+     setLoad(70,'BUILDING MESHES');
+     done=0;lastYield=performance.now();
+     for(const {cx,cz} of coords){
+       buildChunkMesh(cx,cz);loadedChunks.add(`${cx},${cz}`);done++;
+       if(performance.now()-lastYield>10){
+         setLoad(70+Math.round(done/genTotal*25),'BUILDING MESHES');
+         await delay(0);lastYield=performance.now();
+       }
      }
-     setLoad(88,'PLACING PLAYER');await delay(150);
-     setLoad(96,'LOADING RENDER SYSTEMS');await delay(150);
-     setLoad(100,'DONE');await delay(350);
+     setLoad(96,'FINALIZING');
+     await delay(30);
+     setLoad(100,'DONE');
+     await delay(120);
    
      const ls=document.getElementById('loading-screen');
      ls.style.opacity='0';ls.style.transition='opacity 0.8s';
      setTimeout(()=>ls.style.display='none',900);
-   
+
+     applySettings();
      updateHotbarUI();drawHand();
      loop();
    }
@@ -1447,9 +1706,10 @@
      window.addEventListener('resize',()=>{mc.width=window.innerWidth;mc.height=window.innerHeight;});
    })();
    
-   document.getElementById('btn-singleplayer').addEventListener('click',startGame);
-   document.getElementById('btn-options').addEventListener('click',openSettingsFromMenu);
-   document.getElementById('btn-quit').addEventListener('click',()=>window.close());
+  document.getElementById('btn-singleplayer').addEventListener('click',startGame);
+  document.getElementById('btn-options').addEventListener('click',openSettingsFromMenu);
+  document.getElementById('btn-quit').addEventListener('click',()=>window.close());
+  window.addEventListener('beforeunload',()=>saveGameLocal());
    
    // ═══════════════════════════════════════════════════════════
    // 23. RESIZE
