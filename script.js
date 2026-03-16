@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.50a
+   CUBENIX — script.js — v0.0.51a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -139,7 +139,10 @@ function getItemName(id){
   function getBreakMultiplier(blockId){
     const t=getActiveToolStats();
     if(!t)return 1;
-    if(t.type==='pickaxe'&&isHardMaterial(blockId))return 1+t.eff/100;
+    if(t.type==='pickaxe'){
+      if(isHardMaterial(blockId))return 1+t.eff/100;
+      return 1.12;
+    }
     if(t.type==='axe'&&isWoodMaterial(blockId))return 1+t.eff/100;
     return 1;
    }
@@ -2499,7 +2502,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.50a',
+        version:'0.0.51a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
