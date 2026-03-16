@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — styles.css — v0.0.9a
+   CUBENIX — styles.css — v0.0.10a
    ============================================================ */
    @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&display=swap');
 
@@ -11,6 +11,7 @@
      font-family: 'Titillium Web', monospace;
      image-rendering: pixelated;
    }
+   :root { --gui-scale: 1; }
    img, a, canvas, div { -webkit-user-drag: none; user-drag: none; -webkit-tap-highlight-color: transparent; }
    
    /* Minecraft-style scrollbars */
@@ -97,6 +98,9 @@
      display: flex; gap: 2px; z-index: 15; pointer-events: none;
      background: rgba(0,0,0,0.42); border: 2px solid #555; padding: 2px;
    }
+   #hotbar,#status-left,#status-right,#inv-panel,#pause-panel,#settings-panel{transform:scale(var(--gui-scale));}
+   #hotbar,#status-left,#status-right,#pause-panel,#settings-panel{transform-origin:center bottom;}
+   #inv-panel{transform-origin:center center;}
 .hb-slot {
   width: 44px; height: 44px;
      background: rgba(120,120,120,0.28); border: 2px solid #666;
@@ -138,6 +142,7 @@
 .bar-armor   { background: #8a8a8a; }
 .bar-energy  { background: #d4b820; }
 .bar-hunger  { background: #9a4e1a; }
+.bar-air     { background: #2e9fd8; }
 .bar-label,
 .bar-pct {
   position: absolute;
@@ -198,7 +203,7 @@
    
    /* ══ PAUSE ══ */
    #pause-menu { position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.55); }
-   #pause-panel { background:rgba(22,22,22,0.94); border:2px solid #666; padding:22px 30px; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:232px; }
+   #pause-panel { background:rgba(22,22,22,0.94); border:2px solid #666; padding:22px 30px; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:300px; }
    .pause-title { font-size:1.05rem; color:#fff; letter-spacing:0.1em; margin-bottom:7px; }
    .pause-btn { width:100%; background:rgba(75,75,75,0.75); border:2px solid #888; color:#fff; font-family:'Titillium Web',monospace; font-size:0.88rem; padding:8px 0; cursor:pointer; letter-spacing:0.03em; transition:background 0.1s,border-color 0.1s; outline:none; }
    .pause-btn:hover { background:rgba(105,105,105,0.88); border-color:#bbb; }
