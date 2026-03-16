@@ -18,11 +18,11 @@
       </div>
       <div id="menu-buttons">
         <button class="menu-btn" id="btn-singleplayer">Singleplayer</button>
-        <button class="menu-btn" id="btn-options">Options</button>
+        <button class="menu-btn" id="btn-options">Settings</button>
         <button class="menu-btn disabled">Multiplayer <span class="soon">Soon</span></button>
         <button class="menu-btn" id="btn-quit">Quit Game</button>
       </div>
-      <div id="menu-version">Cubenix v0.0.7a</div>
+      <div id="menu-version">Cubenix v0.0.16a</div>
     </div>
   </div>
 
@@ -41,7 +41,7 @@
 
     <!-- Debug HUD top-left -->
     <div id="hud">
-      <div id="hud-title">Cubenix &mdash; Version: 0.0.7a</div>
+      <div id="hud-title">Cubenix &mdash; Version: 0.0.16a</div>
       <div id="hud-debug"></div>
     </div>
 
@@ -73,33 +73,51 @@
 
     <!-- ── STATUS left (armor / shield / health) ── -->
     <div id="status-left">
-      <div id="armor-display">
-        <span class="stat-icon">🛡</span>
-        <div id="armor-bars">
-          <div class="armor-bar full" id="ab0"></div>
-          <div class="armor-bar full" id="ab1"></div>
-          <div class="armor-bar full" id="ab2"></div>
+      <div class="stat-row" id="armor-bar-wrap">
+        <div class="bar-bg">
+          <span class="bar-label">AR</span>
+          <div id="armor-bar" class="bar bar-armor"></div>
+          <span class="bar-pct" id="armor-pct">0%</span>
         </div>
       </div>
       <div class="stat-row" id="shield-bar-wrap">
-        <span class="stat-icon">🛡</span>
-        <div class="bar-bg"><div id="shield-bar" class="bar bar-shield"></div></div>
+        <div class="bar-bg">
+          <span class="bar-label">SH</span>
+          <div id="shield-bar" class="bar bar-shield"></div>
+          <span class="bar-pct" id="shield-pct">100%</span>
+        </div>
       </div>
       <div class="stat-row" id="health-bar-wrap">
-        <span class="stat-icon">❤</span>
-        <div class="bar-bg"><div id="health-bar" class="bar bar-health"></div></div>
+        <div class="bar-bg">
+          <span class="bar-label">HP</span>
+          <div id="health-bar" class="bar bar-health"></div>
+          <span class="bar-pct" id="health-pct">100%</span>
+        </div>
       </div>
     </div>
 
     <!-- ── STATUS right (energy / hunger) ── -->
     <div id="status-right">
+      <div class="stat-row" id="air-bar-wrap" style="display:none">
+        <div class="bar-bg">
+          <span class="bar-label">AIR</span>
+          <div id="air-bar" class="bar bar-air"></div>
+          <span class="bar-pct" id="air-pct">100%</span>
+        </div>
+      </div>
       <div class="stat-row" id="energy-bar-wrap">
-        <span class="stat-icon">⚡</span>
-        <div class="bar-bg"><div id="energy-bar" class="bar bar-energy"></div></div>
+        <div class="bar-bg">
+          <span class="bar-label">EN</span>
+          <div id="energy-bar" class="bar bar-energy"></div>
+          <span class="bar-pct" id="energy-pct">100%</span>
+        </div>
       </div>
       <div class="stat-row" id="hunger-bar-wrap">
-        <span class="stat-icon">🍗</span>
-        <div class="bar-bg"><div id="hunger-bar" class="bar bar-hunger"></div></div>
+        <div class="bar-bg">
+          <span class="bar-label">HU</span>
+          <div id="hunger-bar" class="bar bar-hunger"></div>
+          <span class="bar-pct" id="hunger-pct">100%</span>
+        </div>
       </div>
     </div>
 
@@ -107,16 +125,14 @@
     <div id="inventory-screen" style="display:none">
       <div id="inv-panel">
         <div id="inv-header"><span>Inventory</span></div>
-        <!-- Crafting 2×2 -->
+        <div id="container-area" style="display:none">
+          <div class="inv-label" id="container-title">Container</div>
+          <div id="container-grid"></div>
+        </div>
         <div id="inv-craft-row">
           <div id="inv-crafting">
-            <div class="inv-label">Crafting</div>
-            <div id="crafting-grid">
-              <div class="craft-slot" data-ci="0"></div>
-              <div class="craft-slot" data-ci="1"></div>
-              <div class="craft-slot" data-ci="2"></div>
-              <div class="craft-slot" data-ci="3"></div>
-            </div>
+            <div class="inv-label" id="crafting-label">Crafting</div>
+            <div id="crafting-grid"></div>
             <div id="craft-arrow">▶</div>
             <div class="craft-slot" id="craft-output"></div>
           </div>
@@ -134,24 +150,25 @@
       <div id="pause-panel">
         <div class="pause-title">Game Paused</div>
         <button class="pause-btn" id="pause-resume">Resume Game</button>
+        <button class="pause-btn" id="pause-newWorld">Generate New World</button>
         <button class="pause-btn" id="pause-settings">Settings</button>
-        <button class="pause-btn" id="pause-toMenu">Back to Menu</button>
+        <button class="pause-btn" id="pause-saveMenu">Save &amp; Main Menu</button>
       </div>
     </div>
 
-    <!-- ══ SETTINGS ══ -->
-    <div id="settings-menu" style="display:none">
-      <div id="settings-panel">
-        <div class="settings-title">Settings</div>
-        <div id="settings-tabs">
-          <button class="stab active" data-tab="video">Video Settings</button>
-          <button class="stab" data-tab="player">Player Settings</button>
-        </div>
-        <div id="settings-body"></div>
-        <button class="pause-btn" id="settings-back">← Back</button>
-      </div>
-    </div>
+  </div>
 
+  <!-- ══ SETTINGS ══ -->
+  <div id="settings-menu" style="display:none">
+    <div id="settings-panel">
+      <div class="settings-title">Settings</div>
+      <div id="settings-tabs">
+        <button class="stab active" data-tab="video">Video Settings</button>
+        <button class="stab" data-tab="player">Player Settings</button>
+      </div>
+      <div id="settings-body"></div>
+      <button class="pause-btn" id="settings-back">← Back</button>
+    </div>
   </div>
 
   <canvas id="game-canvas" style="display:none"></canvas>
