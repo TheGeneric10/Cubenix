@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.40a
+   CUBENIX — script.js — v0.0.41a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -975,17 +975,17 @@ function getItemName(id){
    
    // Pointer lock
    canvas.addEventListener('click',()=>{if(!document.pointerLockElement)canvas.requestPointerLock();});
-   document.addEventListener('pointerlockchange',()=>{
+  document.addEventListener('pointerlockchange',()=>{
      const locked=!!document.pointerLockElement;
      document.getElementById('crosshair').style.display=locked?'block':'none';
      const inGame=document.getElementById('game-ui').style.display==='block';
-     if(!locked&&inGame&&!isInvOpen&&!isPaused&&document.getElementById('settings-menu').style.display!=='flex'){
+     if(!locked&&inGame&&!isInvOpen&&!isPaused&&!isChatOpen&&document.getElementById('settings-menu').style.display!=='flex'){
        isPaused=true;
        document.getElementById('pause-menu').style.display='flex';
      }
    });
    document.addEventListener('mousemove',e=>{
-     if(!document.pointerLockElement||isPaused||isInvOpen)return;
+     if(!document.pointerLockElement||isPaused||isInvOpen||isChatOpen)return;
      player.yaw  -=e.movementX*CFG.mouseSens;
      player.pitch-=e.movementY*CFG.mouseSens;
      player.pitch=Math.max(-player.pitchMax,Math.min(player.pitchMax,player.pitch));
@@ -2411,7 +2411,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.40a',
+        version:'0.0.41a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
