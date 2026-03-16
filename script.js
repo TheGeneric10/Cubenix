@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.51a
+   CUBENIX — script.js — v0.0.52a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -139,11 +139,10 @@ function getItemName(id){
   function getBreakMultiplier(blockId){
     const t=getActiveToolStats();
     if(!t)return 1;
-    if(t.type==='pickaxe'){
-      if(isHardMaterial(blockId))return 1+t.eff/100;
-      return 1.12;
-    }
-    if(t.type==='axe'&&isWoodMaterial(blockId))return 1+t.eff/100;
+    const eff=Math.max(0,Math.min(99,Number(t.eff)||0));
+    const match=(t.type==='pickaxe'&&isHardMaterial(blockId))||(t.type==='axe'&&isWoodMaterial(blockId));
+    if(match)return Math.max(0.08,1-eff/100);
+    if(t.type==='pickaxe'||t.type==='axe')return Math.min(0.95,Math.max(0.2,(1-eff/100)*2));
     return 1;
    }
   function getAttackDamage(){
@@ -200,7 +199,7 @@ function getItemName(id){
      [B.GRASS]:0.9,[B.DIRT]:0.75,[B.SAND]:0.75,[B.GRAVEL]:0.75,[B.RED_SAND]:0.75,
      [B.STONE]:7.5,[B.COBBLESTONE]:6.8,[B.COAL_ORE]:7.5,[B.IRON_ORE]:7.5,
      [B.GOLD_ORE]:7.5,[B.DIAMOND_ORE]:7.5,
-     [B.WOOD]:3.0,[B.LEAVES]:0.5,[B.PLANKS]:2.0,[B.CRAFTING_TABLE]:3.0,[B.CHEST]:2.6,[B.IRON_CHEST]:3.4,[B.GOLD_CHEST]:3.6,[B.DIAMOND_CHEST]:4.5,[B.TNT]:0.9,[B.IRON_BLOCK]:6.0,[B.GOLD_BLOCK]:6.0,[B.DIAMOND_BLOCK]:6.5,[B.TORCH]:0.2,
+     [B.WOOD]:3.0,[B.LEAVES]:0.5,[B.PLANKS]:2.0,[B.CRAFTING_TABLE]:3.0,[B.CHEST]:2.6,[B.IRON_CHEST]:3.4,[B.GOLD_CHEST]:3.6,[B.DIAMOND_CHEST]:4.5,[B.TNT]:0.9,[B.IRON_BLOCK]:6.0,[B.GOLD_BLOCK]:6.0,[B.DIAMOND_BLOCK]:6.5,[B.TORCH]:0,
      [B.BEDROCK]:Infinity,[B.WATER]:Infinity,[B.LAVA]:Infinity,
    };
    for(let i=0;i<WOOL_COLORS.length;i++)BREAK_TIME[WOOL_BASE_ID+i]=0.65;
@@ -1637,12 +1636,18 @@ function getItemName(id){
    scene.add(breakMesh);
    
    function startBreaking(){
-     if(!targetBlock)return;
-     const id=worldGet(targetBlock.wx,targetBlock.wy,targetBlock.wz);
-     const t=BREAK_TIME[id]??7.5;if(t===Infinity)return;
-     breaking={active:true,...targetBlock,progress:0,total:Math.max(0.12,t/getBreakMultiplier(id))};
+    if(!targetBlock)return;
+    const id=worldGet(targetBlock.wx,targetBlock.wy,targetBlock.wz);
+    const t=BREAK_TIME[id]??7.5;if(t===Infinity)return;
+    const chestFp=getLargeChestFootprint(targetBlock.wx,targetBlock.wy,targetBlock.wz,id);
+    if(t<=0){
+      breaking={active:false,wx:targetBlock.wx,wy:targetBlock.wy,wz:targetBlock.wz,progress:0,total:0,chestFp};
+      finishBreaking();
+      return;
+    }
+    breaking={active:true,...targetBlock,progress:0,total:Math.max(0.01,t*getBreakMultiplier(id)),chestFp};
    }
-   function stopBreaking(){breaking.active=false;breaking.progress=0;breakMat.opacity=0;}
+   function stopBreaking(){breaking.active=false;breaking.progress=0;breakMat.opacity=0;breakMesh.scale.set(1,1,1);}
    
    // Particles
    const particles=[];
@@ -1771,32 +1776,51 @@ function getItemName(id){
    });
    canvas.addEventListener('mouseup',e=>{if(e.button===0)stopBreaking();});
    
-   function tickBreaking(dt){
-     if(!breaking.active||!targetBlock){stopBreaking();return;}
-     if(targetBlock.wx!==breaking.wx||targetBlock.wy!==breaking.wy||targetBlock.wz!==breaking.wz)startBreaking();
-     breaking.progress+=dt;
-     const pct=breaking.progress/breaking.total;
-     breakMat.opacity=Math.min(0.7,pct*0.7);
-     breakMesh.position.set(breaking.wx+0.5,breaking.wy+0.5,breaking.wz+0.5);
-     if(pct>=1){
-       const id=worldGet(breaking.wx,breaking.wy,breaking.wz);
-       spawnParticles(breaking.wx,breaking.wy,breaking.wz,id);
-       spawnDrops(breaking.wx,breaking.wy,breaking.wz,id,0.8);
-       if(CHEST_UI[id]){
-         const k=worldPosKey(breaking.wx,breaking.wy,breaking.wz);
-         const slots=containerData.get(chestStorageKey(k));
-         if(slots){
-           slots.forEach(st=>{if(!st)return;for(let i=0;i<st.count;i++)spawnDropStack(breaking.wx,breaking.wy,breaking.wz,st.id,1,0.8);});
-           containerData.delete(chestStorageKey(k));
-           clearPair(k);
-         }
-       }
-       worldSet(breaking.wx,breaking.wy,breaking.wz,B.AIR);
-       buildChunkMesh(Math.floor(breaking.wx/16),Math.floor(breaking.wz/16));
-       consumeHeldToolDurability(1);
-       stopBreaking();
-     }
-   }
+ 
+  function finishBreaking(){
+    const id=worldGet(breaking.wx,breaking.wy,breaking.wz);
+    if(id===B.AIR||id===B.BEDROCK){stopBreaking();return;}
+    const targets=[{wx:breaking.wx,wy:breaking.wy,wz:breaking.wz}];
+    let chestKey=null;
+    if(CHEST_UI[id]){
+      chestKey=worldPosKey(breaking.wx,breaking.wy,breaking.wz);
+      const pair=getLargeChestFootprint(breaking.wx,breaking.wy,breaking.wz,id);
+      if(pair)targets.push({wx:pair.other.wx,wy:pair.other.wy,wz:pair.other.wz});
+      const slots=containerData.get(chestStorageKey(chestKey));
+      if(slots){
+        slots.forEach(st=>{if(!st)return;for(let i=0;i<st.count;i++)spawnDropStack(breaking.wx,breaking.wy,breaking.wz,st.id,1,0.8);});
+        containerData.delete(chestStorageKey(chestKey));
+        clearPair(chestKey);
+      }
+    }
+    const chunkKeys=new Set();
+    for(const t of targets){
+      spawnParticles(t.wx,t.wy,t.wz,id);
+      spawnDrops(t.wx,t.wy,t.wz,id,0.8);
+      worldSet(t.wx,t.wy,t.wz,B.AIR);
+      chunkKeys.add(`${Math.floor(t.wx/16)},${Math.floor(t.wz/16)}`);
+    }
+    for(const ck of chunkKeys){const [cx,cz]=ck.split(',').map(Number);buildChunkMesh(cx,cz);}
+    consumeHeldToolDurability(1);
+    stopBreaking();
+  }
+
+  function tickBreaking(dt){
+    if(!breaking.active||!targetBlock){stopBreaking();return;}
+    if(targetBlock.wx!==breaking.wx||targetBlock.wy!==breaking.wy||targetBlock.wz!==breaking.wz)startBreaking();
+    breaking.progress+=dt;
+    const pct=breaking.progress/breaking.total;
+    breakMat.opacity=Math.min(0.7,pct*0.7);
+    const fp=breaking.chestFp&&worldGet(breaking.wx,breaking.wy,breaking.wz)===worldGet(breaking.chestFp.other.wx,breaking.chestFp.other.wy,breaking.chestFp.other.wz)?breaking.chestFp:null;
+    if(fp){
+      breakMesh.scale.set(fp.maxX-fp.minX+1,1,fp.maxZ-fp.minZ+1);
+      breakMesh.position.set((fp.minX+fp.maxX+1)/2,breaking.wy+0.5,(fp.minZ+fp.maxZ+1)/2);
+    }else{
+      breakMesh.scale.set(1,1,1);
+      breakMesh.position.set(breaking.wx+0.5,breaking.wy+0.5,breaking.wz+0.5);
+    }
+    if(pct>=1)finishBreaking();
+  }
    
    // Block placement (RMB)
    function placeBlock(){
@@ -2037,6 +2061,7 @@ function getItemName(id){
   const chestPairs=new Map();
 
   function worldPosKey(wx,wy,wz){ return `${wx},${wy},${wz}`; }
+  function parseWorldPosKey(key){const p=(key||'').split(',').map(Number);if(p.length!==3||p.some(v=>!Number.isFinite(v)))return null;return {wx:p[0],wy:p[1],wz:p[2]};}
   function normalizeStack(v){
     if(!v||!Number.isFinite(v.id)||!Number.isFinite(v.count)||v.count<=0)return null;
     return ensureStackIntegrity({...v,id:Math.floor(v.id)});
@@ -2082,6 +2107,17 @@ function getItemName(id){
     clearPair(key);
     const candidates=chestNeighbors(wx,wy,wz,blockId).filter(k=>!getPairKey(k));
     if(candidates.length===1)setPair(key,candidates[0]);
+  }
+  function getLargeChestFootprint(wx,wy,wz,id){
+    if(!CHEST_UI[id])return null;
+    const key=worldPosKey(wx,wy,wz);
+    const other=parseWorldPosKey(getPairKey(key));
+    if(!other||other.wy!==wy||worldGet(other.wx,other.wy,other.wz)!==id)return null;
+    return {
+      minX:Math.min(wx,other.wx),maxX:Math.max(wx,other.wx),
+      minZ:Math.min(wz,other.wz),maxZ:Math.max(wz,other.wz),
+      other
+    };
   }
 
   function getSourceArray(source){
@@ -2502,7 +2538,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.51a',
+        version:'0.0.52a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
