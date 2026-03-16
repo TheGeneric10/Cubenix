@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.16a
+   CUBENIX — script.js — v0.0.17a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -1537,7 +1537,7 @@ function getItemName(id){
    function openInventoryMode(){
      INV.uiMode='inventory';
      openContainerKey=null;openContainerStorageKey=null;openContainerSlots=null;
-     setCraftingSize(2,true);
+     setCraftingSize(2,false);
    }
 
    function openCraftingTableMode(){
@@ -1578,11 +1578,14 @@ function getItemName(id){
      panel.classList.add('compact');
 
      const craftingGrid=document.getElementById('crafting-grid');
-     const craftSize=INV.craftGridSize===3?3:2;
-     if(!Array.isArray(INV.craftGrid)||INV.craftGrid.length!==craftSize*craftSize){
-       setCraftingSize(craftSize,true);
-     }
-     craftingGrid.innerHTML='';
+    if(INV.uiMode==='inventory'&&INV.craftGridSize!==2){
+      setCraftingSize(2,false);
+    }
+    const craftSize=INV.craftGridSize===3?3:2;
+    if(!Array.isArray(INV.craftGrid)||INV.craftGrid.length!==craftSize*craftSize){
+      setCraftingSize(craftSize,false);
+    }
+    craftingGrid.innerHTML='';
      craftingGrid.style.setProperty('--craft-cols',String(craftSize));
      document.getElementById('crafting-label').textContent=craftSize===3?'Crafting Table':'Crafting';
 
@@ -1820,7 +1823,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.16a',
+        version:'0.0.17a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -2121,7 +2124,7 @@ function getItemName(id){
     STATS.armor=0;
     INV.hotbar=Array(9).fill(null);
     INV.main=Array(27).fill(null);
-    setCraftingSize(2,true);
+    setCraftingSize(2,false);
     INV.uiMode='inventory';
     INV.active=0;
     const spawn=findSafeSpawn(100,cx0*16,cz0*16);
