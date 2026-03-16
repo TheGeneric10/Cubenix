@@ -112,6 +112,8 @@
    .slot-num { position:absolute; bottom:1px; right:2px; font-size:0.55rem; color:rgba(255,255,255,0.38); font-family:monospace; line-height:1; }
    .hb-slot.has-item .slot-num { display: none; }
    .item-count { position:absolute; bottom:1px; right:2px; font-size:0.6rem; color:#fff; text-shadow:1px 1px 0 #000; font-weight:600; line-height:1; }
+.durability-wrap { position:absolute; left:2px; right:2px; bottom:2px; height:3px; background:rgba(0,0,0,0.45); border:1px solid rgba(0,0,0,0.6); }
+.durability-bar { height:100%; background:#5ac85a; }
    
    /* ══ STATUS BARS ══ */
 #status-left, #status-right {
@@ -201,6 +203,7 @@
 .inv-slot canvas { width: 28px; height: 28px; image-rendering: pixelated; display: block; }
    .inv-slot:hover { background: #9e9e9e; border-color: #ddd; }
    .inv-slot .item-count { font-size: 0.56rem; }
+   .inv-slot .durability-wrap { left:2px; right:2px; bottom:2px; height:3px; }
    #inv-close { text-align: center; font-size: 0.58rem; color: #555; cursor: pointer; padding-top: 2px; }
    #inv-close:hover { color: #a00; }
    
