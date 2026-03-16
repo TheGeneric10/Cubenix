@@ -1821,7 +1821,7 @@ function getItemName(id){
      {key:'clouds',    label:'Clouds',type:'toggle'},
      {key:'_optimize', label:'Auto-Optimize for Device',type:'action',action:optimizeSettings},
    ];
-   const PLAYER_SETTINGS=[
+  const PLAYER_SETTINGS=[
      {key:'mouseSens', label:'Mouse Sensitivity',type:'range',min:0.0005,max:0.008,step:0.0005,unit:''},
    ];
 
