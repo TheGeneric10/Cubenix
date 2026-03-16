@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.21a
+   CUBENIX — script.js — v0.0.30a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -30,7 +30,8 @@
      chunkW:16, chunkH:256, seaLevel:63,
      maxReach:4.5,
      playerH:1.8, eyeOffset:1.62,
-     walkSpeed:4.5, sprintSpeed:7.5, flySpeed:0,  // no fly in survival
+    walkSpeed:4.5, sprintSpeed:8.3, sneakSpeed:2.6, flySpeed:0,  // no fly in survival
+    sprintEnergyDrain:11,
      jumpVel:8.0, gravity:22.0,
      mouseSens:0.0022,
      worldLimit:812600,
@@ -40,6 +41,10 @@
     leavesQuality:'default', // low | default | medium | high
     autosave:true,
     guiScale:3,
+    enableVSync:true,
+    enableNixPlus:false,
+    enableCubenixMobile:false,
+    enableCubenixConnect:false,
    };
 
    const AUTOSAVE_KEY='cubenix.autosave.v1';
@@ -745,7 +750,8 @@ function getItemName(id){
      vel:new THREE.Vector3(0,0,0),
      yaw:0,pitch:0,pitchMax:Math.PI/2-0.01,
      onGround:false,
-     width:0.6,height:1.8,
+     width:0.6,height:1.8,standHeight:1.8,sneakHeight:1.5,
+     eyeOffset:1.62,standEyeOffset:1.62,sneakEyeOffset:1.32,
    };
    camera.position.copy(player.pos);
    
@@ -768,21 +774,84 @@ function getItemName(id){
    });
    
    const KEYS={};
-  let wLastTap=0,sprintTap=false,showHud=true;
-   window.addEventListener('keydown',e=>{
-     KEYS[e.code]=true;
-     if(['Space','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();
-     if(e.code.startsWith('Digit')){const n=parseInt(e.code.slice(5))-1;if(n>=0&&n<9){INV.active=n;updateHotbarUI();drawHand();}}
-     if(e.code==='KeyP')togglePause();
-     if(e.code==='KeyE')toggleInventory();
-     if(e.code==='KeyH'){showHud=!showHud;document.getElementById('hud').style.display=showHud?'block':'none';}
+  let wLastTap=0,sprintTap=false,showHud=true,isChatOpen=false;
+  const CHAT={messages:[],maxLines:9};
+
+  function isShiftDown(){return !!(KEYS['ShiftLeft']||KEYS['ShiftRight']);}
+  function clearMovementKeys(){
+    ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft','ShiftRight','ControlLeft'].forEach(k=>{KEYS[k]=false;});
+  }
+  function renderChatLog(){
+    const log=document.getElementById('chat-log');
+    log.innerHTML='';
+    CHAT.messages.forEach(msg=>{
+      const line=document.createElement('div');
+      line.className='chat-line';
+      line.textContent=msg;
+      log.appendChild(line);
+    });
+    log.scrollTop=log.scrollHeight;
+  }
+  function pushChatMessage(msg){
+    const text=(msg||'').trim();
+    if(!text)return;
+    CHAT.messages.push(text);
+    while(CHAT.messages.length>CHAT.maxLines)CHAT.messages.shift();
+    renderChatLog();
+  }
+  function closeChat(){
+    isChatOpen=false;
+    const panel=document.getElementById('chat-panel');
+    panel.style.display='none';
+    const input=document.getElementById('chat-input');
+    input.value='';
+    input.blur();
+    if(document.getElementById('game-ui').style.display==='block'&&!isPaused&&!isInvOpen&&document.getElementById('settings-menu').style.display!=='flex'){
+      canvas.requestPointerLock();
+    }
+  }
+  function openChat(){
+    if(isPaused||isInvOpen||document.getElementById('settings-menu').style.display==='flex')return;
+    isChatOpen=true;
+    clearMovementKeys();
+    document.getElementById('chat-panel').style.display='flex';
+    renderChatLog();
+    if(document.pointerLockElement)document.exitPointerLock();
+    document.getElementById('chat-input').focus();
+  }
+
+  window.addEventListener('keydown',e=>{
+    if(isChatOpen){
+      if(e.code==='Escape'){e.preventDefault();closeChat();}
+      return;
+    }
+    KEYS[e.code]=true;
+    if(['Space','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();
+    if(e.code.startsWith('Digit')){const n=parseInt(e.code.slice(5))-1;if(n>=0&&n<9){INV.active=n;updateHotbarUI();drawHand();}}
+    if(e.code==='KeyP')togglePause();
+    if(e.code==='KeyE')toggleInventory();
+    if(e.code==='KeyT'){e.preventDefault();openChat();return;}
+    if(e.code==='KeyH'){showHud=!showHud;document.getElementById('hud').style.display=showHud?'block':'none';}
      if(e.code==='KeyW'&&!e.repeat){
        const now=performance.now()*0.001;
        if(now-wLastTap<0.3)sprintTap=true;
        wLastTap=now;
      }
-   });
-   window.addEventListener('keyup',e=>{KEYS[e.code]=false;if(e.code==='KeyW')sprintTap=false;});
+  });
+  window.addEventListener('keyup',e=>{KEYS[e.code]=false;if(e.code==='KeyW')sprintTap=false;});
+  document.getElementById('chat-input').addEventListener('keydown',e=>{
+    if(e.code==='Enter'){
+      e.preventDefault();
+      const text=e.currentTarget.value.trim();
+      if(text)pushChatMessage(`You: ${text}`);
+      closeChat();
+      return;
+    }
+    if(e.code==='Escape'){
+      e.preventDefault();
+      closeChat();
+    }
+  });
    
    // ── AABB collision sweep ──────────────────────────────────
   function getAABBBlocks(px,py,pz){
@@ -860,10 +929,34 @@ function getItemName(id){
     }
   }
 
+  function hasHeadroomForHeight(targetHeight){
+    const w=player.width/2;
+    for(let ix=Math.floor(player.pos.x-w);ix<=Math.floor(player.pos.x+w);ix++)
+    for(let iy=Math.floor(player.pos.y);iy<=Math.floor(player.pos.y+targetHeight-0.001);iy++)
+    for(let iz=Math.floor(player.pos.z-w);iz<=Math.floor(player.pos.z+w);iz++){
+      if(isSolid(worldGet(ix,iy,iz)))return false;
+    }
+    return true;
+  }
+
+  function updatePlayerStance(){
+    if(isShiftDown()){
+      player.height=player.sneakHeight;
+      player.eyeOffset=player.sneakEyeOffset;
+      return;
+    }
+    if(player.height!==player.standHeight&&hasHeadroomForHeight(player.standHeight)){
+      player.height=player.standHeight;
+      player.eyeOffset=player.standEyeOffset;
+    }
+  }
+
   function movePlayer(dt){
-     if(isPaused||isInvOpen)return;
-     const sprint=KEYS['ControlLeft']||(sprintTap&&KEYS['KeyW']&&!KEYS['KeyS']);
-     const spd=sprint?CFG.sprintSpeed:CFG.walkSpeed;
+     if(isPaused||isInvOpen||isChatOpen)return;
+     updatePlayerStance();
+     const sneaking=player.height===player.sneakHeight;
+     const sprint=(sprintTap&&KEYS['KeyW']&&!KEYS['KeyS']&&!sneaking&&STATS.energy>0);
+     const spd=sneaking?CFG.sneakSpeed:(sprint?CFG.sprintSpeed:CFG.walkSpeed);
      vF.set(-Math.sin(player.yaw),0,-Math.cos(player.yaw));
      vR.set(Math.cos(player.yaw),0,-Math.sin(player.yaw));
      let mx=0,mz=0;
@@ -877,12 +970,12 @@ function getItemName(id){
      const bodyFluid=playerBodyFluid();
      // Gravity / buoyancy
      if(bodyFluid===B.WATER){
-       player.vel.y+=(2.7-(KEYS['ShiftLeft']?1.2:0))*dt;
+       player.vel.y+=(2.7-(isShiftDown()?1.2:0))*dt;
        player.vel.y-=CFG.gravity*0.22*dt;
        if(KEYS['Space'])player.vel.y=Math.min(player.vel.y+11*dt,3.6);
        player.vel.x*=0.7;player.vel.z*=0.7;
      }else if(bodyFluid===B.LAVA){
-       player.vel.y+=(1.8-(KEYS['ShiftLeft']?0.8:0))*dt;
+       player.vel.y+=(1.8-(isShiftDown()?0.8:0))*dt;
        player.vel.y-=CFG.gravity*0.3*dt;
        if(KEYS['Space'])player.vel.y=Math.min(player.vel.y+9*dt,2.8);
        player.vel.x*=0.55;player.vel.z*=0.55;
@@ -901,8 +994,8 @@ function getItemName(id){
     else if(player.pos.z<-borderClamp){player.pos.z=-borderClamp;player.vel.z=Math.max(0,player.vel.z);} 
    
      // Energy
-    if(sprint&&(KEYS['KeyW']||KEYS['KeyS']||KEYS['KeyA']||KEYS['KeyD'])){
-      STATS.energy=Math.max(0,STATS.energy-18*dt);
+    if(sprint&&KEYS['KeyW']){
+      STATS.energy=Math.max(0,STATS.energy-CFG.sprintEnergyDrain*dt);
     } else {
       STATS.energy=Math.min(STATS.maxEnergy,STATS.energy+7*dt);
     }
@@ -912,7 +1005,7 @@ function getItemName(id){
       STATS.health=Math.max(0,STATS.health-voidDamageRate*dt);
     }
 
-    const headY=Math.floor(player.pos.y+CFG.eyeOffset);
+    const headY=Math.floor(player.pos.y+player.eyeOffset);
     const headBlock=worldGet(Math.floor(player.pos.x),headY,Math.floor(player.pos.z));
     if(headBlock===B.WATER){
       // ~13.3 seconds to fully deplete from 100 air while submerged
@@ -933,7 +1026,7 @@ function getItemName(id){
       if(lavaContactT>0.11){lavaContactT=0;spawnContactParticle(0xff5500,0.45);spawnContactParticle(0xffaa33,0.4);}
     }else lavaContactT=0;
 
-    camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
+    camera.position.set(player.pos.x,player.pos.y+player.eyeOffset,player.pos.z);
      camera.rotation.order='YXZ';camera.rotation.y=player.yaw;camera.rotation.x=player.pitch;camera.rotation.z=0;
    }
    
@@ -1698,6 +1791,7 @@ function getItemName(id){
    }
 
   function openUiScreen(){
+    if(isChatOpen)closeChat();
     isInvOpen=true;
     const inv=document.getElementById('inventory-screen');
     buildInventoryUI();
@@ -1817,7 +1911,8 @@ function getItemName(id){
    // ═══════════════════════════════════════════════════════════
    // 14. PAUSE + SETTINGS
    // ═══════════════════════════════════════════════════════════
-   function togglePause(){
+  function togglePause(){
+     if(isChatOpen)closeChat();
      if(isInvOpen)return;
      isPaused=!isPaused;
      document.getElementById('pause-menu').style.display=isPaused?'flex':'none';
@@ -1829,6 +1924,10 @@ function getItemName(id){
   document.getElementById('pause-settings').addEventListener('click',openSettings);
   document.getElementById('pause-saveMenu').addEventListener('click',()=>{saveGameLocal();location.reload();});
   document.getElementById('settings-back').addEventListener('click',closeSettingsMenu);
+  document.getElementById('settings-experimental').addEventListener('click',()=>{
+    document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+    buildSettingsTab('experimental');
+  });
    document.querySelectorAll('.stab').forEach(btn=>btn.addEventListener('click',()=>{
      document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
      btn.classList.add('active');buildSettingsTab(btn.dataset.tab);
@@ -1850,8 +1949,14 @@ function getItemName(id){
   const PLAYER_SETTINGS=[
      {key:'mouseSens', label:'Mouse Sensitivity',type:'range',min:0.0005,max:0.008,step:0.0005,unit:''},
    ];
+  const EXPERIMENTAL_SETTINGS=[
+    {key:'enableVSync',label:'Enable V-Sync',type:'toggle'},
+    {key:'enableNixPlus',label:'Enable Nix+ (Enhanced Graphics)',type:'toggle'},
+    {key:'enableCubenixMobile',label:'Enable Cubenix Mobile',type:'toggle'},
+    {key:'enableCubenixConnect',label:'Enable Cubenix Connect',type:'toggle'},
+  ];
 
-   const SETTINGS_KEYS=['renderDist','simDist','fov','brightness','fogDensity','guiScale','leavesQuality','shadows','particles','clouds','mouseSens'];
+   const SETTINGS_KEYS=['renderDist','simDist','fov','brightness','fogDensity','guiScale','leavesQuality','shadows','particles','clouds','mouseSens','enableVSync','enableNixPlus','enableCubenixMobile','enableCubenixConnect'];
    let settingsContext='pause'; // pause | menu
 
    function saveSettingsLocal(){
@@ -1886,7 +1991,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.21a',
+        version:'0.0.30a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -1937,7 +2042,7 @@ function getItemName(id){
    
    function buildSettingsTab(tab){
      const body=document.getElementById('settings-body');body.innerHTML='';
-     const list=tab==='video'?VIDEO_SETTINGS:PLAYER_SETTINGS;
+     const list=tab==='video'?VIDEO_SETTINGS:(tab==='player'?PLAYER_SETTINGS:EXPERIMENTAL_SETTINGS);
      list.forEach(s=>{
        const row=document.createElement('div');row.className='setting-row';
        if(s.key==='_optimize')row.id='settings-optimize';
@@ -1971,7 +2076,9 @@ function getItemName(id){
    
   function applySettings(){
      camera.fov=CFG.fov;camera.updateProjectionMatrix();
-     renderer.shadowMap.enabled=CFG.shadows;
+     const nixPlus=!!CFG.enableNixPlus;
+     renderer.shadowMap.enabled=nixPlus?false:CFG.shadows;
+     renderer.setPixelRatio(nixPlus?1:Math.min(window.devicePixelRatio,2));
      const fn=CFG.renderDist*16*CFG.fogDensity;
     scene.fog.near=fn*0.5;scene.fog.far=fn;
     clouds.forEach(c=>c.visible=CFG.clouds);
@@ -2199,7 +2306,9 @@ function getItemName(id){
     }
     player.vel.set(0,0,0);
     player.onGround=false;
-    camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
+    player.height=player.standHeight;
+    player.eyeOffset=player.standEyeOffset;
+    camera.position.set(player.pos.x,player.pos.y+player.eyeOffset,player.pos.z);
 
     // alpha test stash: force a diamond chest in front of spawn with 99x known IDs
     const frontX=Math.round(-Math.sin(player.yaw))||1;
