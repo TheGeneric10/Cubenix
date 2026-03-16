@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.11a
+   CUBENIX — script.js — v0.0.12a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -51,13 +51,13 @@
      AIR:0,GRASS:1,DIRT:2,STONE:3,BEDROCK:4,
      SAND:5,WOOD:6,LEAVES:7,WATER:8,LAVA:9,
      COAL_ORE:10,IRON_ORE:11,GOLD_ORE:12,DIAMOND_ORE:13,
-     GRAVEL:14,CRAFTING_TABLE:15,PLANKS:16,
+     GRAVEL:14,CRAFTING_TABLE:15,PLANKS:16,CHEST:17,DIAMOND_CHEST:18,TNT:19,
    };
    const BLOCK_NAMES=[
      'Air','Grass','Dirt','Stone','Bedrock','Sand',
      'Oak Log','Leaves','Water','Lava',
      'Coal Ore','Iron Ore','Gold Ore','Diamond Ore',
-     'Gravel','Crafting Table','Oak Planks',
+     'Gravel','Crafting Table','Oak Planks','Chest','Diamond Chest','TNT',
    ];
    
    // Item IDs (non-block items start at 100)
@@ -82,7 +82,7 @@
      [B.GRASS]:0.9,[B.DIRT]:0.75,[B.SAND]:0.75,[B.GRAVEL]:0.75,
      [B.STONE]:7.5,[B.COAL_ORE]:7.5,[B.IRON_ORE]:7.5,
      [B.GOLD_ORE]:7.5,[B.DIAMOND_ORE]:7.5,
-     [B.WOOD]:3.0,[B.LEAVES]:0.5,[B.PLANKS]:2.0,[B.CRAFTING_TABLE]:3.0,
+     [B.WOOD]:3.0,[B.LEAVES]:0.5,[B.PLANKS]:2.0,[B.CRAFTING_TABLE]:3.0,[B.CHEST]:2.6,[B.DIAMOND_CHEST]:4.5,[B.TNT]:0.9,
      [B.BEDROCK]:Infinity,[B.WATER]:Infinity,[B.LAVA]:Infinity,
    };
    
@@ -97,6 +97,9 @@
      [B.LEAVES]:  [{id:B.LEAVES,count:1,ch:0.2}],
      [B.PLANKS]:  [{id:B.PLANKS,count:1,ch:1}],
      [B.CRAFTING_TABLE]: [{id:B.CRAFTING_TABLE,count:1,ch:1}],
+     [B.CHEST]: [{id:B.CHEST,count:1,ch:1}],
+     [B.DIAMOND_CHEST]: [{id:B.DIAMOND_CHEST,count:1,ch:1}],
+     [B.TNT]: [{id:B.TNT,count:1,ch:1}],
      [B.COAL_ORE]:    [{id:IT.COAL,count:1,ch:1}],
      [B.IRON_ORE]:    [{id:IT.IRON_INGOT,count:2,ch:1}],
      [B.GOLD_ORE]:    [{id:IT.GOLD_INGOT,count:2,ch:1}],
@@ -291,11 +294,17 @@
      g.fillStyle='#d0a030';g.fillRect(2,2,4,4);g.fillRect(10,2,4,4);g.fillRect(2,10,4,4);g.fillRect(10,10,4,4);
    });
    
-   TEX.craftingSide=makeTex(g=>{
-     g.fillStyle='#b0832e';g.fillRect(0,0,16,16);
-     const r=rng(12);
-     for(let y=0;y<16;y+=8){g.strokeStyle='rgba(0,0,0,0.2)';g.lineWidth=1;g.beginPath();g.moveTo(0,y);g.lineTo(16,y);g.stroke();}
-   });
+  TEX.craftingSide=makeTex(g=>{
+    g.fillStyle='#b0832e';g.fillRect(0,0,16,16);
+    const r=rng(12);
+    for(let y=0;y<16;y+=8){g.strokeStyle='rgba(0,0,0,0.2)';g.lineWidth=1;g.beginPath();g.moveTo(0,y);g.lineTo(16,y);g.stroke();}
+  });
+
+  TEX.chestSide=makeTex(g=>{g.fillStyle='#8b5a2b';g.fillRect(0,0,16,16);g.fillStyle='#5a3a1a';g.fillRect(0,0,16,3);g.fillStyle='#b98b4e';g.fillRect(0,6,16,2);g.fillStyle='#d8b87a';g.fillRect(7,7,2,3);});
+  TEX.chestTop=makeTex(g=>{g.fillStyle='#9a6a38';g.fillRect(0,0,16,16);g.fillStyle='#6a441f';g.fillRect(0,2,16,2);});
+  TEX.diamondChest=makeTex(g=>{g.fillStyle='#38b3c8';g.fillRect(0,0,16,16);g.fillStyle='#7ff2ff';g.fillRect(0,0,16,3);g.fillStyle='#146a7a';g.fillRect(0,13,16,3);});
+  TEX.tntTop=makeTex(g=>{g.fillStyle='#d22';g.fillRect(0,0,16,16);g.fillStyle='#f55';for(let i=0;i<20;i++)g.fillRect((Math.random()*16)|0,(Math.random()*16)|0,1,1);});
+  TEX.tntSide=makeTex(g=>{g.fillStyle='#d22';g.fillRect(0,0,16,16);g.fillStyle='#fff';g.fillRect(0,5,16,6);g.fillStyle='#000';g.font='bold 6px sans-serif';g.fillText('TNT',2,10);});
    
    function makeOre(br,bg,bb,sr,sg,sb,seed){
      return makeTex(g=>{
@@ -348,6 +357,9 @@
      [B.DIAMOND_ORE]: {top:TEX.diamondOre,bot:TEX.diamondOre,side:TEX.diamondOre},
      [B.PLANKS]:  {top:TEX.planks,bot:TEX.planks,side:TEX.planks},
      [B.CRAFTING_TABLE]:{top:TEX.craftingTop,bot:TEX.planks,side:TEX.craftingSide},
+     [B.CHEST]:{top:TEX.chestTop,bot:TEX.chestTop,side:TEX.chestSide},
+     [B.DIAMOND_CHEST]:{top:TEX.diamondChest,bot:TEX.diamondChest,side:TEX.diamondChest},
+     [B.TNT]:{top:TEX.tntTop,bot:TEX.tntTop,side:TEX.tntSide},
    };
    // Item icon textures (non-block)
    const ITEM_TEX={
@@ -471,22 +483,22 @@
      const lx=((wx%16)+16)%16,lz=((wz%16)+16)%16;
      const a=getArr(cx,cz,true);a[vKey(lx,wy,lz)]=id;
    }
-   function isSolid(id){
-     return id!==B.AIR&&id!==B.LEAVES;
-   }
+  function isSolid(id){
+    return id!==B.AIR&&id!==B.LEAVES&&id!==B.WATER&&id!==B.LAVA;
+  }
    function isFluid(id){return id===B.WATER||id===B.LAVA;}
    
    // Ore vein generation
    function oreBlock(wx,wy,wz){
      const r=frac(Math.abs(h2(wx*7+wy,wz*13+wy*3)));
      // Coal: veins Y5-128 ~4.5%
-     if(wy>=5&&wy<=128){const v=frac(Math.abs(h2(Math.floor(wx/3)*3,Math.floor(wz/3)*3+wy/3)));if(v<0.045)return B.COAL_ORE;}
+    if(wy>=5&&wy<=128){const v=frac(Math.abs(h2(Math.floor(wx/3)*3,Math.floor(wz/3)*3+wy/3)));if(v<0.024)return B.COAL_ORE;}
      // Iron Y5-64 1.8%
-     if(wy>=5&&wy<=64&&r>=0.045&&r<0.063)return B.IRON_ORE;
+    if(wy>=5&&wy<=64&&r>=0.024&&r<0.032)return B.IRON_ORE;
      // Gold Y5-32 0.8%
-     if(wy>=5&&wy<=32&&r>=0.063&&r<0.071)return B.GOLD_ORE;
+    if(wy>=5&&wy<=32&&r>=0.032&&r<0.036)return B.GOLD_ORE;
      // Diamond Y1-16 0.4%
-     if(wy>=1&&wy<=16&&r>=0.071&&r<0.075)return B.DIAMOND_ORE;
+    if(wy>=1&&wy<=16&&r>=0.036&&r<0.038)return B.DIAMOND_ORE;
      return B.STONE;
    }
    
@@ -526,8 +538,7 @@
          let id=B.AIR;
          if(y===0)id=B.BEDROCK;
          else if(y<h-3){
-           if(!isCave(wx,y,wz))id=oreBlock(wx,y,wz);
-           else if(y<=12&&frac(Math.abs(h2(wx*2+y,wz*2)))<0.04)id=B.LAVA;
+          if(!isCave(wx,y,wz))id=oreBlock(wx,y,wz);
          }
          else if(y<h){
            id=isCave(wx,y,wz)?B.AIR:B.DIRT;
@@ -549,9 +560,23 @@
              const lx2=lx+dlx,lz2=lz+dlz;
              if(lx2>=0&&lx2<16&&lz2>=0&&lz2<16&&(h-dy)>=1){
                arr[vKey(lx2,h-dy,lz2)]=dy===0?B.LAVA:B.AIR;
-             }
-           }
-         }
+       }
+
+      // Underground lava pool (replace scattered spots)
+      if(h>24&&frac(Math.abs(h2(wx*1.7+44,wz*2.1+87)))<0.002){
+        const ly=6+((frac(Math.abs(h2(wx*4.1,wz*3.7)))*10)|0);
+        for(let dlx=-2;dlx<=2;dlx++)for(let dlz=-2;dlz<=2;dlz++){
+          if(dlx*dlx+dlz*dlz>4)continue;
+          const lx2=lx+dlx,lz2=lz+dlz;
+          if(lx2<0||lx2>=16||lz2<0||lz2>=16)continue;
+          if(ly>=2&&ly<CFG.chunkH-2){
+            arr[vKey(lx2,ly,lz2)]=B.LAVA;
+            arr[vKey(lx2,ly+1,lz2)]=B.AIR;
+          }
+        }
+      }
+    }
+  }
        }
    
        // Oak tree
@@ -744,8 +769,25 @@
     }
   }
    
-   const vF=new THREE.Vector3(),vR=new THREE.Vector3();
-   let isPaused=false,isInvOpen=false;
+  const vF=new THREE.Vector3(),vR=new THREE.Vector3();
+  let isPaused=false,isInvOpen=false;
+  let waterContactT=0,lavaContactT=0;
+
+  function playerBodyFluid(){
+    const bx=Math.floor(player.pos.x),bz=Math.floor(player.pos.z);
+    for(let y=Math.floor(player.pos.y);y<=Math.floor(player.pos.y+player.height);y++){
+      const id=worldGet(bx,y,bz);
+      if(id===B.WATER||id===B.LAVA)return id;
+    }
+    return B.AIR;
+  }
+
+  function spawnContactParticle(color,spread=0.35){
+    const p=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,0.06),new THREE.MeshLambertMaterial({color}));
+    p.position.set(player.pos.x+(Math.random()-0.5)*spread,player.pos.y+0.15+Math.random()*1.2,player.pos.z+(Math.random()-0.5)*spread);
+    p.userData={vel:new THREE.Vector3((Math.random()-0.5)*0.8,Math.random()*0.9,(Math.random()-0.5)*0.8),life:0.5};
+    scene.add(p);particles.push(p);
+  }
    
   function movePlayer(dt){
      if(isPaused||isInvOpen)return;
@@ -761,8 +803,17 @@
      player.vel.x=mx;player.vel.z=mz;
      // Jump
      if(KEYS['Space']&&player.onGround){player.vel.y=CFG.jumpVel;player.onGround=false;}
-     // Gravity
-     if(!player.onGround)player.vel.y-=CFG.gravity*dt;
+     const bodyFluid=playerBodyFluid();
+     // Gravity / buoyancy
+     if(bodyFluid===B.WATER){
+       player.vel.y-=CFG.gravity*0.25*dt;
+       if(KEYS['Space'])player.vel.y=Math.min(player.vel.y+10*dt,3.2);
+       player.vel.x*=0.7;player.vel.z*=0.7;
+     }else if(bodyFluid===B.LAVA){
+       player.vel.y-=CFG.gravity*0.35*dt;
+       if(KEYS['Space'])player.vel.y=Math.min(player.vel.y+8*dt,2.4);
+       player.vel.x*=0.55;player.vel.z*=0.55;
+     }else if(!player.onGround)player.vel.y-=CFG.gravity*dt;
      player.onGround=false;
      // Resolve collision per sub-step
      const steps=3;
@@ -789,6 +840,17 @@
     }else{
       STATS.air=Math.min(STATS.maxAir,STATS.air+45*dt);
     }
+
+    if(bodyFluid===B.WATER){
+      waterContactT+=dt;
+      if(waterContactT>0.08){waterContactT=0;spawnContactParticle(0x66bbff,0.55);}
+    }else waterContactT=0;
+
+    if(bodyFluid===B.LAVA){
+      STATS.health=Math.max(0,STATS.health-18*dt);
+      lavaContactT+=dt;
+      if(lavaContactT>0.11){lavaContactT=0;spawnContactParticle(0xff5500,0.45);spawnContactParticle(0xffaa33,0.4);}
+    }else lavaContactT=0;
 
     camera.position.set(player.pos.x,player.pos.y+CFG.eyeOffset,player.pos.z);
      camera.rotation.order='YXZ';camera.rotation.y=player.yaw;camera.rotation.x=player.pitch;camera.rotation.z=0;
@@ -835,6 +897,26 @@
         scene.remove(e);e.geometry.dispose();
         fallingBlockEntities.splice(i,1);
       }
+    }
+  }
+
+  function flowFluidOnce(fluidId,range=12){
+    const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
+    const changes=[];
+    for(let dx=-range;dx<=range;dx++)for(let dz=-range;dz<=range;dz++)for(let dy=8;dy>=-12;dy--){
+      const wx=px+dx,wy=py+dy,wz=pz+dz;
+      if(worldGet(wx,wy,wz)!==fluidId)continue;
+      if(worldGet(wx,wy-1,wz)===B.AIR){changes.push([wx,wy-1,wz,fluidId]);continue;}
+      const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+      for(const [sx,sz] of dirs){
+        if(worldGet(wx+sx,wy,wz+sz)===B.AIR&&worldGet(wx+sx,wy-1,wz+sz)!==B.AIR){
+          changes.push([wx+sx,wy,wz+sz,fluidId]);
+        }
+      }
+    }
+    for(const [wx,wy,wz,id] of changes){
+      worldSet(wx,wy,wz,id);
+      buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));
     }
   }
 
@@ -1692,7 +1774,7 @@
    // ═══════════════════════════════════════════════════════════
    // 20. MAIN LOOP
    // ═══════════════════════════════════════════════════════════
-   let lastNow=performance.now(),chunkT=0,fallT=0,autosaveT=0;
+   let lastNow=performance.now(),chunkT=0,fallT=0,autosaveT=0,waterFlowT=0,lavaFlowT=0;
    function loop(){
      requestAnimationFrame(loop);
      const now=performance.now();const dt=Math.min((now-lastNow)*0.001,0.05);lastNow=now;
@@ -1703,8 +1785,10 @@
        updateDayNight(dt);updateAnimTex(dt);
        clouds.forEach(c=>{c.position.x+=c.userData.spd*dt;if(c.position.x>200)c.position.x=-200;});
        chunkT+=dt;if(chunkT>0.35){chunkT=0;updateChunks();}
-       fallT+=dt;if(fallT>0.25){fallT=0;updateFallingBlocks();}
-       updateFallingEntities(dt);
+      fallT+=dt;if(fallT>0.25){fallT=0;updateFallingBlocks();}
+      waterFlowT+=dt;if(waterFlowT>0.12){waterFlowT=0;flowFluidOnce(B.WATER,10);}
+      lavaFlowT+=dt;if(lavaFlowT>0.38){lavaFlowT=0;flowFluidOnce(B.LAVA,8);}
+      updateFallingEntities(dt);
        updateLeavesDecay(dt);
        processChunkQueue(2);
      }
