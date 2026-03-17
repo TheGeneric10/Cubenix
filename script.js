@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.53a
+   CUBENIX — script.js — v0.0.54a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -587,8 +587,8 @@ function getItemName(id){
    function getMats(id){
      if(matCache[id]) return matCache[id];
      const bt=BLOCK_TEX[id]||BLOCK_TEX[B.STONE];
-     const tr=id===B.LEAVES||id===B.WATER||id===B.LAVA;
-     const op={transparent:tr,opacity:id===B.WATER?0.76:id===B.LEAVES?0.86:1,side:tr?THREE.DoubleSide:THREE.FrontSide,depthWrite:!tr};
+     const tr=id===B.LEAVES||id===B.WATER||id===B.LAVA||id===B.TORCH;
+    const op={transparent:tr,opacity:id===B.WATER?0.76:id===B.LEAVES?0.86:1,side:tr?THREE.DoubleSide:THREE.FrontSide,depthWrite:!tr,alphaTest:id===B.TORCH?0.08:0};
      const base=tr?op:{};
      matCache[id]=[
        new THREE.MeshLambertMaterial({map:bt.side,...base}),
@@ -1664,6 +1664,17 @@ function getItemName(id){
    const outlineM=new THREE.MeshBasicMaterial({color:0,wireframe:true,transparent:true,opacity:0.4});
    const outlineMesh=new THREE.Mesh(new THREE.BoxGeometry(1.004,1.004,1.004),outlineM);
    outlineMesh.visible=false;scene.add(outlineMesh);
+
+  function applyOutlineForTarget(wx,wy,wz,id){
+    const fp=getLargeChestFootprint(wx,wy,wz,id);
+    if(fp){
+      outlineMesh.scale.set(fp.maxX-fp.minX+1,1,fp.maxZ-fp.minZ+1);
+      outlineMesh.position.set((fp.minX+fp.maxX+1)/2,wy+0.5,(fp.minZ+fp.maxZ+1)/2);
+      return;
+    }
+    outlineMesh.scale.set(1,1,1);
+    outlineMesh.position.set(wx+0.5,wy+0.5,wz+0.5);
+  }
    
    function raycastWorld(){
      const dir=new THREE.Vector3(0,0,-1).applyEuler(camera.rotation).normalize();
@@ -1678,7 +1689,7 @@ function getItemName(id){
        const b=worldGet(ix,iy,iz);
        if(b!==B.AIR&&!isFluid(b)){
          targetBlock={wx:ix,wy:iy,wz:iz,face:face.slice()};
-         outlineMesh.position.set(ix+0.5,iy+0.5,iz+0.5);outlineMesh.visible=true;
+        applyOutlineForTarget(ix,iy,iz,b);outlineMesh.visible=true;
          document.getElementById('crosshair').classList.add('targeting');return;
        }
        if(tmx<tmy&&tmx<tmz){tmx+=tdx;ix+=sx;face=[-sx,0,0];}
@@ -1686,7 +1697,7 @@ function getItemName(id){
        else{tmz+=tdz;iz+=sz;face=[0,0,-sz];}
        if(Math.min(tmx,tmy,tmz)>CFG.maxReach)break;
      }
-     targetBlock=null;outlineMesh.visible=false;
+     targetBlock=null;outlineMesh.visible=false;outlineMesh.scale.set(1,1,1);
      document.getElementById('crosshair').classList.remove('targeting');
    }
    
@@ -1714,6 +1725,32 @@ function getItemName(id){
    
    // Particles
    const particles=[];
+   const chestShineFx=[];
+   function spawnChestPairShine(wx,wy,wz){
+    const glow=new THREE.Mesh(new THREE.SphereGeometry(0.18,8,8),new THREE.MeshBasicMaterial({color:0xffde8a,transparent:true,opacity:0.9}));
+    glow.position.set(wx+0.5,wy+0.92,wz+0.5);
+    glow.userData={life:0.7,baseY:wy+0.92};
+    scene.add(glow);
+    chestShineFx.push(glow);
+   }
+   function updateChestShineFx(dt){
+    for(let i=chestShineFx.length-1;i>=0;i--){
+      const fx=chestShineFx[i];
+      fx.userData.life-=dt;
+      fx.position.y=fx.userData.baseY+(0.7-fx.userData.life)*0.35;
+      const a=Math.max(0,fx.userData.life/0.7);
+      fx.material.opacity=a*0.9;
+      const s=1+(1-a)*0.9;
+      fx.scale.set(s,s,s);
+      if(fx.userData.life<=0){scene.remove(fx);fx.geometry.dispose();fx.material.dispose();chestShineFx.splice(i,1);}
+    }
+   }
+   function spawnLargeChestPairFx(a,b,id){
+    spawnParticles(a.wx,a.wy,a.wz,id);
+    spawnParticles(b.wx,b.wy,b.wz,id);
+    spawnChestPairShine(a.wx,a.wy,a.wz);
+    spawnChestPairShine(b.wx,b.wy,b.wz);
+   }
    function spawnParticles(wx,wy,wz,id){
      if(!particlesEnabled())return;
      const tx=getItemTex(id);
@@ -2173,7 +2210,22 @@ function getItemName(id){
     const key=worldPosKey(wx,wy,wz);
     clearPair(key);
     const candidates=chestNeighbors(wx,wy,wz,blockId).filter(k=>!getPairKey(k));
-    if(candidates.length===1)setPair(key,candidates[0]);
+    if(candidates.length===1){
+      setPair(key,candidates[0]);
+      const other=parseWorldPosKey(candidates[0]);
+      if(other)spawnLargeChestPairFx({wx,wy,wz},other,blockId);
+    }
+  }
+  function getLargeChestFootprint(wx,wy,wz,id){
+    if(!CHEST_UI[id])return null;
+    const key=worldPosKey(wx,wy,wz);
+    const other=parseWorldPosKey(getPairKey(key));
+    if(!other||other.wy!==wy||worldGet(other.wx,other.wy,other.wz)!==id)return null;
+    return {
+      minX:Math.min(wx,other.wx),maxX:Math.max(wx,other.wx),
+      minZ:Math.min(wz,other.wz),maxZ:Math.max(wz,other.wz),
+      other
+    };
   }
   function getLargeChestFootprint(wx,wy,wz,id){
     if(!CHEST_UI[id])return null;
@@ -2610,7 +2662,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.53a',
+        version:'0.0.54a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -2654,6 +2706,8 @@ function getItemName(id){
     primedTnts.length=0;
     for(const l of torchLights.values())scene.remove(l);
     torchLights.clear();
+    for(let i=chestShineFx.length-1;i>=0;i--){scene.remove(chestShineFx[i]);chestShineFx[i].geometry.dispose();chestShineFx[i].material.dispose();}
+    chestShineFx.length=0;
     for(const b of boats){scene.remove(b);b.geometry.dispose();b.material.dispose();}
     boats.length=0;
     ridingBoat=null;
@@ -2874,7 +2928,7 @@ function getItemName(id){
       updateControllerInput();
       handPhase+=dt*9;
        movePlayer(dt);raycastWorld();tickBreaking(dt);
-       updateParticles(dt);updateDrops(dt);updatePrimedTnts(dt);
+       updateParticles(dt);updateChestShineFx(dt);updateDrops(dt);updatePrimedTnts(dt);
        updateDayNight(dt);updateAnimTex(dt);
        clouds.forEach(c=>{c.position.x+=c.userData.spd*dt;if(c.position.x>200)c.position.x=-200;});
        chunkT+=dt;if(chunkT>0.35){chunkT=0;updateChunks();}
