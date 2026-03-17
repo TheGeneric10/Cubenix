@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.55a
+   CUBENIX — script.js — v0.0.57a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -120,15 +120,15 @@ function getItemName(id){
    function isBlockItem(id){ return id<100 && id!==B.AIR; }
    const TOOL_STATS={
     [IT.WOOD_PICKAXE]:{atk:2,speed:1.15,eff:20,type:'pickaxe'},
-    [IT.STONE_PICKAXE]:{atk:3,speed:1.1,eff:35,type:'pickaxe'},
-    [IT.IRON_PICKAXE]:{atk:4,speed:1.05,eff:50,type:'pickaxe'},
-    [IT.GOLD_PICKAXE]:{atk:3,speed:1.25,eff:65,type:'pickaxe'},
-    [IT.DIAMOND_PICKAXE]:{atk:5,speed:1.0,eff:80,type:'pickaxe'},
+    [IT.STONE_PICKAXE]:{atk:3,speed:1.1,eff:42,type:'pickaxe'},
+    [IT.IRON_PICKAXE]:{atk:4,speed:1.05,eff:58,type:'pickaxe'},
+    [IT.GOLD_PICKAXE]:{atk:3,speed:1.25,eff:76,type:'pickaxe'},
+    [IT.DIAMOND_PICKAXE]:{atk:5,speed:1.0,eff:88,type:'pickaxe'},
     [IT.WOOD_AXE]:{atk:3,speed:1.0,eff:18,type:'axe'},
-    [IT.STONE_AXE]:{atk:4,speed:0.95,eff:32,type:'axe'},
-    [IT.IRON_AXE]:{atk:5,speed:0.9,eff:46,type:'axe'},
-    [IT.GOLD_AXE]:{atk:4,speed:1.1,eff:58,type:'axe'},
-    [IT.DIAMOND_AXE]:{atk:6,speed:0.85,eff:72,type:'axe'},
+    [IT.STONE_AXE]:{atk:4,speed:0.95,eff:38,type:'axe'},
+    [IT.IRON_AXE]:{atk:5,speed:0.9,eff:54,type:'axe'},
+    [IT.GOLD_AXE]:{atk:4,speed:1.1,eff:68,type:'axe'},
+    [IT.DIAMOND_AXE]:{atk:6,speed:0.85,eff:82,type:'axe'},
     [IT.WOOD_BLADE]:{atk:4,speed:1.4,type:'blade'},
     [IT.STONE_BLADE]:{atk:5,speed:1.35,type:'blade'},
     [IT.IRON_BLADE]:{atk:6,speed:1.28,type:'blade'},
@@ -370,31 +370,30 @@ function getItemName(id){
    
    // Animated water frames (4 frames)
    TEX.waterFrames=[];
-   for(let f=0;f<4;f++){
-     TEX.waterFrames.push(makeTex(g=>{
-       g.fillStyle=`rgba(20,78,210,0.74)`;g.fillRect(0,0,16,16);
-       const phase=f*Math.PI/2;
-       g.strokeStyle='rgba(60,140,255,0.5)';g.lineWidth=1.2;
-       for(let i=0;i<4;i++){
-         g.beginPath();g.moveTo(0,3+i*4);
-         for(let x=0;x<=16;x+=2)g.lineTo(x,3+i*4+Math.sin(x*0.85+phase)*1.5);
-         g.stroke();
-       }
-     }));
-   }
-   
-   // Animated lava frames (4 frames)
-   TEX.lavaFrames=[];
-   for(let f=0;f<4;f++){
-     TEX.lavaFrames.push(makeTex(g=>{
-       const r=rng(8+f*100);
-       for(let y=0;y<16;y++)for(let x=0;x<16;x++){
-         const noise=rng(x*16+y+f*300)();
-         const v=noise>0.55?`rgb(255,${(noise*180)|0},0)`:`rgb(${180+(noise*40)|0},${(noise*50)|0},0)`;
-         g.fillStyle=v;g.fillRect(x,y,1,1);
-       }
-     }));
-   }
+  for(let f=0;f<8;f++){
+    TEX.waterFrames.push(makeTex(g=>{
+      for(let y=0;y<16;y++)for(let x=0;x<16;x++){
+        const wave=Math.sin((x+f*1.3)*0.55)+Math.cos((y-f*0.9)*0.6);
+        const noise=frac(Math.abs(h2(x*11+f*7,y*13-f*5)));
+        const v=Math.max(0,Math.min(1,0.5+wave*0.12+(noise-0.5)*0.22));
+        const r=(26+v*28)|0,b=(170+v*70)|0,gc=(112+v*46)|0;
+        g.fillStyle=`rgb(${r},${gc},${b})`;g.fillRect(x,y,1,1);
+      }
+    }));
+  }
+
+  TEX.lavaFrames=[];
+  for(let f=0;f<8;f++){
+    TEX.lavaFrames.push(makeTex(g=>{
+      for(let y=0;y<16;y++)for(let x=0;x<16;x++){
+        const wave=Math.sin((x-f*0.8)*0.7)+Math.cos((y+f*1.1)*0.65);
+        const noise=frac(Math.abs(h2(x*17-f*9,y*19+f*3)));
+        const v=Math.max(0,Math.min(1,0.52+wave*0.14+(noise-0.5)*0.24));
+        const rr=(190+v*65)|0,gg=(35+v*115)|0;
+        g.fillStyle=`rgb(${rr},${gg},0)`;g.fillRect(x,y,1,1);
+      }
+    }));
+  }
    
    TEX.sand=makeTex(g=>{
      g.fillStyle='#ddd078';g.fillRect(0,0,16,16);
@@ -892,7 +891,7 @@ function getItemName(id){
        const wx=cx*16+lx,wz=cz*16+lz;
        if(self===B.TORCH){
         const d=getFD(self),base=d.pos.length/3;
-        const x0=lx+0.4,x1=lx+0.6,z0=lz+0.4,z1=lz+0.6,y0=y,y1=y+0.78;
+        const x0=lx+0.375,x1=lx+0.625,z0=lz+0.375,z1=lz+0.625,y0=y,y1=y+0.75;
         const verts=[
           [x1,y0,z0],[x1,y1,z0],[x1,y1,z1],[x1,y0,z1],
           [x0,y0,z1],[x0,y1,z1],[x0,y1,z0],[x0,y0,z0],
@@ -1173,6 +1172,7 @@ function getItemName(id){
     if(e.code==='KeyE')toggleInventory();
     if(e.code==='KeyT'){e.preventDefault();openChat();return;}
     if(e.code==='KeyF'){e.preventDefault();if(ridingBoat)dismountBoat();else mountNearestBoat();return;}
+    if(e.code==='KeyG'){e.preventDefault();if(!ridingBoat){const b=nearestBoat(3.4);if(b)destroyBoat(b);}return;}
     if(e.code==='KeyH'){showHud=!showHud;document.getElementById('hud').style.display=showHud?'block':'none';}
      if(e.code==='KeyW'&&!e.repeat){
        const now=performance.now()*0.001;
@@ -1402,6 +1402,13 @@ function getItemName(id){
     return true;
   }
 
+  function hasSneakSupportAt(x,z,y){
+    const w=player.width/2-0.02;
+    const fy=Math.floor(y-0.06);
+    const pts=[[x-w,z-w],[x-w,z+w],[x+w,z-w],[x+w,z+w]];
+    return pts.some(([px,pz])=>isSolid(worldGet(Math.floor(px),fy,Math.floor(pz))));
+  }
+
   function updatePlayerStance(){
     if(isShiftDown()){
       player.height=player.sneakHeight;
@@ -1417,6 +1424,7 @@ function getItemName(id){
   function movePlayer(dt){
      if(isPaused||isInvOpen||isChatOpen)return;
      if(ridingBoat){
+      if(isShiftDown()){dismountBoat();return;}
       const boat=ridingBoat;
       const onWater=worldGet(Math.floor(boat.position.x),Math.floor(boat.position.y-0.2),Math.floor(boat.position.z))===B.WATER;
       const accel=onWater?22:6;
@@ -1439,6 +1447,7 @@ function getItemName(id){
       else{boat.userData.vy=Math.max(-6,(boat.userData.vy||0)-14*dt);boat.position.y+=boat.userData.vy*dt;}
       const by=Math.floor(boat.position.y-0.5);
       if(!onWater&&isSolid(worldGet(fx,by,fz))){boat.userData.vx*=0.5;boat.userData.vz*=0.5;boat.userData.vy=Math.max(0,boat.userData.vy||0);}
+      boat.rotation.y+= (player.yaw-boat.rotation.y)*Math.min(1,dt*8);
       player.pos.set(boat.position.x,boat.position.y+0.15,boat.position.z);
       player.vel.set(0,0,0);
       camera.position.set(player.pos.x,player.pos.y+player.standEyeOffset,player.pos.z);
@@ -1483,10 +1492,18 @@ function getItemName(id){
      }else if(!player.onGround)player.vel.y-=CFG.gravity*dt;
      player.onGround=false;
      // Resolve collision per sub-step
+     const startX=player.pos.x,startZ=player.pos.z;
      const steps=3;
      const stepDt=dt/steps;
      for(let s=0;s<steps;s++)resolveCollision(player.pos,player.vel,stepDt);
     unphasePlayerIfNeeded();
+    if(sneaking&&player.onGround&&playerBodyFluid()===B.AIR&&!hasSneakSupportAt(player.pos.x,player.pos.z,player.pos.y)){
+      const xOk=hasSneakSupportAt(startX,player.pos.z,player.pos.y);
+      const zOk=hasSneakSupportAt(player.pos.x,startZ,player.pos.y);
+      if(xOk)player.pos.x=startX;
+      if(zOk)player.pos.z=startZ;
+      if(!xOk&&!zOk){player.pos.x=startX;player.pos.z=startZ;}
+    }
 
     const borderClamp=WORLD_BORDER_BLOCKS-0.35;
     if(player.pos.x>borderClamp){player.pos.x=borderClamp;player.vel.x=Math.min(0,player.vel.x);} 
@@ -1642,6 +1659,33 @@ function getItemName(id){
     }
     return false;
   }
+  let grassSpreadTimer=0;
+  function isSkyVisible(wx,wy,wz){
+    for(let y=wy+1;y<CFG.chunkH;y++){
+      const id=worldGet(wx,y,wz);
+      if(id!==B.AIR&&id!==B.LEAVES&&id!==B.WATER)return false;
+    }
+    return true;
+  }
+  function updateGrassGrowth(dt){
+    grassSpreadTimer+=dt;
+    if(grassSpreadTimer<0.65)return;
+    grassSpreadTimer=0;
+    const px=Math.floor(player.pos.x),pz=Math.floor(player.pos.z),py=Math.floor(player.pos.y);
+    for(let i=0;i<70;i++){
+      const wx=px+((Math.random()*30)|0)-15;
+      const wz=pz+((Math.random()*30)|0)-15;
+      const wy=Math.max(1,Math.min(CFG.chunkH-2,py+((Math.random()*18)|0)-9));
+      if(worldGet(wx,wy,wz)!==B.DIRT)continue;
+      if(worldGet(wx,wy+1,wz)!==B.AIR)continue;
+      if(!isSkyVisible(wx,wy,wz))continue;
+      if(Math.random()<0.28){
+        worldSet(wx,wy,wz,B.GRASS);
+        buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));
+      }
+    }
+  }
+
   function updateLeavesDecay(dt){
     const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
     const tries=Math.max(8,Math.floor(dt*220));
@@ -1670,6 +1714,11 @@ function getItemName(id){
     if(fp){
       outlineMesh.scale.set(fp.maxX-fp.minX+1,1,fp.maxZ-fp.minZ+1);
       outlineMesh.position.set((fp.minX+fp.maxX+1)/2,wy+0.5,(fp.minZ+fp.maxZ+1)/2);
+      return;
+    }
+    if(id===B.TORCH){
+      outlineMesh.scale.set(0.25,0.75,0.25);
+      outlineMesh.position.set(wx+0.5,wy+0.375,wz+0.5);
       return;
     }
     outlineMesh.scale.set(1,1,1);
@@ -1899,7 +1948,7 @@ function getItemName(id){
       spawnParticles(t.wx,t.wy,t.wz,id);
       spawnDrops(t.wx,t.wy,t.wz,id,0.8);
       worldSet(t.wx,t.wy,t.wz,B.AIR);
-      clearChestNoPair(worldPosKey(t.wx,t.wy,t.wz));
+      clearChestMeta(worldPosKey(t.wx,t.wy,t.wz));
       chunkKeys.add(`${Math.floor(t.wx/16)},${Math.floor(t.wz/16)}`);
     }
     for(const ck of chunkKeys){const [cx,cz]=ck.split(',').map(Number);buildChunkMesh(cx,cz);}
@@ -1917,6 +1966,9 @@ function getItemName(id){
     if(fp){
       breakMesh.scale.set(fp.maxX-fp.minX+1,1,fp.maxZ-fp.minZ+1);
       breakMesh.position.set((fp.minX+fp.maxX+1)/2,breaking.wy+0.5,(fp.minZ+fp.maxZ+1)/2);
+    }else if(worldGet(breaking.wx,breaking.wy,breaking.wz)===B.TORCH){
+      breakMesh.scale.set(0.25,0.75,0.25);
+      breakMesh.position.set(breaking.wx+0.5,breaking.wy+0.375,breaking.wz+0.5);
     }else{
       breakMesh.scale.set(1,1,1);
       breakMesh.position.set(breaking.wx+0.5,breaking.wy+0.5,breaking.wz+0.5);
@@ -1960,9 +2012,10 @@ function getItemName(id){
      worldSet(px,py,pz,held.id);
      if(CHEST_UI[held.id]){
       const key=worldPosKey(px,py,pz);
+      setChestMeta(key,{placedSneak:!!KEYS['ShiftLeft'],noPair:!!KEYS['ShiftLeft']});
       if(KEYS['ShiftLeft']){
         const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
-        if(near){setChestNoPair(key,near);clearPair(key);clearPair(near);}
+        if(near){setChestMeta(near,{noPair:true});clearPair(key);clearPair(near);}
       }else tryPairChest(px,py,pz,held.id);
      }
      held.count--;if(held.count<=0)INV.hotbar[INV.active]=null;
@@ -1973,18 +2026,21 @@ function getItemName(id){
    // ═══════════════════════════════════════════════════════════
    // 11. ANIMATED TEXTURES (water / lava)
    // ═══════════════════════════════════════════════════════════
-   let animFrame=0,animTimer=0;
+   let waterAnim=0,lavaAnim=0,lastWaterFrame=-1,lastLavaFrame=-1;
    function updateAnimTex(dt){
-     animTimer+=dt;
-     if(animTimer<0.25)return;animTimer=0;
-     animFrame=(animFrame+1)%4;
-     // Update water material maps
-     const wm=getMats(B.WATER);
-     wm.forEach(m=>{m.map=TEX.waterFrames[animFrame];m.needsUpdate=true;});
-     // Lava is slower
-     const lf=Math.floor(animFrame/2);
-     const lm=getMats(B.LAVA);
-     lm.forEach(m=>{m.map=TEX.lavaFrames[lf];m.needsUpdate=true;});
+     waterAnim=(waterAnim+dt*7.5)%TEX.waterFrames.length;
+     lavaAnim=(lavaAnim+dt*4.0)%TEX.lavaFrames.length;
+     const wf=Math.floor(waterAnim),lf=Math.floor(lavaAnim);
+     if(wf!==lastWaterFrame){
+      lastWaterFrame=wf;
+      const wm=getMats(B.WATER);
+      wm.forEach(m=>{m.map=TEX.waterFrames[wf];m.needsUpdate=true;});
+     }
+     if(lf!==lastLavaFrame){
+      lastLavaFrame=lf;
+      const lm=getMats(B.LAVA);
+      lm.forEach(m=>{m.map=TEX.lavaFrames[lf];m.needsUpdate=true;});
+     }
    }
    
    // ═══════════════════════════════════════════════════════════
@@ -2082,19 +2138,28 @@ function getItemName(id){
    }
 
 // ── HOTBAR 3D ICON RENDERER ───────────────────────────────
+  function shouldUseFlatIcon(id){return id===B.TORCH||id===B.WATER||id===B.LAVA||!!TOOL_STATS[id];}
+  function drawFlatIcon(g,w,h,id){
+    const tex=getItemTex(id);
+    if(!tex?.image)return;
+    const s=Math.floor(w*0.78),o=((w-s)/2)|0;
+    g.drawImage(tex.image,o,o,s,s);
+  }
   function draw3DIcon(canvasEl, id){
      const g=canvasEl.getContext('2d');
      const w=canvasEl.width,h=canvasEl.height;
      g.imageSmoothingEnabled=false;
      g.clearRect(0,0,w,h);
      if(!id)return;
+    if(shouldUseFlatIcon(id)){drawFlatIcon(g,w,h,id);return;}
     const bt=id<100?(BLOCK_TEX[id]||BLOCK_TEX[B.STONE]):null;
     const topTex=bt?bt.top:getItemTex(id);
     const sideTex=bt?bt.side:getItemTex(id);
     if(!topTex?.image||!sideTex?.image)return;
-     // Draw isometric-ish 3 faces
-    const S=Math.floor(w*0.5);
-    const ox=Math.floor(w*0.2),oy=Math.floor(h*0.26);
+     // Draw full, centered isometric block icon
+    const S=Math.floor(w*0.56);
+    const ox=Math.floor((w-S*2)/2);
+    const oy=Math.floor(h*0.1);
      const sh=Math.floor(S*0.32);
      // Top face
      g.save();g.transform(1,0.3,-1,0.3,ox+S,oy);
@@ -2170,7 +2235,7 @@ function getItemName(id){
     [B.DIAMOND_CHEST]:{name:'Diamond Chest',single:108,cols:9},
   };
   const chestPairs=new Map();
-  const chestNoPair=new Set();
+  const chestMeta=new Map();
 
   function worldPosKey(wx,wy,wz){ return `${wx},${wy},${wz}`; }
   function parseWorldPosKey(key){const p=(key||'').split(',').map(Number);if(p.length!==3||p.some(v=>!Number.isFinite(v)))return null;return {wx:p[0],wy:p[1],wz:p[2]};}
@@ -2194,9 +2259,11 @@ function getItemName(id){
     chestPairs.delete(key);
     if(other)chestPairs.delete(other);
   }
-  function setChestNoPair(a,b){chestNoPair.add(a);chestNoPair.add(b);}
-  function clearChestNoPair(key){chestNoPair.delete(key);}
-  function isChestNoPair(key){return chestNoPair.has(key);}
+  function chestMetaGet(key){return chestMeta.get(key)||null;}
+  function setChestMeta(key,patch){const prev=chestMetaGet(key)||{};chestMeta.set(key,{...prev,...patch});}
+  function clearChestMeta(key){chestMeta.delete(key);}
+  function isChestNoPair(key){return !!chestMetaGet(key)?.noPair;}
+  function wasChestPlacedSneak(key){return !!chestMetaGet(key)?.placedSneak;}
   function chestCapacity(blockId,key){
     const meta=CHEST_UI[blockId];
     if(!meta)return 0;
@@ -2219,12 +2286,12 @@ function getItemName(id){
   }
   function tryPairChest(wx,wy,wz,blockId){
     const key=worldPosKey(wx,wy,wz);
-    if(isChestNoPair(key))return;
+    if(isChestNoPair(key)||wasChestPlacedSneak(key))return;
     clearPair(key);
-    const candidates=chestNeighbors(wx,wy,wz,blockId).filter(k=>!getPairKey(k)&&!isChestNoPair(k));
+    const candidates=chestNeighbors(wx,wy,wz,blockId).filter(k=>!getPairKey(k)&&!isChestNoPair(k)&&!wasChestPlacedSneak(k));
     if(candidates.length===1){
       setPair(key,candidates[0]);
-      clearChestNoPair(key);clearChestNoPair(candidates[0]);
+      setChestMeta(key,{noPair:false,placedSneak:false});setChestMeta(candidates[0],{noPair:false,placedSneak:false});
       const other=parseWorldPosKey(candidates[0]);
       if(other)spawnLargeChestPairFx({wx,wy,wz},other,blockId);
     }
@@ -2372,7 +2439,7 @@ function getItemName(id){
      if(!cfg)return;
      INV.uiMode='chest';
      openContainerKey=worldPosKey(wx,wy,wz);
-     if(!KEYS['ShiftLeft']&&!getPairKey(openContainerKey))tryPairChest(wx,wy,wz,blockId);
+     if(!KEYS['ShiftLeft']&&!getPairKey(openContainerKey)&&!isChestNoPair(openContainerKey)&&!wasChestPlacedSneak(openContainerKey))tryPairChest(wx,wy,wz,blockId);
      openContainerStorageKey=chestStorageKey(openContainerKey);
      openContainerSlots=ensureContainer(openContainerStorageKey,chestCapacity(blockId,openContainerKey));
      setCraftingSize(2,false);
@@ -2664,12 +2731,13 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.55a',
+        version:'0.0.57a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
          inv:{hotbar:serializeInventory(INV.hotbar),main:serializeInventory(INV.main),active:INV.active,craftGrid:serializeInventory(INV.craftGrid)},
          containers:[...(typeof containerData!=='undefined'?containerData.entries():[])].map(([k,v])=>[k,serializeInventory(v)]),
+         chestMeta:[...(typeof chestMeta!=='undefined'?chestMeta.entries():[])],
          ts:Date.now(),
        };
        localStorage.setItem(AUTOSAVE_KEY,JSON.stringify(data));
@@ -2704,7 +2772,7 @@ function getItemName(id){
     fallingBlockKeys.clear();
     if(typeof containerData!=='undefined')containerData.clear();
     if(typeof chestPairs!=='undefined')chestPairs.clear();
-    if(typeof chestNoPair!=='undefined')chestNoPair.clear();
+    if(typeof chestMeta!=='undefined')chestMeta.clear();
     primedTnts.forEach(t=>{scene.remove(t.mesh);t.mesh.geometry.dispose();t.mesh.material.dispose();});
     primedTnts.length=0;
     for(const l of torchLights.values())scene.remove(l);
@@ -2931,7 +2999,7 @@ function getItemName(id){
       updateControllerInput();
       handPhase+=dt*9;
        movePlayer(dt);raycastWorld();tickBreaking(dt);
-       updateParticles(dt);updateChestShineFx(dt);updateDrops(dt);updatePrimedTnts(dt);
+       updateParticles(dt);updateChestShineFx(dt);updateDrops(dt);updatePrimedTnts(dt);updateGrassGrowth(dt);
        updateDayNight(dt);updateAnimTex(dt);
        clouds.forEach(c=>{c.position.x+=c.userData.spd*dt;if(c.position.x>200)c.position.x=-200;});
        chunkT+=dt;if(chunkT>0.35){chunkT=0;updateChunks();}
@@ -2998,6 +3066,7 @@ function getItemName(id){
     STATS.armor=0;
     INV.hotbar=Array(9).fill(null);
     INV.main=Array(27).fill(null);
+    if(typeof chestMeta!=='undefined')chestMeta.clear();
     setCraftingSize(2,false);
     INV.uiMode='inventory';
     INV.active=0;
