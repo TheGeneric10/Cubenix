@@ -597,8 +597,8 @@ function getItemName(id){
      if(matCache[id]) return matCache[id];
      const bt=BLOCK_TEX[id]||BLOCK_TEX[B.STONE];
      const tr=id===B.LEAVES||id===B.WATER||id===B.LAVA||id===B.TORCH;
-    const op={transparent:tr,opacity:id===B.WATER?0.76:id===B.LEAVES?0.86:1,side:THREE.DoubleSide,depthWrite:!tr,alphaTest:id===B.TORCH?0.08:0};
-     const base=tr?op:{side:THREE.FrontSide};
+    const op={transparent:tr,opacity:id===B.WATER?0.76:id===B.LEAVES?0.86:1,side:tr?THREE.DoubleSide:THREE.FrontSide,depthWrite:!tr,alphaTest:id===B.TORCH?0.08:0};
+     const base=tr?op:{};
      matCache[id]=[
        new THREE.MeshLambertMaterial({map:bt.side,...base}),
        new THREE.MeshLambertMaterial({map:bt.side,...base}),
@@ -951,12 +951,12 @@ function getItemName(id){
        if(useLargeChest){
          const largeChestTex=id===B.CHEST?{top:TEX.largeChestTop,side:TEX.largeChestSide}:id===B.IRON_CHEST?{top:TEX.largeIronChest,side:TEX.largeIronChest}:id===B.GOLD_CHEST?{top:TEX.largeGoldChest,side:TEX.largeGoldChest}:{top:TEX.largeDiamondChest,side:TEX.largeDiamondChest};
          meshMats=[
-           new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),
-           new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),
-           new THREE.MeshLambertMaterial({map:largeChestTex.top,side:THREE.DoubleSide}),
-           new THREE.MeshLambertMaterial({map:largeChestTex.top,side:THREE.DoubleSide}),
-           new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),
-           new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),
+           new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.FrontSide}),
+           new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.FrontSide}),
+           new THREE.MeshLambertMaterial({map:largeChestTex.top,side:THREE.FrontSide}),
+           new THREE.MeshLambertMaterial({map:largeChestTex.top,side:THREE.FrontSide}),
+           new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.FrontSide}),
+           new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.FrontSide}),
          ];
        }
        const mesh=new THREE.Mesh(geo,meshMats);
