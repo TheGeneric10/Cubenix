@@ -22,7 +22,7 @@
         <button class="menu-btn disabled">Multiplayer <span class="soon">Soon</span></button>
         <button class="menu-btn" id="btn-quit">Quit Game</button>
       </div>
-      <div id="menu-version">Cubenix v0.0.20a</div>
+      <div id="menu-version">Cubenix v0.0.59a_patch031726</div>
     </div>
   </div>
 
@@ -41,7 +41,7 @@
 
     <!-- Debug HUD top-left -->
     <div id="hud">
-      <div id="hud-title">Cubenix &mdash; Version: 0.0.20a</div>
+      <div id="hud-title">Cubenix &mdash; Version: 0.0.59a_patch031726</div>
       <div id="hud-debug"></div>
     </div>
 
@@ -69,6 +69,32 @@
       <div class="hb-slot" data-slot="6"><span class="slot-num">7</span></div>
       <div class="hb-slot" data-slot="7"><span class="slot-num">8</span></div>
       <div class="hb-slot" data-slot="8"><span class="slot-num">9</span></div>
+    </div>
+
+    <!-- ── CHAT ── -->
+    <div id="chat-panel" style="display:none">
+      <div id="chat-log"></div>
+      <div id="chat-compose">
+        <input id="chat-input" type="text" maxlength="160" autocomplete="off" placeholder="Type a message..." />
+        <button id="chat-send" type="button">Send</button>
+      </div>
+    </div>
+
+    <!-- ── TOUCH CONTROLS ── -->
+    <div id="touch-ui" style="display:none">
+      <div id="touch-move">
+        <button class="touch-btn" id="touch-forward">▲</button>
+        <button class="touch-btn" id="touch-left">◀</button>
+        <button class="touch-btn" id="touch-back">▼</button>
+        <button class="touch-btn" id="touch-right">▶</button>
+      </div>
+      <div id="touch-actions">
+        <button class="touch-btn" id="touch-jump">Jump</button>
+        <button class="touch-btn" id="touch-sneak">Sneak</button>
+        <button class="touch-btn" id="touch-sprint">Sprint<div id="touch-sprint-cooldown"></div></button>
+        <button class="touch-btn" id="touch-break">Break</button>
+        <button class="touch-btn" id="touch-place">Place</button>
+      </div>
     </div>
 
     <!-- ── STATUS left (armor / shield / health) ── -->
@@ -167,6 +193,7 @@
         <button class="stab" data-tab="player">Player Settings</button>
       </div>
       <div id="settings-body"></div>
+      <button class="pause-btn" id="settings-experimental">Experimental Options</button>
       <button class="pause-btn" id="settings-back">← Back</button>
     </div>
   </div>
