@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.58a
+   CUBENIX — script.js — v0.0.59a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -435,8 +435,11 @@ function getItemName(id){
   TEX.largeChestSide=makeTex(g=>{g.fillStyle='#7f4f24';g.fillRect(0,0,16,16);g.fillStyle='#563517';g.fillRect(0,0,16,2);g.fillRect(0,14,16,2);g.fillStyle='#b48447';g.fillRect(0,6,16,3);g.fillStyle='#e0be79';g.fillRect(3,7,2,4);g.fillRect(11,7,2,4);});
   TEX.largeChestTop=makeTex(g=>{g.fillStyle='#8f5f30';g.fillRect(0,0,16,16);g.fillStyle='#6b431f';g.fillRect(0,1,16,2);g.fillRect(0,13,16,2);g.fillStyle='#c7985a';g.fillRect(0,7,16,2);});
   TEX.ironChest=makeTex(g=>{g.fillStyle='#9aa2ab';g.fillRect(0,0,16,16);g.fillStyle='#cfd5de';g.fillRect(0,0,16,3);g.fillStyle='#5c6168';g.fillRect(0,13,16,3);g.fillStyle='#e8ecf2';g.fillRect(3,7,2,3);g.fillRect(11,7,2,3);});
+  TEX.largeIronChest=makeTex(g=>{g.fillStyle='#8e97a0';g.fillRect(0,0,16,16);g.fillStyle='#c8d0da';g.fillRect(0,0,16,2);g.fillStyle='#4e555d';g.fillRect(0,14,16,2);g.fillStyle='#e8edf3';g.fillRect(3,7,2,4);g.fillRect(11,7,2,4);});
   TEX.goldChest=makeTex(g=>{g.fillStyle='#bf8b18';g.fillRect(0,0,16,16);g.fillStyle='#f0cb55';g.fillRect(0,0,16,3);g.fillStyle='#7d5a0d';g.fillRect(0,13,16,3);g.fillStyle='#ffe184';g.fillRect(3,7,2,3);g.fillRect(11,7,2,3);});
+  TEX.largeGoldChest=makeTex(g=>{g.fillStyle='#ac7c14';g.fillRect(0,0,16,16);g.fillStyle='#efc64d';g.fillRect(0,0,16,2);g.fillStyle='#6d4f0b';g.fillRect(0,14,16,2);g.fillStyle='#ffe89a';g.fillRect(3,7,2,4);g.fillRect(11,7,2,4);});
   TEX.diamondChest=makeTex(g=>{g.fillStyle='#38b3c8';g.fillRect(0,0,16,16);g.fillStyle='#7ff2ff';g.fillRect(0,0,16,3);g.fillStyle='#146a7a';g.fillRect(0,13,16,3);g.fillStyle='#b9fbff';g.fillRect(3,7,2,3);g.fillRect(11,7,2,3);});
+  TEX.largeDiamondChest=makeTex(g=>{g.fillStyle='#2ea0b3';g.fillRect(0,0,16,16);g.fillStyle='#8cfcff';g.fillRect(0,0,16,2);g.fillStyle='#0f5a66';g.fillRect(0,14,16,2);g.fillStyle='#d0ffff';g.fillRect(3,7,2,4);g.fillRect(11,7,2,4);});
   TEX.ironBlock=makeTex(g=>{g.fillStyle='#bcc3cc';g.fillRect(0,0,16,16);g.strokeStyle='#8a9098';for(let i=0;i<16;i+=4){g.beginPath();g.moveTo(i,0);g.lineTo(i,16);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(16,i);g.stroke();}});
   TEX.goldBlock=makeTex(g=>{g.fillStyle='#d3a223';g.fillRect(0,0,16,16);g.strokeStyle='#9c7311';for(let i=0;i<16;i+=4){g.beginPath();g.moveTo(i,0);g.lineTo(i,16);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(16,i);g.stroke();}});
   TEX.diamondBlock=makeTex(g=>{g.fillStyle='#3ec9d8';g.fillRect(0,0,16,16);g.strokeStyle='#248f9b';for(let i=0;i<16;i+=4){g.beginPath();g.moveTo(i,0);g.lineTo(i,16);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(16,i);g.stroke();}});
@@ -865,6 +868,7 @@ function getItemName(id){
      {dir:[0,0,-1],c:[[0,0,0],[0,1,0],[1,1,0],[1,0,0]]},
    ];
    const QUV=[[0,0],[0,1],[1,1],[1,0]];
+   const CHEST_BLOCK_IDS=new Set([B.CHEST,B.IRON_CHEST,B.GOLD_CHEST,B.DIAMOND_CHEST]);
    function showFace(s,n){
      if(s===B.AIR)return false;
      if(n===B.AIR)return true;
@@ -913,8 +917,8 @@ function getItemName(id){
         }
         continue;
        }
-       const pairKey=(self===B.CHEST&&getPairKey(worldPosKey(wx,y,wz)))?'|large':'';
-       const fdKey=(self===B.CHEST)?`${self}${pairKey}`:self;
+       const pairKey=(CHEST_BLOCK_IDS.has(self)&&getPairKey(worldPosKey(wx,y,wz)))?'|large':'';
+       const fdKey=CHEST_BLOCK_IDS.has(self)?`${self}${pairKey}`:self;
        FACES.forEach(face=>{
          const [dx,dy,dz]=face.dir;
          const nx=lx+dx,ny=y+dy,nz=lz+dz;
@@ -932,13 +936,14 @@ function getItemName(id){
      const grp=new THREE.Group();grp.position.set(cx*16,0,cz*16);
      Object.entries(fd).forEach(([idStr,d])=>{
        const id=parseInt(idStr,10);
-       const useLargeChest=idStr===`${B.CHEST}|large`;
+       const useLargeChest=idStr.endsWith('|large');
        const geo=new THREE.BufferGeometry();
        geo.setAttribute('position',new THREE.Float32BufferAttribute(d.pos,3));
        geo.setAttribute('normal',  new THREE.Float32BufferAttribute(d.nor,3));
        geo.setAttribute('uv',      new THREE.Float32BufferAttribute(d.uvs,2));
        geo.setIndex(d.idx);
-       const mesh=new THREE.Mesh(geo,useLargeChest?new THREE.MeshLambertMaterial({map:TEX.largeChestSide,side:THREE.DoubleSide}):getMats(id)[0]);
+       const largeChestTex=id===B.CHEST?{top:TEX.largeChestTop,side:TEX.largeChestSide}:id===B.IRON_CHEST?{top:TEX.largeIronChest,side:TEX.largeIronChest}:id===B.GOLD_CHEST?{top:TEX.largeGoldChest,side:TEX.largeGoldChest}:{top:TEX.largeDiamondChest,side:TEX.largeDiamondChest};
+       const mesh=new THREE.Mesh(geo,useLargeChest?[new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),new THREE.MeshLambertMaterial({map:largeChestTex.top,side:THREE.DoubleSide}),new THREE.MeshLambertMaterial({map:largeChestTex.top,side:THREE.DoubleSide}),new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide})]:getMats(id));
        const sh=shadowsEnabled();mesh.castShadow=sh;mesh.receiveShadow=sh;
        grp.add(mesh);
      });
@@ -2776,7 +2781,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.58a',
+        version:'0.0.59a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
