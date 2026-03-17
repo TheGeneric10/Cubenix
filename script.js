@@ -2227,6 +2227,17 @@ function getItemName(id){
       other
     };
   }
+  function getLargeChestFootprint(wx,wy,wz,id){
+    if(!CHEST_UI[id])return null;
+    const key=worldPosKey(wx,wy,wz);
+    const other=parseWorldPosKey(getPairKey(key));
+    if(!other||other.wy!==wy||worldGet(other.wx,other.wy,other.wz)!==id)return null;
+    return {
+      minX:Math.min(wx,other.wx),maxX:Math.max(wx,other.wx),
+      minZ:Math.min(wz,other.wz),maxZ:Math.max(wz,other.wz),
+      other
+    };
+  }
 
   function getSourceArray(source){
     if(source==='main')return INV.main;
