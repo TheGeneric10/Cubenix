@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.59a
+   CUBENIX — script.js — v0.0.59a_patch031726
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -588,12 +588,17 @@ function getItemName(id){
    }
    
    const matCache={};
+   function disposeRenderable(o){
+     if(o.geometry)o.geometry.dispose();
+     if(Array.isArray(o.material))o.material.forEach(m=>m&&m.dispose&&m.dispose());
+     else if(o.material&&o.material.dispose)o.material.dispose();
+   }
    function getMats(id){
      if(matCache[id]) return matCache[id];
      const bt=BLOCK_TEX[id]||BLOCK_TEX[B.STONE];
      const tr=id===B.LEAVES||id===B.WATER||id===B.LAVA||id===B.TORCH;
     const op={transparent:tr,opacity:id===B.WATER?0.76:id===B.LEAVES?0.86:1,side:THREE.DoubleSide,depthWrite:!tr,alphaTest:id===B.TORCH?0.08:0};
-     const base=tr?op:{side:THREE.DoubleSide};
+     const base=tr?op:{side:THREE.FrontSide};
      matCache[id]=[
        new THREE.MeshLambertMaterial({map:bt.side,...base}),
        new THREE.MeshLambertMaterial({map:bt.side,...base}),
@@ -884,7 +889,7 @@ function getItemName(id){
      const key=`${cx},${cz}`;
      if(chunkMeshes.has(key)){
        scene.remove(chunkMeshes.get(key));
-       chunkMeshes.get(key).traverse(o=>{if(o.geometry)o.geometry.dispose();});
+       chunkMeshes.get(key).traverse(disposeRenderable);
        chunkMeshes.delete(key);
      }
     for(const [k,l] of [...torchLights.entries()]){
@@ -942,8 +947,19 @@ function getItemName(id){
        geo.setAttribute('normal',  new THREE.Float32BufferAttribute(d.nor,3));
        geo.setAttribute('uv',      new THREE.Float32BufferAttribute(d.uvs,2));
        geo.setIndex(d.idx);
-       const largeChestTex=id===B.CHEST?{top:TEX.largeChestTop,side:TEX.largeChestSide}:id===B.IRON_CHEST?{top:TEX.largeIronChest,side:TEX.largeIronChest}:id===B.GOLD_CHEST?{top:TEX.largeGoldChest,side:TEX.largeGoldChest}:{top:TEX.largeDiamondChest,side:TEX.largeDiamondChest};
-       const mesh=new THREE.Mesh(geo,useLargeChest?[new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),new THREE.MeshLambertMaterial({map:largeChestTex.top,side:THREE.DoubleSide}),new THREE.MeshLambertMaterial({map:largeChestTex.top,side:THREE.DoubleSide}),new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide})]:getMats(id));
+       let meshMats=getMats(id);
+       if(useLargeChest){
+         const largeChestTex=id===B.CHEST?{top:TEX.largeChestTop,side:TEX.largeChestSide}:id===B.IRON_CHEST?{top:TEX.largeIronChest,side:TEX.largeIronChest}:id===B.GOLD_CHEST?{top:TEX.largeGoldChest,side:TEX.largeGoldChest}:{top:TEX.largeDiamondChest,side:TEX.largeDiamondChest};
+         meshMats=[
+           new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),
+           new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),
+           new THREE.MeshLambertMaterial({map:largeChestTex.top,side:THREE.DoubleSide}),
+           new THREE.MeshLambertMaterial({map:largeChestTex.top,side:THREE.DoubleSide}),
+           new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),
+           new THREE.MeshLambertMaterial({map:largeChestTex.side,side:THREE.DoubleSide}),
+         ];
+       }
+       const mesh=new THREE.Mesh(geo,meshMats);
        const sh=shadowsEnabled();mesh.castShadow=sh;mesh.receiveShadow=sh;
        grp.add(mesh);
      });
@@ -2781,7 +2797,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.59a',
+        version:'0.0.59a_patch031726',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -2809,7 +2825,7 @@ function getItemName(id){
     for(const k of chunkMeshes.keys()){
       const m=chunkMeshes.get(k);
       scene.remove(m);
-      m.traverse(o=>{if(o.geometry)o.geometry.dispose();});
+      m.traverse(disposeRenderable);
     }
     chunkMeshes.clear();
     chunkData.clear();
@@ -2950,7 +2966,7 @@ function getItemName(id){
      }
      for(const k of[...loadedChunks]){
        if(!needed.has(k)){loadedChunks.delete(k);
-         if(chunkMeshes.has(k)){scene.remove(chunkMeshes.get(k));chunkMeshes.get(k).traverse(o=>{if(o.geometry)o.geometry.dispose();});chunkMeshes.delete(k);}
+         if(chunkMeshes.has(k)){scene.remove(chunkMeshes.get(k));chunkMeshes.get(k).traverse(disposeRenderable);chunkMeshes.delete(k);}
        }
      }
    }
