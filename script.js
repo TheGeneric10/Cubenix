@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.54a
+   CUBENIX — script.js — v0.0.55a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -32,7 +32,7 @@
      playerH:1.8, eyeOffset:1.62,
     walkSpeed:4.5, sprintSpeed:8.3, sneakSpeed:2.6, flySpeed:0,  // no fly in survival
     sprintEnergyDrain:11,
-     jumpVel:8.25, gravity:22.0,
+     jumpVel:8.5, gravity:22.0,
      mouseSens:0.0022,
     touchLookSens:1.0,
     autoJump:false,
@@ -1899,6 +1899,7 @@ function getItemName(id){
       spawnParticles(t.wx,t.wy,t.wz,id);
       spawnDrops(t.wx,t.wy,t.wz,id,0.8);
       worldSet(t.wx,t.wy,t.wz,B.AIR);
+      clearChestNoPair(worldPosKey(t.wx,t.wy,t.wz));
       chunkKeys.add(`${Math.floor(t.wx/16)},${Math.floor(t.wz/16)}`);
     }
     for(const ck of chunkKeys){const [cx,cz]=ck.split(',').map(Number);buildChunkMesh(cx,cz);}
@@ -1957,7 +1958,13 @@ function getItemName(id){
      if(Math.abs(px+0.5-plb.x)<0.4&&Math.abs(py-plb.y)<1.9&&Math.abs(pz+0.5-plb.z)<0.4)return;
      if(worldGet(px,py,pz)!==B.AIR&&!isFluid(worldGet(px,py,pz)))return;
      worldSet(px,py,pz,held.id);
-     if(CHEST_UI[held.id]&&!KEYS['ShiftLeft'])tryPairChest(px,py,pz,held.id);
+     if(CHEST_UI[held.id]){
+      const key=worldPosKey(px,py,pz);
+      if(KEYS['ShiftLeft']){
+        const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
+        if(near){setChestNoPair(key,near);clearPair(key);clearPair(near);}
+      }else tryPairChest(px,py,pz,held.id);
+     }
      held.count--;if(held.count<=0)INV.hotbar[INV.active]=null;
      updateHotbarUI();drawHand();
      buildChunkMesh(Math.floor(px/16),Math.floor(pz/16));
@@ -2163,6 +2170,7 @@ function getItemName(id){
     [B.DIAMOND_CHEST]:{name:'Diamond Chest',single:108,cols:9},
   };
   const chestPairs=new Map();
+  const chestNoPair=new Set();
 
   function worldPosKey(wx,wy,wz){ return `${wx},${wy},${wz}`; }
   function parseWorldPosKey(key){const p=(key||'').split(',').map(Number);if(p.length!==3||p.some(v=>!Number.isFinite(v)))return null;return {wx:p[0],wy:p[1],wz:p[2]};}
@@ -2186,6 +2194,9 @@ function getItemName(id){
     chestPairs.delete(key);
     if(other)chestPairs.delete(other);
   }
+  function setChestNoPair(a,b){chestNoPair.add(a);chestNoPair.add(b);}
+  function clearChestNoPair(key){chestNoPair.delete(key);}
+  function isChestNoPair(key){return chestNoPair.has(key);}
   function chestCapacity(blockId,key){
     const meta=CHEST_UI[blockId];
     if(!meta)return 0;
@@ -2208,24 +2219,15 @@ function getItemName(id){
   }
   function tryPairChest(wx,wy,wz,blockId){
     const key=worldPosKey(wx,wy,wz);
+    if(isChestNoPair(key))return;
     clearPair(key);
-    const candidates=chestNeighbors(wx,wy,wz,blockId).filter(k=>!getPairKey(k));
+    const candidates=chestNeighbors(wx,wy,wz,blockId).filter(k=>!getPairKey(k)&&!isChestNoPair(k));
     if(candidates.length===1){
       setPair(key,candidates[0]);
+      clearChestNoPair(key);clearChestNoPair(candidates[0]);
       const other=parseWorldPosKey(candidates[0]);
       if(other)spawnLargeChestPairFx({wx,wy,wz},other,blockId);
     }
-  }
-  function getLargeChestFootprint(wx,wy,wz,id){
-    if(!CHEST_UI[id])return null;
-    const key=worldPosKey(wx,wy,wz);
-    const other=parseWorldPosKey(getPairKey(key));
-    if(!other||other.wy!==wy||worldGet(other.wx,other.wy,other.wz)!==id)return null;
-    return {
-      minX:Math.min(wx,other.wx),maxX:Math.max(wx,other.wx),
-      minZ:Math.min(wz,other.wz),maxZ:Math.max(wz,other.wz),
-      other
-    };
   }
   function getLargeChestFootprint(wx,wy,wz,id){
     if(!CHEST_UI[id])return null;
@@ -2662,7 +2664,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.54a',
+        version:'0.0.55a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -2702,6 +2704,7 @@ function getItemName(id){
     fallingBlockKeys.clear();
     if(typeof containerData!=='undefined')containerData.clear();
     if(typeof chestPairs!=='undefined')chestPairs.clear();
+    if(typeof chestNoPair!=='undefined')chestNoPair.clear();
     primedTnts.forEach(t=>{scene.remove(t.mesh);t.mesh.geometry.dispose();t.mesh.material.dispose();});
     primedTnts.length=0;
     for(const l of torchLights.values())scene.remove(l);
