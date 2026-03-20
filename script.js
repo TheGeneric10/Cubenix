@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.63a
+   CUBENIX — script.js — v0.0.70a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -66,18 +66,18 @@ const WORLD_BORDER_BLOCKS=13000000;
      SAND:5,WOOD:6,LEAVES:7,WATER:8,LAVA:9,
      COAL_ORE:10,IRON_ORE:11,GOLD_ORE:12,DIAMOND_ORE:13,
      GRAVEL:14,CRAFTING_TABLE:15,PLANKS:16,CHEST:17,IRON_CHEST:18,GOLD_CHEST:19,DIAMOND_CHEST:20,TNT:21,IRON_BLOCK:22,GOLD_BLOCK:23,DIAMOND_BLOCK:24,
-    COBBLESTONE:25,RED_SAND:26,TORCH:27,FIRE:28,DEV_CHEST:29,
+    COBBLESTONE:25,RED_SAND:26,TORCH:27,FIRE:28,DEV_CHEST:29,GRASS_PATH:30,FARMLAND_DRY:31,FARMLAND_WET:32,
     OAK_SLAB:93,STONE_SLAB:94,COBBLE_SLAB:95,
-   };
+  };
    const BLOCK_NAMES=[
      'Air','Grass','Dirt','Stone','Bedrock','Sand',
      'Oak Log','Leaves','Water','Lava',
      'Coal Ore','Iron Ore','Gold Ore','Diamond Ore',
      'Gravel','Crafting Table','Oak Planks','Chest','Iron Chest','Gold Chest','Diamond Chest','TNT','Iron Block','Gold Block','Diamond Block',
-    'Cobblestone','Red Sand','Torch','Fire','Developer Chest',
+    'Cobblestone','Red Sand','Torch','Fire','Developer Chest','Grass Path','Farmland','Wet Farmland',
    ];
 
-   const WOOL_BASE_ID=30;
+   const WOOL_BASE_ID=40;
    const WOOL_COLORS=[
     {name:'White',hex:'#f1f1f1'},{name:'Orange',hex:'#f39b2f'},{name:'Magenta',hex:'#c856c6'},{name:'Light Blue',hex:'#72a9ff'},
     {name:'Yellow',hex:'#e3d13b'},{name:'Lime',hex:'#7fd34e'},{name:'Pink',hex:'#f7a0c0'},{name:'Gray',hex:'#595959'},
@@ -101,7 +101,7 @@ const WORLD_BORDER_BLOCKS=13000000;
      STONE_PICKAXE:106,IRON_PICKAXE:107,GOLD_PICKAXE:108,DIAMOND_PICKAXE:109,
      WOOD_AXE:110,STONE_AXE:111,IRON_AXE:112,GOLD_AXE:113,DIAMOND_AXE:114,
      WOOD_BLADE:115,STONE_BLADE:116,IRON_BLADE:117,GOLD_BLADE:118,DIAMOND_BLADE:119,
-    BOAT:120,FLINT:121,FLINT_STEEL:122,
+    BOAT:120,FLINT:121,FLINT_STEEL:122,BOW:123,ARROW:124,WOOD_SHOVEL:125,STONE_SHOVEL:126,IRON_SHOVEL:127,GOLD_SHOVEL:128,DIAMOND_SHOVEL:129,WOOD_HOE:130,STONE_HOE:131,IRON_HOE:132,GOLD_HOE:133,DIAMOND_HOE:134,BUCKET:135,WATER_BUCKET:136,LAVA_BUCKET:137,
      // block items reuse block IDs for placement
    };
    const ITEM_NAMES={
@@ -112,6 +112,10 @@ const WORLD_BORDER_BLOCKS=13000000;
      [IT.WOOD_AXE]:'Wooden Axe',[IT.STONE_AXE]:'Stone Axe',[IT.IRON_AXE]:'Iron Axe',[IT.GOLD_AXE]:'Golden Axe',[IT.DIAMOND_AXE]:'Diamond Axe',
      [IT.WOOD_BLADE]:'Wooden Blade',[IT.STONE_BLADE]:'Stone Blade',[IT.IRON_BLADE]:'Iron Blade',[IT.GOLD_BLADE]:'Golden Blade',[IT.DIAMOND_BLADE]:'Diamond Blade',
      [IT.BOAT]:'Boat',[IT.FLINT]:'Flint',[IT.FLINT_STEEL]:'Flint and Steel',
+     [IT.BOW]:'Bow',[IT.ARROW]:'Arrow',
+     [IT.WOOD_SHOVEL]:'Wooden Shovel',[IT.STONE_SHOVEL]:'Stone Shovel',[IT.IRON_SHOVEL]:'Iron Shovel',[IT.GOLD_SHOVEL]:'Golden Shovel',[IT.DIAMOND_SHOVEL]:'Diamond Shovel',
+     [IT.WOOD_HOE]:'Wooden Hoe',[IT.STONE_HOE]:'Stone Hoe',[IT.IRON_HOE]:'Iron Hoe',[IT.GOLD_HOE]:'Golden Hoe',[IT.DIAMOND_HOE]:'Diamond Hoe',
+     [IT.BUCKET]:'Bucket',[IT.WATER_BUCKET]:'Water Bucket',[IT.LAVA_BUCKET]:'Lava Bucket',
    };
    function getAllKnownIds(){
   const ids=[...Object.values(B),...Object.values(IT)].filter(Number.isFinite);
@@ -138,8 +142,20 @@ function getItemName(id){
     [IT.IRON_BLADE]:{atk:6,speed:1.28,type:'blade'},
     [IT.GOLD_BLADE]:{atk:5,speed:1.55,type:'blade'},
     [IT.DIAMOND_BLADE]:{atk:8,speed:1.18,type:'blade'},
+    [IT.WOOD_SHOVEL]:{atk:2,speed:1.1,eff:28,type:'shovel'},
+    [IT.STONE_SHOVEL]:{atk:3,speed:1.08,eff:45,type:'shovel'},
+    [IT.IRON_SHOVEL]:{atk:4,speed:1.05,eff:62,type:'shovel'},
+    [IT.GOLD_SHOVEL]:{atk:3,speed:1.2,eff:80,type:'shovel'},
+    [IT.DIAMOND_SHOVEL]:{atk:5,speed:1.0,eff:90,type:'shovel'},
+    [IT.WOOD_HOE]:{atk:1,speed:1.2,eff:24,type:'hoe'},
+    [IT.STONE_HOE]:{atk:2,speed:1.15,eff:42,type:'hoe'},
+    [IT.IRON_HOE]:{atk:3,speed:1.1,eff:58,type:'hoe'},
+    [IT.GOLD_HOE]:{atk:2,speed:1.25,eff:76,type:'hoe'},
+    [IT.DIAMOND_HOE]:{atk:4,speed:1.05,eff:88,type:'hoe'},
+    [IT.BOW]:{atk:5,speed:0.9,type:'bow'},
    };
-   function isHardMaterial(id){return id===B.STONE||id===B.COBBLESTONE||id===B.COAL_ORE||id===B.IRON_ORE||id===B.GOLD_ORE||id===B.DIAMOND_ORE||id===B.IRON_BLOCK||id===B.GOLD_BLOCK||id===B.DIAMOND_BLOCK;}
+  function isHardMaterial(id){return id===B.STONE||id===B.COBBLESTONE||id===B.COAL_ORE||id===B.IRON_ORE||id===B.GOLD_ORE||id===B.DIAMOND_ORE||id===B.IRON_BLOCK||id===B.GOLD_BLOCK||id===B.DIAMOND_BLOCK;}
+   function isDirtMaterial(id){return id===B.DIRT||id===B.GRASS||id===B.SAND||id===B.GRAVEL||id===B.RED_SAND||id===B.GRASS_PATH||id===B.FARMLAND_DRY||id===B.FARMLAND_WET;}
    function isWoodMaterial(id){return id===B.WOOD||id===B.PLANKS||id===B.CRAFTING_TABLE||id===B.CHEST||id===B.IRON_CHEST||id===B.GOLD_CHEST||id===B.DIAMOND_CHEST||id===B.DEV_CHEST;}
    function isBurnableBlock(id){
     return id===B.WOOD||id===B.PLANKS||id===B.LEAVES||id===B.TNT||(id>=WOOL_BASE_ID&&id<WOOL_BASE_ID+WOOL_COLORS.length)||id===B.CHEST||id===B.DEV_CHEST;
@@ -149,7 +165,7 @@ function getItemName(id){
     const t=getActiveToolStats();
     if(!t)return 1;
     const eff=Math.max(0,Math.min(99,Number(t.eff)||0));
-    const match=(t.type==='pickaxe'&&isHardMaterial(blockId))||(t.type==='axe'&&isWoodMaterial(blockId));
+    const match=(t.type==='pickaxe'&&isHardMaterial(blockId))||(t.type==='axe'&&isWoodMaterial(blockId))||(t.type==='shovel'&&isDirtMaterial(blockId))||(t.type==='hoe'&&(blockId>=WOOL_BASE_ID&&blockId<WOOL_BASE_ID+WOOL_COLORS.length));
     if(match)return Math.max(0.08,1-eff/100);
     if(t.type==='pickaxe'||t.type==='axe')return Math.min(0.95,Math.max(0.2,(1-eff/100)*2));
     return 1;
@@ -165,10 +181,12 @@ function getItemName(id){
    [IT.IRON_PICKAXE]:250,[IT.IRON_AXE]:250,[IT.IRON_BLADE]:250,
    [IT.GOLD_PICKAXE]:32,[IT.GOLD_AXE]:32,[IT.GOLD_BLADE]:32,
    [IT.DIAMOND_PICKAXE]:1561,[IT.DIAMOND_AXE]:1561,[IT.DIAMOND_BLADE]:1561,
-   [IT.FLINT_STEEL]:64,
+   [IT.FLINT_STEEL]:64,[IT.BOW]:384,
+   [IT.WOOD_SHOVEL]:59,[IT.STONE_SHOVEL]:131,[IT.IRON_SHOVEL]:250,[IT.GOLD_SHOVEL]:32,[IT.DIAMOND_SHOVEL]:1561,
+   [IT.WOOD_HOE]:59,[IT.STONE_HOE]:131,[IT.IRON_HOE]:250,[IT.GOLD_HOE]:32,[IT.DIAMOND_HOE]:1561,
    };
    function isDurableItemId(id){return !!(TOOL_STATS[id]||DURABILITY_MAX[id]);}
-   function getMaxStackForId(id){return isDurableItemId(id)||id===IT.BOAT?1:99;}
+   function getMaxStackForId(id){return isDurableItemId(id)||id===IT.BOAT||id===IT.BUCKET||id===IT.WATER_BUCKET||id===IT.LAVA_BUCKET?1:99;}
    function getMaxDurabilityForItem(id){return DURABILITY_MAX[id]||1;}
    function makeItemStack(id,count=1){
     const stack={id,count:Math.max(1,Math.min(getMaxStackForId(id),Math.floor(count||1)))};
@@ -211,13 +229,21 @@ function getItemName(id){
    
    // Break times (seconds, fist)
    const BREAK_TIME={
-     [B.GRASS]:0.9,[B.DIRT]:0.75,[B.SAND]:0.75,[B.GRAVEL]:0.75,[B.RED_SAND]:0.75,
+     [B.GRASS]:0.9,[B.DIRT]:0.75,[B.SAND]:0.75,[B.GRAVEL]:0.75,[B.RED_SAND]:0.75,[B.GRASS_PATH]:0.72,[B.FARMLAND_DRY]:0.7,[B.FARMLAND_WET]:0.7,
      [B.STONE]:7.5,[B.COBBLESTONE]:6.8,[B.COAL_ORE]:7.5,[B.IRON_ORE]:7.5,
      [B.GOLD_ORE]:7.5,[B.DIAMOND_ORE]:7.5,
-    [B.WOOD]:3.0,[B.LEAVES]:0.5,[B.PLANKS]:2.0,[B.CRAFTING_TABLE]:3.0,[B.CHEST]:2.6,[B.IRON_CHEST]:3.4,[B.GOLD_CHEST]:3.6,[B.DIAMOND_CHEST]:4.5,[B.DEV_CHEST]:4.8,[B.TNT]:0.9,[B.IRON_BLOCK]:6.0,[B.GOLD_BLOCK]:6.0,[B.DIAMOND_BLOCK]:6.5,[B.TORCH]:0,[B.FIRE]:0,[B.OAK_SLAB]:1.6,[B.STONE_SLAB]:2.2,[B.COBBLE_SLAB]:2.0,
+    [B.WOOD]:3.0,[B.LEAVES]:0.5,[B.PLANKS]:2.0,[B.CRAFTING_TABLE]:3.0,[B.CHEST]:2.6,[B.IRON_CHEST]:3.4,[B.GOLD_CHEST]:3.6,[B.DIAMOND_CHEST]:4.5,[B.DEV_CHEST]:Infinity,[B.TNT]:0.9,[B.IRON_BLOCK]:6.0,[B.GOLD_BLOCK]:6.0,[B.DIAMOND_BLOCK]:6.5,[B.TORCH]:0,[B.FIRE]:0,[B.OAK_SLAB]:1.6,[B.STONE_SLAB]:2.2,[B.COBBLE_SLAB]:2.0,
      [B.BEDROCK]:Infinity,[B.WATER]:Infinity,[B.LAVA]:Infinity,
    };
    for(let i=0;i<WOOL_COLORS.length;i++)BREAK_TIME[WOOL_BASE_ID+i]=0.65;
+   const BLAST_RESISTANCE={
+    [B.AIR]:0,[B.FIRE]:0,[B.TORCH]:0.1,[B.LEAVES]:0.2,[B.TNT]:0,
+    [B.GRASS]:0.8,[B.DIRT]:0.8,[B.GRASS_PATH]:0.8,[B.FARMLAND_DRY]:0.7,[B.FARMLAND_WET]:0.8,[B.SAND]:0.7,[B.RED_SAND]:0.7,[B.GRAVEL]:0.8,
+    [B.WATER]:500,[B.LAVA]:500,[B.WOOD]:2,[B.PLANKS]:2,[B.CRAFTING_TABLE]:2.5,[B.CHEST]:2.5,[B.IRON_CHEST]:8,[B.GOLD_CHEST]:7,[B.DIAMOND_CHEST]:12,[B.DEV_CHEST]:1200,
+    [B.STONE]:6,[B.COBBLESTONE]:6,[B.COAL_ORE]:4,[B.IRON_ORE]:4.5,[B.GOLD_ORE]:4.5,[B.DIAMOND_ORE]:5,
+    [B.IRON_BLOCK]:10,[B.GOLD_BLOCK]:9,[B.DIAMOND_BLOCK]:12,[B.BEDROCK]:99999,[B.OAK_SLAB]:2,[B.STONE_SLAB]:6,[B.COBBLE_SLAB]:6,
+   };
+   for(let i=0;i<WOOL_COLORS.length;i++)BLAST_RESISTANCE[WOOL_BASE_ID+i]=0.8;
    
    // Drop table: blockId → [{id, count, chance}]
    const DROP_TABLE={
@@ -246,6 +272,9 @@ function getItemName(id){
      [B.DIAMOND_BLOCK]: [{id:B.DIAMOND_BLOCK,count:1,ch:1}],
     [B.TORCH]: [{id:B.TORCH,count:1,ch:1}],
     [B.FIRE]: [],
+    [B.GRASS_PATH]: [{id:B.DIRT,count:1,ch:1}],
+    [B.FARMLAND_DRY]: [{id:B.DIRT,count:1,ch:1}],
+    [B.FARMLAND_WET]: [{id:B.DIRT,count:1,ch:1}],
      [B.COAL_ORE]:    [{id:IT.COAL,count:1,ch:1}],
      [B.IRON_ORE]:    [{id:IT.IRON_INGOT,count:2,ch:1}],
      [B.GOLD_ORE]:    [{id:IT.GOLD_INGOT,count:2,ch:1}],
@@ -549,6 +578,8 @@ function getItemName(id){
       g.fillStyle=head;
       if(shape==='pick'){g.fillRect(2,3,12,3);g.fillRect(7,3,2,3);} 
       else if(shape==='axe'){g.fillRect(3,2,8,5);g.fillRect(9,3,3,2);} 
+      else if(shape==='shovel'){g.fillRect(6,1,4,5);g.fillRect(7,6,2,2);}
+      else if(shape==='hoe'){g.fillRect(4,2,6,3);g.fillRect(8,5,2,1);}
       else {g.fillRect(6,1,4,9);g.fillStyle='#ddd';g.fillRect(7,2,2,1);} 
     });
   }
@@ -566,6 +597,24 @@ function getItemName(id){
   TEX.ironBlade=makeToolTex('#c9c9c9','#7a5230','blade');
   TEX.goldBlade=makeToolTex('#f0c040','#7a5230','blade');
   TEX.diamondBlade=makeToolTex('#61e1e1','#7a5230','blade');
+  TEX.woodShovel=makeToolTex('#a37431','#7a5230','shovel');
+  TEX.stoneShovel=makeToolTex('#8d8d8d','#7a5230','shovel');
+  TEX.ironShovel=makeToolTex('#c9c9c9','#7a5230','shovel');
+  TEX.goldShovel=makeToolTex('#f0c040','#7a5230','shovel');
+  TEX.diamondShovel=makeToolTex('#61e1e1','#7a5230','shovel');
+  TEX.woodHoe=makeToolTex('#a37431','#7a5230','hoe');
+  TEX.stoneHoe=makeToolTex('#8d8d8d','#7a5230','hoe');
+  TEX.ironHoe=makeToolTex('#c9c9c9','#7a5230','hoe');
+  TEX.goldHoe=makeToolTex('#f0c040','#7a5230','hoe');
+  TEX.diamondHoe=makeToolTex('#61e1e1','#7a5230','hoe');
+  TEX.bow=makeTex(g=>{g.clearRect(0,0,16,16);g.strokeStyle='#8b5a34';g.lineWidth=2;g.beginPath();g.moveTo(11,2);g.quadraticCurveTo(4,8,11,14);g.stroke();g.strokeStyle='#ddd';g.lineWidth=1;g.beginPath();g.moveTo(10,2);g.lineTo(10,14);g.stroke();});
+  TEX.arrow=makeTex(g=>{g.clearRect(0,0,16,16);g.fillStyle='#ddd';g.fillRect(7,1,2,10);g.fillStyle='#bbb';g.fillRect(5,9,6,2);g.fillStyle='#8b5a34';g.fillRect(7,11,2,4);});
+  TEX.bucket=makeTex(g=>{g.fillStyle='#9ca5ad';g.fillRect(3,4,10,10);g.fillStyle='#c9d1d8';g.fillRect(4,5,8,2);g.strokeStyle='#e4eaef';g.strokeRect(4,2,8,3);});
+  TEX.waterBucket=makeTex(g=>{g.drawImage(TEX.bucket.image,0,0);g.fillStyle='#3b99de';g.fillRect(4,8,8,5);});
+  TEX.lavaBucket=makeTex(g=>{g.drawImage(TEX.bucket.image,0,0);g.fillStyle='#e36b1c';g.fillRect(4,8,8,5);});
+  TEX.grassPathTop=makeTex(g=>{g.fillStyle='#6a5a3a';g.fillRect(0,0,16,16);g.fillStyle='#7b6c47';for(let i=0;i<18;i++)g.fillRect((Math.random()*16)|0,(Math.random()*16)|0,1,1);});
+  TEX.farmlandDryTop=makeTex(g=>{g.fillStyle='#6e4a2a';g.fillRect(0,0,16,16);g.fillStyle='#7d5731';for(let y=2;y<16;y+=3)g.fillRect(0,y,16,1);});
+  TEX.farmlandWetTop=makeTex(g=>{g.fillStyle='#4f3924';g.fillRect(0,0,16,16);g.fillStyle='#5d4a2f';for(let y=2;y<16;y+=3)g.fillRect(0,y,16,1);});
   TEX.boat=makeTex(g=>{
     g.fillStyle='#8a5b34';g.fillRect(2,7,12,6);
     g.fillStyle='#6f4628';g.fillRect(1,8,1,4);g.fillRect(14,8,1,4);
@@ -619,6 +668,9 @@ function getItemName(id){
      [B.RED_SAND]:{top:TEX.redSand,bot:TEX.redSand,side:TEX.redSand},
      [B.TORCH]:{top:TEX.torch,bot:TEX.torch,side:TEX.torch},
      [B.FIRE]:{top:TEX.fire,bot:TEX.fire,side:TEX.fire},
+     [B.GRASS_PATH]:{top:TEX.grassPathTop,bot:TEX.dirt,side:TEX.dirt},
+     [B.FARMLAND_DRY]:{top:TEX.farmlandDryTop,bot:TEX.dirt,side:TEX.dirt},
+     [B.FARMLAND_WET]:{top:TEX.farmlandWetTop,bot:TEX.dirt,side:TEX.dirt},
      [B.OAK_SLAB]:{top:TEX.planks,bot:TEX.planks,side:TEX.planks},
      [B.STONE_SLAB]:{top:TEX.stone,bot:TEX.stone,side:TEX.stone},
      [B.COBBLE_SLAB]:{top:TEX.cobblestone,bot:TEX.cobblestone,side:TEX.cobblestone},
@@ -635,7 +687,10 @@ function getItemName(id){
      [IT.STONE_PICKAXE]:TEX.stonePickaxe,[IT.IRON_PICKAXE]:TEX.ironPickaxe,[IT.GOLD_PICKAXE]:TEX.goldPickaxe,[IT.DIAMOND_PICKAXE]:TEX.diamondPickaxe,
      [IT.WOOD_AXE]:TEX.woodAxe,[IT.STONE_AXE]:TEX.stoneAxe,[IT.IRON_AXE]:TEX.ironAxe,[IT.GOLD_AXE]:TEX.goldAxe,[IT.DIAMOND_AXE]:TEX.diamondAxe,
      [IT.WOOD_BLADE]:TEX.woodBlade,[IT.STONE_BLADE]:TEX.stoneBlade,[IT.IRON_BLADE]:TEX.ironBlade,[IT.GOLD_BLADE]:TEX.goldBlade,[IT.DIAMOND_BLADE]:TEX.diamondBlade,
-     [IT.BOAT]:TEX.boat,[IT.FLINT]:TEX.flint,[IT.FLINT_STEEL]:TEX.flintSteel,
+     [IT.BOAT]:TEX.boat,[IT.FLINT]:TEX.flint,[IT.FLINT_STEEL]:TEX.flintSteel,[IT.BOW]:TEX.bow,[IT.ARROW]:TEX.arrow,
+     [IT.WOOD_SHOVEL]:TEX.woodShovel,[IT.STONE_SHOVEL]:TEX.stoneShovel,[IT.IRON_SHOVEL]:TEX.ironShovel,[IT.GOLD_SHOVEL]:TEX.goldShovel,[IT.DIAMOND_SHOVEL]:TEX.diamondShovel,
+     [IT.WOOD_HOE]:TEX.woodHoe,[IT.STONE_HOE]:TEX.stoneHoe,[IT.IRON_HOE]:TEX.ironHoe,[IT.GOLD_HOE]:TEX.goldHoe,[IT.DIAMOND_HOE]:TEX.diamondHoe,
+     [IT.BUCKET]:TEX.bucket,[IT.WATER_BUCKET]:TEX.waterBucket,[IT.LAVA_BUCKET]:TEX.lavaBucket,
    };
    function getItemTex(id){
      if(id<100) return (BLOCK_TEX[id]||BLOCK_TEX[B.STONE]).top;
@@ -1004,9 +1059,9 @@ function getItemName(id){
         }
         continue;
       }
-      if(self===B.OAK_SLAB||self===B.STONE_SLAB||self===B.COBBLE_SLAB){
+      if(self===B.OAK_SLAB||self===B.STONE_SLAB||self===B.COBBLE_SLAB||self===B.GRASS_PATH||self===B.FARMLAND_DRY||self===B.FARMLAND_WET){
         const d=getFD(self),base=d.pos.length/3;
-        const x0=lx,x1=lx+1,z0=lz,z1=lz+1,yy0=y,yy1=y+0.5;
+        const x0=lx,x1=lx+1,z0=lz,z1=lz+1,yy0=y,yy1=y+((self===B.OAK_SLAB||self===B.STONE_SLAB||self===B.COBBLE_SLAB)?0.5:0.9);
         const verts=[
           [x1,yy0,z0],[x1,yy1,z0],[x1,yy1,z1],[x1,yy0,z1],
           [x0,yy0,z1],[x0,yy1,z1],[x0,yy1,z0],[x0,yy0,z0],
@@ -1172,15 +1227,61 @@ function getItemName(id){
     spawnDropStack(Math.floor(boat.position.x),Math.floor(boat.position.y),Math.floor(boat.position.z),IT.BOAT,1,0.2);
     scene.remove(boat);boat.geometry.dispose();boat.material.dispose();
    }
-   function tryHitBoat(){
+  function tryHitBoat(){
      const b=nearestBoat(3.0);
      if(!b)return false;
     consumeHeldToolDurability(1);
      b.userData.hp=Math.max(0,(b.userData.hp||20)-getAttackDamage());
      b.material.color.setHex(b.userData.hp<=8?0xffcaca:0xffffff);
-     if(b.userData.hp<=0)destroyBoat(b);
-     return true;
+   if(b.userData.hp<=0)destroyBoat(b);
+    return true;
    }
+  const mobs=[];
+  const MOB_DEF={
+    zombie:{color:0x4f8f52,h:1.7,speed:1.5,hp:20,hostile:true},
+    pig:{color:0xf2a3b1,h:1.1,speed:1.0,hp:10},
+    cow:{color:0x6b4a32,h:1.4,speed:0.9,hp:14},
+    chicken:{color:0xf6f0d2,h:0.8,speed:1.1,hp:6},
+    sheep:{color:0xeaeaea,h:1.3,speed:0.95,hp:12},
+  };
+  function spawnMob(type,wx,wy,wz){
+    const def=MOB_DEF[type];if(!def)return null;
+    const mesh=new THREE.Mesh(new THREE.BoxGeometry(0.7,def.h,0.7),new THREE.MeshLambertMaterial({color:def.color}));
+    mesh.position.set(wx+0.5,wy+def.h*0.5,wz+0.5);
+    mesh.userData={type,hp:def.hp,vx:0,vz:0,dirT:0};
+    scene.add(mesh);mobs.push(mesh);return mesh;
+  }
+  function updateMobs(dt){
+    const night=dayTime>=0.55&&dayTime<=0.95;
+    if(mobs.length<28&&Math.random()<dt*1.2){
+      const mx=Math.floor(player.pos.x)+(((Math.random()*52)|0)-26);
+      const mz=Math.floor(player.pos.z)+(((Math.random()*52)|0)-26);
+      const y=getSurfaceY(mx,mz);
+      if(y>0&&worldGet(mx,y+1,mz)===B.AIR&&worldGet(mx,y,mz)!==B.WATER){
+        const lowLight=night||y<CFG.seaLevel-2;
+        if(lowLight&&Math.random()<0.35)spawnMob('zombie',mx,y+1,mz);
+        else if(!night){
+          const t=['pig','cow','chicken','sheep'][Math.floor(Math.random()*4)];
+          if(!mobs.some(m=>Math.hypot(m.position.x-(mx+0.5),m.position.z-(mz+0.5))<5))spawnMob(t,mx,y+1,mz);
+        }
+      }
+    }
+    for(let i=mobs.length-1;i>=0;i--){
+      const m=mobs[i],def=MOB_DEF[m.userData.type];
+      m.userData.dirT-=dt;
+      if(m.userData.dirT<=0){
+        m.userData.dirT=1+Math.random()*2.5;
+        let ang=Math.random()*Math.PI*2;
+        if(def.hostile&&m.position.distanceTo(player.pos)<10)ang=Math.atan2(player.pos.x-m.position.x,player.pos.z-m.position.z);
+        m.userData.vx=Math.sin(ang)*def.speed;m.userData.vz=Math.cos(ang)*def.speed;
+      }
+      m.position.x+=m.userData.vx*dt*0.35;m.position.z+=m.userData.vz*dt*0.35;
+      const sy=getSurfaceY(Math.floor(m.position.x),Math.floor(m.position.z));
+      if(sy>0)m.position.y=sy+def.h*0.5+1;
+      if(def.hostile&&m.position.distanceTo(player.pos)<1.4)applyDamage(6*dt,false);
+      if(m.position.distanceTo(player.pos)>96){scene.remove(m);m.geometry.dispose();m.material.dispose();mobs.splice(i,1);}
+    }
+  }
    camera.position.copy(player.pos);
    
    // Pointer lock
@@ -1954,6 +2055,28 @@ function getItemName(id){
       }
     }
   }
+  let farmlandTick=0;
+  function isNearWater(wx,wy,wz,r=3){
+    for(let dx=-r;dx<=r;dx++)for(let dz=-r;dz<=r;dz++){
+      if(worldGet(wx+dx,wy,wz+dz)===B.WATER||worldGet(wx+dx,wy+1,wz+dz)===B.WATER)return true;
+    }
+    return false;
+  }
+  function updateFarmland(dt){
+    farmlandTick+=dt;
+    if(farmlandTick<0.8)return;
+    farmlandTick=0;
+    const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
+    for(let i=0;i<120;i++){
+      const wx=px+((Math.random()*36)|0)-18,wz=pz+((Math.random()*36)|0)-18,wy=Math.max(1,Math.min(CFG.chunkH-2,py+((Math.random()*20)|0)-10));
+      const id=worldGet(wx,wy,wz);
+      if(id!==B.FARMLAND_DRY&&id!==B.FARMLAND_WET)continue;
+      const wet=isNearWater(wx,wy,wz,4)||Math.random()<0.03;
+      if(wet&&id===B.FARMLAND_DRY){worldSet(wx,wy,wz,B.FARMLAND_WET);buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));}
+      else if(!wet&&id===B.FARMLAND_WET&&Math.random()<0.45){worldSet(wx,wy,wz,B.FARMLAND_DRY);buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));}
+      else if(!wet&&id===B.FARMLAND_DRY&&Math.random()<0.13){worldSet(wx,wy,wz,B.DIRT);buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));}
+    }
+  }
 
   function updateLeavesDecay(dt){
     const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
@@ -2043,6 +2166,7 @@ function getItemName(id){
    
    // Particles
    const particles=[];
+   const projectiles=[];
    const chestShineFx=[];
    function spawnChestPairShine(wx,wy,wz){
     const glow=new THREE.Mesh(new THREE.SphereGeometry(0.18,8,8),new THREE.MeshBasicMaterial({color:0xffde8a,transparent:true,opacity:0.9}));
@@ -2093,6 +2217,18 @@ function getItemName(id){
        if(p.userData.life<=0){scene.remove(p);p.geometry.dispose();p.material.dispose();particles.splice(i,1);}
      }
    }
+   function updateProjectiles(dt){
+    for(let i=projectiles.length-1;i>=0;i--){
+      const p=projectiles[i];
+      p.userData.life-=dt;
+      p.userData.vel.y-=9.8*dt*0.25;
+      p.position.addScaledVector(p.userData.vel,dt);
+      const ix=Math.floor(p.position.x),iy=Math.floor(p.position.y),iz=Math.floor(p.position.z);
+      if(isSolid(worldGet(ix,iy,iz))||p.userData.life<=0){
+        scene.remove(p);p.geometry.dispose();p.material.dispose();projectiles.splice(i,1);continue;
+      }
+    }
+   }
    
   // Dropped items (land on ground)
   const drops=[];
@@ -2112,6 +2248,21 @@ function getItemName(id){
       if(Math.random()>entry.ch)return;
       spawnDropStack(wx,wy,wz,entry.id,entry.count,pickupDelay);
     });
+  }
+  function scatterContainerDrops(wx,wy,wz,key,pickupDelay=0.8){
+    const slots=containerData.get(chestStorageKey(key))||containerData.get(key);
+    if(!slots)return;
+    for(const st of slots){
+      if(!st)continue;
+      let remain=st.count|0;
+      while(remain>0){
+        const take=Math.min(remain,getMaxStackForId(st.id));
+        spawnDropStack(wx+(Math.random()-0.5)*0.45,wy,wz+(Math.random()-0.5)*0.45,st.id,take,pickupDelay);
+        remain-=take;
+      }
+    }
+    containerData.delete(chestStorageKey(key));
+    containerData.delete(key);
   }
    function updateDrops(dt){
      for(let i=drops.length-1;i>=0;i--){
@@ -2156,7 +2307,8 @@ function getItemName(id){
   }
 
   function explodeTnt(wx,wy,wz){
-    const r=3.2;
+    const power=4;
+    const r=power*1.15;
     for(let x=Math.floor(wx-r);x<=Math.ceil(wx+r);x++)for(let y=Math.floor(wy-r);y<=Math.ceil(wy+r);y++)for(let z=Math.floor(wz-r);z<=Math.ceil(wz+r);z++){
       const dx=x+0.5-wx,dy=y+0.5-wy,dz=z+0.5-wz;
       const d=Math.sqrt(dx*dx+dy*dy+dz*dz);
@@ -2164,8 +2316,15 @@ function getItemName(id){
       const id=worldGet(x,y,z);
       if(id===B.AIR||id===B.BEDROCK)continue;
       if(id===B.TNT){igniteTnt(x,y,z);continue;}
-      const hard=id===B.STONE||id===B.COAL_ORE||id===B.IRON_ORE||id===B.GOLD_ORE||id===B.DIAMOND_ORE||id===B.IRON_BLOCK||id===B.GOLD_BLOCK||id===B.DIAMOND_BLOCK;
-      if(!hard||Math.random()<0.24)spawnDrops(x,y,z,id,0.8);
+      const intensity=Math.max(0,power-(d*0.95));
+      const resist=BLAST_RESISTANCE[id]??2;
+      if(intensity<=resist)continue;
+      if(CHEST_UI[id]){
+        const ck=worldPosKey(x,y,z);
+        scatterContainerDrops(x,y,z,ck,0.9);
+        clearPair(ck);
+      }
+      if(Math.random()<0.92)spawnDrops(x,y,z,id,0.8);
       worldSet(x,y,z,B.AIR);
       spawnParticles(x,y,z,id);
       buildChunkMesh(Math.floor(x/16),Math.floor(z/16));
@@ -2230,18 +2389,15 @@ function getItemName(id){
   function finishBreaking(){
     const id=worldGet(breaking.wx,breaking.wy,breaking.wz);
     if(id===B.AIR||id===B.BEDROCK){stopBreaking();return;}
+    if(id===B.DEV_CHEST){stopBreaking();return;}
     const targets=[{wx:breaking.wx,wy:breaking.wy,wz:breaking.wz}];
     let chestKey=null;
     if(CHEST_UI[id]){
       chestKey=worldPosKey(breaking.wx,breaking.wy,breaking.wz);
       const pair=getLargeChestFootprint(breaking.wx,breaking.wy,breaking.wz,id);
       if(pair)targets.push({wx:pair.other.wx,wy:pair.other.wy,wz:pair.other.wz});
-      const slots=containerData.get(chestStorageKey(chestKey));
-      if(slots){
-        slots.forEach(st=>{if(!st)return;for(let i=0;i<st.count;i++)spawnDropStack(breaking.wx,breaking.wy,breaking.wz,st.id,1,0.8);});
-        containerData.delete(chestStorageKey(chestKey));
-        clearPair(chestKey);
-      }
+      scatterContainerDrops(breaking.wx,breaking.wy,breaking.wz,chestKey,0.8);
+      clearPair(chestKey);
     }
     const chunkKeys=new Set();
     for(const t of targets){
@@ -2281,6 +2437,51 @@ function getItemName(id){
      if(!targetBlock)return;
      const held=INV.hotbar[INV.active];
      if(!held)return;
+     if(held.id===IT.BOW){
+      const arrowSlot=[...INV.hotbar,...INV.main].find(s=>s&&s.id===IT.ARROW&&s.count>0);
+      if(!arrowSlot)return;
+      arrowSlot.count--;
+      if(arrowSlot.count<=0){const hb=INV.hotbar.indexOf(arrowSlot);if(hb>=0)INV.hotbar[hb]=null;else{const mi=INV.main.indexOf(arrowSlot);if(mi>=0)INV.main[mi]=null;}}
+      const dir=new THREE.Vector3(0,0,-1).applyEuler(camera.rotation).normalize();
+      const b=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,0.6),new THREE.MeshLambertMaterial({map:TEX.arrow,transparent:true,alphaTest:0.05}));
+      b.position.copy(camera.position).addScaledVector(dir,0.7);
+      b.rotation.copy(camera.rotation);
+      b.userData={arrow:true,vel:dir.multiplyScalar(32),life:3};
+      scene.add(b);projectiles.push(b);
+      consumeHeldToolDurability(1);updateHotbarUI();drawHand();
+      return;
+     }
+     if(held.id===IT.BUCKET||held.id===IT.WATER_BUCKET||held.id===IT.LAVA_BUCKET){
+      const tid=worldGet(targetBlock.wx,targetBlock.wy,targetBlock.wz);
+      if(held.id===IT.BUCKET&&(tid===B.WATER||tid===B.LAVA)){
+        worldSet(targetBlock.wx,targetBlock.wy,targetBlock.wz,B.AIR);
+        held.id=tid===B.WATER?IT.WATER_BUCKET:IT.LAVA_BUCKET;
+        ensureStackIntegrity(held);buildChunkMesh(Math.floor(targetBlock.wx/16),Math.floor(targetBlock.wz/16));updateHotbarUI();drawHand();
+      }else if(held.id===IT.WATER_BUCKET||held.id===IT.LAVA_BUCKET){
+        const [fx,fy,fz]=targetBlock.face;
+        const px=targetBlock.wx+fx,py=targetBlock.wy+fy,pz=targetBlock.wz+fz;
+        if(worldGet(px,py,pz)===B.AIR||isFluid(worldGet(px,py,pz))){
+          worldSet(px,py,pz,held.id===IT.WATER_BUCKET?B.WATER:B.LAVA);
+          held.id=IT.BUCKET;ensureStackIntegrity(held);
+          buildChunkMesh(Math.floor(px/16),Math.floor(pz/16));updateHotbarUI();drawHand();
+        }
+      }
+      return;
+     }
+     if(TOOL_STATS[held.id]?.type==='shovel'||TOOL_STATS[held.id]?.type==='hoe'){
+      const tid=worldGet(targetBlock.wx,targetBlock.wy,targetBlock.wz);
+      const above=worldGet(targetBlock.wx,targetBlock.wy+1,targetBlock.wz);
+      if(above===B.AIR&&(TOOL_STATS[held.id].type==='shovel'&&(tid===B.GRASS||tid===B.DIRT))){
+        worldSet(targetBlock.wx,targetBlock.wy,targetBlock.wz,B.GRASS_PATH);
+        consumeHeldToolDurability(1);buildChunkMesh(Math.floor(targetBlock.wx/16),Math.floor(targetBlock.wz/16));updateHotbarUI();drawHand();
+        return;
+      }
+      if(above===B.AIR&&(TOOL_STATS[held.id].type==='hoe'&&(tid===B.GRASS||tid===B.DIRT||tid===B.GRASS_PATH))){
+        worldSet(targetBlock.wx,targetBlock.wy,targetBlock.wz,B.FARMLAND_DRY);
+        consumeHeldToolDurability(1);buildChunkMesh(Math.floor(targetBlock.wx/16),Math.floor(targetBlock.wz/16));updateHotbarUI();drawHand();
+        return;
+      }
+     }
      if(held.id===IT.FLINT_STEEL){
       let used=false;
       const targetId=worldGet(targetBlock.wx,targetBlock.wy,targetBlock.wz);
@@ -2338,7 +2539,7 @@ function getItemName(id){
       setChestMeta(key,{
         placedSneak,
         noPair:placedSneak||forceSingle,
-        nbt:{placedBy:'player',placedSneak,ver:'0.0.63a'},
+        nbt:{placedBy:'player',placedSneak,ver:'0.0.70a'},
       });
       if(placedSneak||forceSingle){
         const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
@@ -2410,6 +2611,8 @@ function getItemName(id){
      {w:1,h:2,pat:[B.PLANKS,B.PLANKS],out:{id:IT.STICK,count:4}},
      {w:1,h:2,pat:[IT.COAL,IT.STICK],out:{id:B.TORCH,count:6}},
      {w:2,h:1,pat:[IT.FLINT,IT.IRON_INGOT],out:{id:IT.FLINT_STEEL,count:1}},
+     {w:1,h:2,pat:[IT.IRON_INGOT,0],out:{id:IT.BUCKET,count:1}},
+     {w:3,h:1,pat:[IT.STICK,IT.STICK,IT.STICK],out:{id:IT.ARROW,count:6}},
      {w:3,h:1,pat:[B.PLANKS,B.PLANKS,B.PLANKS],out:{id:B.OAK_SLAB,count:6}},
      {w:3,h:1,pat:[B.STONE,B.STONE,B.STONE],out:{id:B.STONE_SLAB,count:6}},
      {w:3,h:1,pat:[B.COBBLESTONE,B.COBBLESTONE,B.COBBLESTONE],out:{id:B.COBBLE_SLAB,count:6}},
@@ -2431,6 +2634,17 @@ function getItemName(id){
      {w:1,h:3,pat:[IT.IRON_INGOT,IT.IRON_INGOT,IT.STICK],out:{id:IT.IRON_BLADE,count:1}},
      {w:1,h:3,pat:[IT.GOLD_INGOT,IT.GOLD_INGOT,IT.STICK],out:{id:IT.GOLD_BLADE,count:1}},
      {w:1,h:3,pat:[IT.DIAMOND,IT.DIAMOND,IT.STICK],out:{id:IT.DIAMOND_BLADE,count:1}},
+     {w:1,h:3,pat:[B.PLANKS,IT.STICK,IT.STICK],out:{id:IT.WOOD_SHOVEL,count:1}},
+     {w:1,h:3,pat:[B.COBBLESTONE,IT.STICK,IT.STICK],out:{id:IT.STONE_SHOVEL,count:1}},
+     {w:1,h:3,pat:[IT.IRON_INGOT,IT.STICK,IT.STICK],out:{id:IT.IRON_SHOVEL,count:1}},
+     {w:1,h:3,pat:[IT.GOLD_INGOT,IT.STICK,IT.STICK],out:{id:IT.GOLD_SHOVEL,count:1}},
+     {w:1,h:3,pat:[IT.DIAMOND,IT.STICK,IT.STICK],out:{id:IT.DIAMOND_SHOVEL,count:1}},
+     {w:2,h:2,pat:[B.PLANKS,B.PLANKS,0,IT.STICK],out:{id:IT.WOOD_HOE,count:1}},
+     {w:2,h:2,pat:[B.COBBLESTONE,B.COBBLESTONE,0,IT.STICK],out:{id:IT.STONE_HOE,count:1}},
+     {w:2,h:2,pat:[IT.IRON_INGOT,IT.IRON_INGOT,0,IT.STICK],out:{id:IT.IRON_HOE,count:1}},
+     {w:2,h:2,pat:[IT.GOLD_INGOT,IT.GOLD_INGOT,0,IT.STICK],out:{id:IT.GOLD_HOE,count:1}},
+     {w:2,h:2,pat:[IT.DIAMOND,IT.DIAMOND,0,IT.STICK],out:{id:IT.DIAMOND_HOE,count:1}},
+     {w:3,h:3,pat:[0,IT.STICK,B.PLANKS,IT.STICK,0,B.PLANKS,0,IT.STICK,B.PLANKS],out:{id:IT.BOW,count:1}},
      {w:3,h:3,pat:[IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT],out:{id:B.IRON_BLOCK,count:1}},
      {w:3,h:3,pat:[IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT],out:{id:B.GOLD_BLOCK,count:1}},
      {w:3,h:3,pat:[IT.DIAMOND,IT.DIAMOND,IT.DIAMOND,IT.DIAMOND,IT.DIAMOND,IT.DIAMOND,IT.DIAMOND,IT.DIAMOND,IT.DIAMOND],out:{id:B.DIAMOND_BLOCK,count:1}},
@@ -3100,8 +3314,8 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.63a',
-        seed:CURRENT_SEED,
+        version:'0.0.70a',
+        seed:CURRENT_SEED,worldId:CURRENT_WORLD_ID,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
          inv:{hotbar:serializeInventory(INV.hotbar),main:serializeInventory(INV.main),active:INV.active,craftGrid:serializeInventory(INV.craftGrid)},
@@ -3110,6 +3324,7 @@ function getItemName(id){
          chunks:serializeChunks(),
          drops:drops.map(d=>({id:d.userData.id,count:d.userData.count,x:d.position.x,y:d.position.y,z:d.position.z,vy:d.userData.vy,pickupDelay:d.userData.pickupDelay})),
          boats:boats.map(b=>({x:b.position.x,y:b.position.y,z:b.position.z,rot:b.rotation.y,vx:b.userData.vx,vy:b.userData.vy,vz:b.userData.vz})),
+         mobs:mobs.map(m=>({type:m.userData.type,hp:m.userData.hp,x:m.position.x,y:m.position.y,z:m.position.z,vx:m.userData.vx,vz:m.userData.vz})),
          ts:Date.now(),
        };
        localStorage.setItem(AUTOSAVE_KEY,JSON.stringify(data));
@@ -3131,7 +3346,10 @@ function getItemName(id){
   function loadWorldState(id){
     try{
       const raw=localStorage.getItem(worldStateKey(id));
-      if(!raw)return null;
+      if(!raw){
+        const auto=loadAutosaveLocal();
+        return auto?.worldId===id?auto:null;
+      }
       const data=JSON.parse(raw);
       return data&&data.player?data:null;
     }catch{return null;}
@@ -3159,10 +3377,14 @@ function getItemName(id){
     primedTnts.length=0;
     for(const l of torchLights.values())scene.remove(l);
     torchLights.clear();
+    for(let i=projectiles.length-1;i>=0;i--){scene.remove(projectiles[i]);projectiles[i].geometry.dispose();projectiles[i].material.dispose();}
+    projectiles.length=0;
     for(let i=chestShineFx.length-1;i>=0;i--){scene.remove(chestShineFx[i]);chestShineFx[i].geometry.dispose();chestShineFx[i].material.dispose();}
     chestShineFx.length=0;
     for(const b of boats){scene.remove(b);b.geometry.dispose();b.material.dispose();}
     boats.length=0;
+    for(const m of mobs){scene.remove(m);m.geometry.dispose();m.material.dispose();}
+    mobs.length=0;
     ridingBoat=null;
   }
 
@@ -3377,7 +3599,7 @@ function getItemName(id){
       updateControllerInput();
       handPhase+=dt*9;
        movePlayer(dt);raycastWorld();tickBreaking(dt);
-       updateParticles(dt);updateChestShineFx(dt);updateDrops(dt);updatePrimedTnts(dt);updateGrassGrowth(dt);
+       updateParticles(dt);updateProjectiles(dt);updateChestShineFx(dt);updateDrops(dt);updatePrimedTnts(dt);updateGrassGrowth(dt);updateFarmland(dt);updateMobs(dt);
        updateDayNight(dt);updateAnimTex(dt);
        clouds.forEach(c=>{c.position.x+=c.userData.spd*dt;if(c.position.x>200)c.position.x=-200;});
        chunkT+=dt;if(chunkT>0.35){chunkT=0;updateChunks();}
@@ -3507,8 +3729,19 @@ function getItemName(id){
       worldSet(chestX,chestY,chestZ,B.CHEST);
       const alphaKey=worldPosKey(chestX,chestY,chestZ);
       const alphaSlots=ensureContainer(alphaKey,chestCapacity(B.CHEST,alphaKey));
-      const LOOT=[makeItemStack(B.PLANKS,16+((Math.random()*24)|0)),makeItemStack(IT.STICK,8+((Math.random()*24)|0)),makeItemStack(B.TORCH,8+((Math.random()*24)|0)),makeItemStack(IT.FLINT_STEEL,1),makeItemStack(IT.COAL,4+((Math.random()*14)|0)),makeItemStack(B.COBBLESTONE,12+((Math.random()*28)|0))];
-      for(let i=0;i<Math.min(alphaSlots.length,LOOT.length);i++)alphaSlots[i]=LOOT[i];
+      const STARTER_LOOT_TABLE=[
+        {id:B.PLANKS,min:12,max:36,w:10},{id:IT.STICK,min:6,max:24,w:9},{id:B.TORCH,min:6,max:28,w:9},{id:IT.COAL,min:3,max:16,w:8},
+        {id:B.COBBLESTONE,min:10,max:32,w:8},{id:IT.FLINT_STEEL,min:1,max:1,w:4},{id:IT.BUCKET,min:1,max:1,w:3},{id:IT.ARROW,min:6,max:18,w:6},
+        {id:IT.IRON_INGOT,min:2,max:8,w:4},{id:IT.BOW,min:1,max:1,w:2},
+      ];
+      const rolls=5+((Math.random()*4)|0);
+      for(let i=0;i<rolls&&i<alphaSlots.length;i++){
+        const total=STARTER_LOOT_TABLE.reduce((a,b)=>a+b.w,0);
+        let pick=Math.random()*total,entry=STARTER_LOOT_TABLE[0];
+        for(const e of STARTER_LOOT_TABLE){pick-=e.w;if(pick<=0){entry=e;break;}}
+        const count=entry.min+((Math.random()*((entry.max-entry.min)+1))|0);
+        alphaSlots[i]=makeItemStack(entry.id,count);
+      }
     }
     if(!savedWorldState&&developerChestEnabled){
       const chestX=Math.floor(player.pos.x)-1;
@@ -3529,6 +3762,15 @@ function getItemName(id){
         const boat=spawnBoat(Math.floor(b.x),Math.floor(b.y),Math.floor(b.z),b.rot||0);
         boat.position.set(b.x,b.y,b.z);
         boat.userData.vx=b.vx||0;boat.userData.vy=b.vy||0;boat.userData.vz=b.vz||0;
+      }
+    }
+    if(savedWorldState?.mobs){
+      for(const m of savedWorldState.mobs){
+        const mob=spawnMob(m.type,Math.floor(m.x),Math.floor(m.y),Math.floor(m.z));
+        if(!mob)continue;
+        mob.position.set(m.x,m.y,m.z);
+        mob.userData.hp=m.hp||mob.userData.hp;
+        mob.userData.vx=m.vx||0;mob.userData.vz=m.vz||0;
       }
     }
 
@@ -3587,7 +3829,7 @@ function getItemName(id){
          mg.beginPath();if(mg.roundRect)mg.roundRect(cx3+ox-16,cy3-9,32,18,9);else mg.rect(cx3+ox-16,cy3-9,32,18);mg.fill();
        });
      }
-     function menuLoop(){if(document.getElementById('main-menu').style.display==='none')return;drawMenu();requestAnimationFrame(menuLoop);}
+     function menuLoop(){if(document.getElementById('main-menu').style.display!=='none')drawMenu();requestAnimationFrame(menuLoop);}
      menuLoop();
      window.addEventListener('resize',()=>{mc.width=window.innerWidth;mc.height=window.innerHeight;});
    })();
