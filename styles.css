@@ -47,19 +47,19 @@
    #menu-version { margin-top: 14px; font-size: 0.65rem; color: #555; letter-spacing: 0.08em; }
 
    #worlds-screen,#world-create-screen{
-    position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.72);
+    position:fixed;inset:0;z-index:260;display:flex;align-items:stretch;justify-content:stretch;background:linear-gradient(180deg,rgba(9,18,24,0.94),rgba(8,12,18,0.98));
    }
    .worlds-panel{
-    width:min(860px,95vw);max-height:92vh;overflow:auto;background:#2a2018;border:2px solid #77614d;padding:16px;display:flex;flex-direction:column;gap:10px;
+    width:100vw;height:100vh;max-height:none;overflow:auto;background:rgba(30,22,16,0.93);border:0;padding:24px;display:flex;flex-direction:column;gap:12px;
    }
-   .worlds-title{color:#fff;font-size:1.02rem;letter-spacing:.07em;text-align:center;}
+   .worlds-title{color:#fff;font-size:1.4rem;letter-spacing:.07em;text-align:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.18);}
    #world-search,#world-name-input,#world-seed-input{
     height:36px;background:#0f0f0f;border:1px solid #555;color:#fff;padding:0 10px;font-family:inherit;font-size:.8rem;
    }
-   #world-list{display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow:auto;}
+   #world-list{display:flex;flex-direction:column;gap:6px;flex:1;overflow:auto;min-height:0;}
    .world-row{border:1px solid #6f5a45;background:#1d1712;color:#ddd;padding:8px;cursor:pointer;}
    .world-row.active{border-color:#ddd;background:#3f3226;}
-   .world-actions{display:flex;gap:8px;}
+   .world-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;}
    .world-actions .pause-btn{flex:1;}
    .world-switch{color:#ddd;font-size:.82rem;display:flex;align-items:center;gap:8px;}
    

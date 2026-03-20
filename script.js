@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.61a
+   CUBENIX — script.js — v0.0.62a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -2233,7 +2233,7 @@ function getItemName(id){
       setChestMeta(key,{
         placedSneak,
         noPair:placedSneak||forceSingle,
-        nbt:{placedBy:'player',placedSneak,ver:'0.0.61a'},
+        nbt:{placedBy:'player',placedSneak,ver:'0.0.62a'},
       });
       if(placedSneak||forceSingle){
         const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
@@ -2975,7 +2975,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.61a',
+        version:'0.0.62a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -3315,12 +3315,12 @@ function getItemName(id){
      const R=3;
      const coords=[];
      for(let dx=-R;dx<=R;dx++)for(let dz=-R;dz<=R;dz++)coords.push({cx:cx0+dx,cz:cz0+dz});
+     const genTotal=Math.max(1,coords.length);
      let done=0,lastYield=performance.now();
      if(savedWorldState?.chunks?.length){
        deserializeChunks(savedWorldState.chunks);
        setLoad(64,'LOADING SAVED WORLD');
      }else{
-       const genTotal=coords.length;
        for(const {cx,cz} of coords){
          generateChunk(cx,cz);done++;
          if(performance.now()-lastYield>10){
@@ -3543,14 +3543,6 @@ function getItemName(id){
     closeWorldScreens();
     startGame({worldId:w.id,seed:w.seed,starterChest:w.starterChest!==false,developerChest:!!w.developerChest,regenerate:!!recreate});
   }
-  function applyWorldLayoutSizing(){
-    const vw=window.innerWidth,vh=window.innerHeight;
-    document.querySelectorAll('.worlds-panel').forEach(p=>{
-      p.style.width=Math.max(520,Math.floor(vw*0.78))+'px';
-      p.style.maxHeight=Math.max(380,Math.floor(vh*0.9))+'px';
-    });
-  }
-
   document.getElementById('btn-singleplayer').addEventListener('click',()=>{
     worlds=loadWorldDefs();
     if(worlds.length===0){openWorldCreate();return;}
@@ -3565,8 +3557,6 @@ function getItemName(id){
   document.getElementById('world-save-create').addEventListener('click',saveWorldFromForm);
   document.getElementById('world-play').addEventListener('click',()=>launchSelectedWorld(false));
   document.getElementById('world-recreate').addEventListener('click',()=>launchSelectedWorld(true));
-  setInterval(applyWorldLayoutSizing,50);
-  applyWorldLayoutSizing();
   document.getElementById('btn-options').addEventListener('click',openSettingsFromMenu);
   document.getElementById('btn-quit').addEventListener('click',()=>window.close());
   window.addEventListener('beforeunload',()=>saveGameLocal());
