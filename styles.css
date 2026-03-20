@@ -45,6 +45,35 @@
    .menu-btn.disabled { color: #666; cursor: not-allowed; }
    .soon { font-size: 0.65rem; color: #888; margin-left: 5px; }
    #menu-version { margin-top: 14px; font-size: 0.65rem; color: #555; letter-spacing: 0.08em; }
+
+   #worlds-screen,#world-create-screen,#quit-confirm{
+    position:fixed;inset:0;z-index:260;display:flex;align-items:stretch;justify-content:stretch;background:linear-gradient(180deg,rgba(9,18,24,0.94),rgba(8,12,18,0.98));
+   }
+   .worlds-panel{
+    width:100vw;height:100vh;max-height:none;overflow:auto;background:rgba(30,22,16,0.93);border:0;padding:24px;display:flex;flex-direction:column;gap:12px;
+   }
+   .worlds-title{color:#fff;font-size:1.4rem;letter-spacing:.07em;text-align:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.18);}
+   #world-search,#world-name-input,#world-seed-input{
+    height:36px;background:#0f0f0f;border:1px solid #555;color:#fff;padding:0 10px;font-family:inherit;font-size:.8rem;
+   }
+   #world-list{display:flex;flex-direction:column;gap:6px;flex:1;overflow:auto;min-height:0;}
+   .world-row{border:1px solid #6f5a45;background:#1d1712;color:#ddd;padding:8px;cursor:pointer;}
+   .world-row.active{border-color:#ddd;background:#3f3226;}
+   .world-row{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;gap:10px;}
+   .world-row-icon{width:48px;height:48px;border:1px solid #777;background:linear-gradient(180deg,#6fa95d 55%,#5d3d24 55%);}
+   .world-row-name{font-weight:700;color:#fff;}
+   .world-row-desc{font-size:.8rem;color:#bcbcbc;}
+   .world-play-btn{width:48px;height:48px;border:1px solid #aaa;background:#161616;color:#fff;font-size:1.1rem;cursor:pointer;animation:world-play-bob 1.2s ease-in-out infinite;}
+   @keyframes world-play-bob{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+   .world-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;}
+   .world-actions .pause-btn{flex:1;}
+   .world-switch{color:#ddd;font-size:.82rem;display:flex;align-items:center;gap:8px;}
+   .world-switch input[type=checkbox]{
+    -webkit-appearance:none;appearance:none;width:18px;height:18px;border:2px solid #cfcfcf;background:#111;display:inline-block;position:relative;
+   }
+   .world-switch input[type=checkbox]:checked::after{
+    content:'';position:absolute;left:3px;top:1px;width:8px;height:12px;border-right:3px solid #fff;border-bottom:3px solid #fff;transform:rotate(38deg);
+   }
    
    /* ══ LOADING ══ */
    #loading-screen {
@@ -98,9 +127,12 @@
      display: flex; gap: 2px; z-index: 15; pointer-events: none;
      background: rgba(0,0,0,0.42); border: 2px solid #555; padding: 2px;
    }
-   #status-left,#status-right,#inv-panel,#pause-panel,#settings-panel{transform:scale(var(--gui-scale));}
-   #status-left,#status-right,#pause-panel,#settings-panel{transform-origin:center bottom;}
-   #inv-panel{transform-origin:center center;}
+#hud,#chat-panel,#chat-feed,#status-left,#status-right,#inv-panel,#pause-panel,#settings-panel{transform:scale(var(--gui-scale));}
+#status-left,#status-right,#pause-panel,#settings-panel{transform-origin:center bottom;}
+#hud{transform-origin:top left;}
+#hotbar{transform:translateX(-50%) scale(var(--gui-scale));transform-origin:center bottom;}
+#chat-panel,#chat-feed{transform-origin:left bottom;}
+#inv-panel{transform-origin:center center;}
 .hb-slot {
   width: 44px; height: 44px;
      background: rgba(120,120,120,0.28); border: 2px solid #666;
@@ -245,6 +277,11 @@
 #chat-send:hover { background:linear-gradient(180deg,#7ea0ff,#5d7df0); }
 #chat-send:active { background:linear-gradient(180deg,#4e6fe5,#3f5dca); }
 #chat-input:focus { border-color:#b9e386; box-shadow:0 0 0 1px rgba(150,210,95,0.6) inset; }
+#chat-feed{
+  position:fixed;left:14px;bottom:36px;z-index:45;max-width:min(560px,78vw);
+  background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.16);
+  color:#fff;font-size:.72rem;line-height:1.3;padding:5px 8px;display:none;
+}
 
 #touch-ui { position:fixed; inset:0; pointer-events:none; z-index:42; }
 #touch-move,#touch-actions { position:absolute; display:grid; gap:8px; pointer-events:auto; }
