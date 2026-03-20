@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.58a
+   CUBENIX — script.js — v0.0.59a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -868,6 +868,7 @@ function getItemName(id){
    function showFace(s,n){
      if(s===B.AIR)return false;
      if(n===B.AIR)return true;
+     if(s===B.TORCH&&n===B.TORCH)return false;
      if((s===B.WATER||s===B.LAVA)&&n!==s)return true;
      if(s===B.LEAVES&&n===B.AIR)return true;
      if(n===B.TORCH)return true;
@@ -1482,7 +1483,7 @@ function getItemName(id){
       if(!onWater&&isSolid(worldGet(fx,by,fz))){boat.userData.vx*=0.5;boat.userData.vz*=0.5;boat.userData.vy=Math.max(0,boat.userData.vy||0);}
       pushBoatOutOfSolids(boat);
       boat.rotation.y+= (player.yaw-boat.rotation.y)*Math.min(1,dt*8);
-      player.pos.set(boat.position.x,boat.position.y+0.15,boat.position.z);
+      player.pos.set(boat.position.x,boat.position.y+0.42,boat.position.z);
       player.vel.set(0,0,0);
       unphasePlayerIfNeeded();
       camera.position.set(player.pos.x,player.pos.y+player.standEyeOffset,player.pos.z);
@@ -2057,8 +2058,13 @@ function getItemName(id){
      worldSet(px,py,pz,held.id);
      if(CHEST_UI[held.id]){
       const key=worldPosKey(px,py,pz);
-      setChestMeta(key,{placedSneak:!!KEYS['ShiftLeft'],noPair:!!KEYS['ShiftLeft']});
-      if(KEYS['ShiftLeft']){
+      const placedSneak=isShiftPlacement();
+      setChestMeta(key,{
+        placedSneak,
+        noPair:placedSneak,
+        nbt:{placedBy:'player',placedSneak,ver:'0.0.59a'},
+      });
+      if(placedSneak){
         const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
         if(near){setChestMeta(near,{noPair:true});clearPair(key);clearPair(near);}
       }else tryPairChest(px,py,pz,held.id);
@@ -2309,6 +2315,16 @@ function getItemName(id){
   function clearChestMeta(key){chestMeta.delete(key);}
   function isChestNoPair(key){return !!chestMetaGet(key)?.noPair;}
   function wasChestPlacedSneak(key){return !!chestMetaGet(key)?.placedSneak;}
+  function isShiftPlacement(){
+    return !!(isShiftDown()||TOUCH.forceSneak);
+  }
+  function sanitizeChestPairFor(key,blockId){
+    const otherKey=getPairKey(key);
+    if(!otherKey)return;
+    const a=parseWorldPosKey(key),b=parseWorldPosKey(otherKey);
+    if(!a||!b){clearPair(key);return;}
+    if(worldGet(a.wx,a.wy,a.wz)!==blockId||worldGet(b.wx,b.wy,b.wz)!==blockId){clearPair(key);}
+  }
   function chestCapacity(blockId,key){
     const meta=CHEST_UI[blockId];
     if(!meta)return 0;
@@ -2484,7 +2500,7 @@ function getItemName(id){
      if(!cfg)return;
      INV.uiMode='chest';
      openContainerKey=worldPosKey(wx,wy,wz);
-     if(!KEYS['ShiftLeft']&&!getPairKey(openContainerKey)&&!isChestNoPair(openContainerKey)&&!wasChestPlacedSneak(openContainerKey))tryPairChest(wx,wy,wz,blockId);
+     sanitizeChestPairFor(openContainerKey,blockId);
      openContainerStorageKey=chestStorageKey(openContainerKey);
      openContainerSlots=ensureContainer(openContainerStorageKey,chestCapacity(blockId,openContainerKey));
      setCraftingSize(2,false);
@@ -2776,7 +2792,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.58a',
+        version:'0.0.59a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
