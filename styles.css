@@ -46,7 +46,7 @@
    .soon { font-size: 0.65rem; color: #888; margin-left: 5px; }
    #menu-version { margin-top: 14px; font-size: 0.65rem; color: #555; letter-spacing: 0.08em; }
 
-   #worlds-screen,#world-create-screen{
+   #worlds-screen,#world-create-screen,#quit-confirm{
     position:fixed;inset:0;z-index:260;display:flex;align-items:stretch;justify-content:stretch;background:linear-gradient(180deg,rgba(9,18,24,0.94),rgba(8,12,18,0.98));
    }
    .worlds-panel{
@@ -59,9 +59,21 @@
    #world-list{display:flex;flex-direction:column;gap:6px;flex:1;overflow:auto;min-height:0;}
    .world-row{border:1px solid #6f5a45;background:#1d1712;color:#ddd;padding:8px;cursor:pointer;}
    .world-row.active{border-color:#ddd;background:#3f3226;}
+   .world-row{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;gap:10px;}
+   .world-row-icon{width:48px;height:48px;border:1px solid #777;background:linear-gradient(180deg,#6fa95d 55%,#5d3d24 55%);}
+   .world-row-name{font-weight:700;color:#fff;}
+   .world-row-desc{font-size:.8rem;color:#bcbcbc;}
+   .world-play-btn{width:48px;height:48px;border:1px solid #aaa;background:#161616;color:#fff;font-size:1.1rem;cursor:pointer;animation:world-play-bob 1.2s ease-in-out infinite;}
+   @keyframes world-play-bob{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
    .world-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;}
    .world-actions .pause-btn{flex:1;}
    .world-switch{color:#ddd;font-size:.82rem;display:flex;align-items:center;gap:8px;}
+   .world-switch input[type=checkbox]{
+    -webkit-appearance:none;appearance:none;width:18px;height:18px;border:2px solid #cfcfcf;background:#111;display:inline-block;position:relative;
+   }
+   .world-switch input[type=checkbox]:checked::after{
+    content:'';position:absolute;left:3px;top:1px;width:8px;height:12px;border-right:3px solid #fff;border-bottom:3px solid #fff;transform:rotate(38deg);
+   }
    
    /* ══ LOADING ══ */
    #loading-screen {
@@ -115,10 +127,10 @@
      display: flex; gap: 2px; z-index: 15; pointer-events: none;
      background: rgba(0,0,0,0.42); border: 2px solid #555; padding: 2px;
    }
-#hud,#hotbar,#chat-panel,#chat-feed,#status-left,#status-right,#inv-panel,#pause-panel,#settings-panel{transform:scale(var(--gui-scale));}
+#hud,#chat-panel,#chat-feed,#status-left,#status-right,#inv-panel,#pause-panel,#settings-panel{transform:scale(var(--gui-scale));}
 #status-left,#status-right,#pause-panel,#settings-panel{transform-origin:center bottom;}
 #hud{transform-origin:top left;}
-#hotbar{transform-origin:center bottom;}
+#hotbar{transform:translateX(-50%) scale(var(--gui-scale));transform-origin:center bottom;}
 #chat-panel,#chat-feed{transform-origin:left bottom;}
 #inv-panel{transform-origin:center center;}
 .hb-slot {

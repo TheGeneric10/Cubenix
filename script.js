@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.62a
+   CUBENIX — script.js — v0.0.63a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -55,6 +55,7 @@
    const AUTOSAVE_KEY='cubenix.autosave.v1';
    const WORLDS_KEY='cubenix.worlds.v1';
    const WORLD_STATE_PREFIX='cubenix.worldstate.';
+   const LOCAL_JSON_SAVE_KEY='cubenix.localsave.json';
    const SETTINGS_KEY='cubenix.settings.v1';
    const SEED_KEY='cubenix.seed.v1';
 const WORLD_BORDER_BLOCKS=13000000;
@@ -66,6 +67,7 @@ const WORLD_BORDER_BLOCKS=13000000;
      COAL_ORE:10,IRON_ORE:11,GOLD_ORE:12,DIAMOND_ORE:13,
      GRAVEL:14,CRAFTING_TABLE:15,PLANKS:16,CHEST:17,IRON_CHEST:18,GOLD_CHEST:19,DIAMOND_CHEST:20,TNT:21,IRON_BLOCK:22,GOLD_BLOCK:23,DIAMOND_BLOCK:24,
     COBBLESTONE:25,RED_SAND:26,TORCH:27,FIRE:28,DEV_CHEST:29,
+    OAK_SLAB:93,STONE_SLAB:94,COBBLE_SLAB:95,
    };
    const BLOCK_NAMES=[
      'Air','Grass','Dirt','Stone','Bedrock','Sand',
@@ -212,7 +214,7 @@ function getItemName(id){
      [B.GRASS]:0.9,[B.DIRT]:0.75,[B.SAND]:0.75,[B.GRAVEL]:0.75,[B.RED_SAND]:0.75,
      [B.STONE]:7.5,[B.COBBLESTONE]:6.8,[B.COAL_ORE]:7.5,[B.IRON_ORE]:7.5,
      [B.GOLD_ORE]:7.5,[B.DIAMOND_ORE]:7.5,
-    [B.WOOD]:3.0,[B.LEAVES]:0.5,[B.PLANKS]:2.0,[B.CRAFTING_TABLE]:3.0,[B.CHEST]:2.6,[B.IRON_CHEST]:3.4,[B.GOLD_CHEST]:3.6,[B.DIAMOND_CHEST]:4.5,[B.DEV_CHEST]:4.8,[B.TNT]:0.9,[B.IRON_BLOCK]:6.0,[B.GOLD_BLOCK]:6.0,[B.DIAMOND_BLOCK]:6.5,[B.TORCH]:0,[B.FIRE]:0,
+    [B.WOOD]:3.0,[B.LEAVES]:0.5,[B.PLANKS]:2.0,[B.CRAFTING_TABLE]:3.0,[B.CHEST]:2.6,[B.IRON_CHEST]:3.4,[B.GOLD_CHEST]:3.6,[B.DIAMOND_CHEST]:4.5,[B.DEV_CHEST]:4.8,[B.TNT]:0.9,[B.IRON_BLOCK]:6.0,[B.GOLD_BLOCK]:6.0,[B.DIAMOND_BLOCK]:6.5,[B.TORCH]:0,[B.FIRE]:0,[B.OAK_SLAB]:1.6,[B.STONE_SLAB]:2.2,[B.COBBLE_SLAB]:2.0,
      [B.BEDROCK]:Infinity,[B.WATER]:Infinity,[B.LAVA]:Infinity,
    };
    for(let i=0;i<WOOL_COLORS.length;i++)BREAK_TIME[WOOL_BASE_ID+i]=0.65;
@@ -234,7 +236,10 @@ function getItemName(id){
      [B.DIAMOND_CHEST]: [{id:B.DIAMOND_CHEST,count:1,ch:1}],
      [B.IRON_CHEST]: [{id:B.IRON_CHEST,count:1,ch:1}],
      [B.GOLD_CHEST]: [{id:B.GOLD_CHEST,count:1,ch:1}],
-     [B.DEV_CHEST]: [{id:B.DEV_CHEST,count:1,ch:1}],
+    [B.DEV_CHEST]: [{id:B.DEV_CHEST,count:1,ch:1}],
+    [B.OAK_SLAB]: [{id:B.OAK_SLAB,count:1,ch:1}],
+    [B.STONE_SLAB]: [{id:B.STONE_SLAB,count:1,ch:1}],
+    [B.COBBLE_SLAB]: [{id:B.COBBLE_SLAB,count:1,ch:1}],
      [B.TNT]: [{id:B.TNT,count:1,ch:1}],
      [B.IRON_BLOCK]: [{id:B.IRON_BLOCK,count:1,ch:1}],
      [B.GOLD_BLOCK]: [{id:B.GOLD_BLOCK,count:1,ch:1}],
@@ -579,6 +584,9 @@ function getItemName(id){
       }
     });
   }
+  BLOCK_NAMES[B.OAK_SLAB]='Oak Slab';
+  BLOCK_NAMES[B.STONE_SLAB]='Stone Slab';
+  BLOCK_NAMES[B.COBBLE_SLAB]='Cobblestone Slab';
    
    // Texture lookup by block ID
    const BLOCK_TEX={
@@ -611,6 +619,9 @@ function getItemName(id){
      [B.RED_SAND]:{top:TEX.redSand,bot:TEX.redSand,side:TEX.redSand},
      [B.TORCH]:{top:TEX.torch,bot:TEX.torch,side:TEX.torch},
      [B.FIRE]:{top:TEX.fire,bot:TEX.fire,side:TEX.fire},
+     [B.OAK_SLAB]:{top:TEX.planks,bot:TEX.planks,side:TEX.planks},
+     [B.STONE_SLAB]:{top:TEX.stone,bot:TEX.stone,side:TEX.stone},
+     [B.COBBLE_SLAB]:{top:TEX.cobblestone,bot:TEX.cobblestone,side:TEX.cobblestone},
    };
    for(let i=0;i<WOOL_COLORS.length;i++){
     const id=WOOL_BASE_ID+i;
@@ -968,16 +979,52 @@ function getItemName(id){
           [x0,y0,z0],[x0,y1,z0],[x1,y1,z0],[x1,y0,z0],
         ];
         const norms=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
-        for(let f=0;f<6;f++){
+       for(let f=0;f<6;f++){
           for(let i=0;i<4;i++){
             const v=verts[f*4+i];d.pos.push(v[0],v[1],v[2]);
             d.nor.push(...norms[f]);d.uvs.push(QUV[i][0],QUV[i][1]);
           }
           const fb=base+f*4;d.idx.push(fb,fb+1,fb+2,fb,fb+2,fb+3);
         }
+       continue;
+      }
+      if(self===B.FIRE){
+        const d=getFD(self),base=d.pos.length/3;
+        const cxm=lx+0.5,czm=lz+0.5,y0=y,y1=y+1;
+        const quads=[
+          [[cxm-0.38,y0,czm-0.38],[cxm-0.38,y1,czm-0.38],[cxm+0.38,y1,czm+0.38],[cxm+0.38,y0,czm+0.38]],
+          [[cxm-0.38,y0,czm+0.38],[cxm-0.38,y1,czm+0.38],[cxm+0.38,y1,czm-0.38],[cxm+0.38,y0,czm-0.38]],
+        ];
+        for(let f=0;f<quads.length;f++){
+          for(let i=0;i<4;i++){
+            const v=quads[f][i];
+            d.pos.push(v[0],v[1],v[2]);d.nor.push(0,1,0);d.uvs.push(QUV[i][0],QUV[i][1]);
+          }
+          const fb=base+f*4;d.idx.push(fb,fb+1,fb+2,fb,fb+2,fb+3);
+        }
         continue;
-       }
-       const pairKey=(self===B.CHEST&&getPairKey(worldPosKey(wx,y,wz)))?'|large':'';
+      }
+      if(self===B.OAK_SLAB||self===B.STONE_SLAB||self===B.COBBLE_SLAB){
+        const d=getFD(self),base=d.pos.length/3;
+        const x0=lx,x1=lx+1,z0=lz,z1=lz+1,yy0=y,yy1=y+0.5;
+        const verts=[
+          [x1,yy0,z0],[x1,yy1,z0],[x1,yy1,z1],[x1,yy0,z1],
+          [x0,yy0,z1],[x0,yy1,z1],[x0,yy1,z0],[x0,yy0,z0],
+          [x0,yy1,z1],[x1,yy1,z1],[x1,yy1,z0],[x0,yy1,z0],
+          [x0,yy0,z0],[x1,yy0,z0],[x1,yy0,z1],[x0,yy0,z1],
+          [x1,yy0,z1],[x1,yy1,z1],[x0,yy1,z1],[x0,yy0,z1],
+          [x0,yy0,z0],[x0,yy1,z0],[x1,yy1,z0],[x1,yy0,z0],
+        ];
+        const norms=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+        for(let f=0;f<6;f++){
+          for(let i=0;i<4;i++){
+            const v=verts[f*4+i];d.pos.push(v[0],v[1],v[2]);d.nor.push(...norms[f]);d.uvs.push(QUV[i][0],QUV[i][1]);
+          }
+          const fb=base+f*4;d.idx.push(fb,fb+1,fb+2,fb,fb+2,fb+3);
+        }
+        continue;
+      }
+      const pairKey=(self===B.CHEST&&getPairKey(worldPosKey(wx,y,wz)))?'|large':'';
        const fdKey=(self===B.CHEST)?`${self}${pairKey}`:self;
        FACES.forEach(face=>{
          const [dx,dy,dz]=face.dir;
@@ -1156,7 +1203,7 @@ function getItemName(id){
    
   const KEYS={};
   const PHYS_KEYS={};
-  let wLastTap=0,sprintTap=false,showHud=true,isChatOpen=false;
+  let wLastTap=0,sprintTap=false,showHud=true,showDebugOverlay=false,isChatOpen=false;
   const CHAT={messages:[],maxLines:9};
   const TOUCH={
     enabled:false,
@@ -1253,8 +1300,44 @@ function getItemName(id){
   }
 
   window.addEventListener('keydown',e=>{
+    if(document.getElementById('worlds-screen').style.display==='flex'&&e.code==='Enter'){
+      e.preventDefault();
+      launchSelectedWorld(false);
+      return;
+    }
+    if(e.code==='Escape'){
+      if(isChatOpen){e.preventDefault();closeChat();return;}
+      if(document.getElementById('quit-confirm').style.display==='flex'){e.preventDefault();document.getElementById('quit-confirm').style.display='none';return;}
+      if(document.getElementById('world-create-screen').style.display==='flex'){e.preventDefault();openWorldList();return;}
+      if(document.getElementById('worlds-screen').style.display==='flex'){e.preventDefault();closeWorldScreens();return;}
+      if(isInvOpen){e.preventDefault();closeUiScreen();return;}
+      if(document.getElementById('settings-menu').style.display==='flex'){e.preventDefault();closeSettingsMenu();return;}
+      if(isPaused){e.preventDefault();togglePause();return;}
+    }
     if(isChatOpen){
-      if(e.code==='Escape'){e.preventDefault();closeChat();}
+      return;
+    }
+    if(e.altKey&&e.code==='Digit1'){
+      e.preventDefault();
+      showHud=!showHud;
+      const vis=showHud?'block':'none';
+      document.getElementById('hud').style.display=vis;
+      document.getElementById('hotbar').style.display=vis;
+      document.getElementById('status-left').style.display=vis;
+      document.getElementById('status-right').style.display=vis;
+      return;
+    }
+    if(e.altKey&&e.code==='Digit2'){
+      e.preventDefault();
+      const a=document.createElement('a');
+      a.href=canvas.toDataURL('image/png');
+      a.download=`cubenix-${Date.now()}.png`;
+      a.click();
+      return;
+    }
+    if(e.altKey&&e.code==='Digit3'){
+      e.preventDefault();
+      showDebugOverlay=!showDebugOverlay;
       return;
     }
     PHYS_KEYS[e.code]=true;
@@ -1293,7 +1376,7 @@ function getItemName(id){
   document.getElementById('chat-send').addEventListener('click',trySendChatMessage);
 
   function applyTouchControllerVisibility(){
-    const show=!!CFG.enableCubenixMobile;
+    const show=('ontouchstart' in window)||(navigator.maxTouchPoints>0);
     document.getElementById('touch-ui').style.display=show?'block':'none';
     TOUCH.enabled=show;
     if(!show){
@@ -1372,7 +1455,6 @@ function getItemName(id){
   }
 
   function updateControllerInput(){
-    if(!CFG.enableCubenixConnect)return;
     const pads=navigator.getGamepads?.()||[];
     const gp=[...pads].find(Boolean);
     CONTROLLER.active=!!gp;
@@ -1664,7 +1746,7 @@ function getItemName(id){
     }else waterContactT=0;
 
     if(bodyFluid===B.LAVA){
-      applyDamage(18*dt,true);
+      applyDamage(18*dt,false);
       lavaContactT+=dt;
       if(lavaContactT>0.11){lavaContactT=0;spawnContactParticle(0xff5500,0.45);spawnContactParticle(0xffaa33,0.4);}
     }else lavaContactT=0;
@@ -1674,9 +1756,9 @@ function getItemName(id){
 
     if(player.onGround){
       const impact=-Math.min(0,lastGroundedVy);
-      if(impact>12){
-        const excess=impact-12;
-        applyDamage(excess*2.4,false);
+      if(impact>14){
+        const excess=impact-14;
+        applyDamage(excess*2.1,true);
       }
       lastGroundedVy=0;
     }else if(player.vel.y<0){
@@ -1806,6 +1888,7 @@ function getItemName(id){
       const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
       for(const [sx,sz] of dirs){
         const bid=worldGet(wx+sx,wy,wz+sz);
+        if(bid===B.TNT&&Math.random()<0.08){igniteTnt(wx+sx,wy,wz+sz);continue;}
         if(isBurnableBlock(bid)&&Math.random()<0.015){
           worldSet(wx+sx,wy,wz+sz,B.FIRE);
           buildChunkMesh(Math.floor((wx+sx)/16),Math.floor((wz+sz)/16));
@@ -1822,6 +1905,7 @@ function getItemName(id){
       const around=[[1,0],[-1,0],[0,1],[0,-1]];
       for(const [sx,sz] of around){
         const bid=worldGet(wx+sx,wy,wz+sz);
+        if(bid===B.TNT&&Math.random()<0.05){igniteTnt(wx+sx,wy,wz+sz);continue;}
         if(isBurnableBlock(bid)&&Math.random()<0.008){
           worldSet(wx+sx,wy,wz+sz,B.FIRE);
           buildChunkMesh(Math.floor((wx+sx)/16),Math.floor((wz+sz)/16));
@@ -2088,8 +2172,29 @@ function getItemName(id){
     }
     for(let i=drops.length-1;i>=0;i--){
       if(drops[i].position.distanceTo(new THREE.Vector3(wx,wy,wz))<r){
-        scene.remove(drops[i]);drops[i].geometry.dispose();drops.splice(i,1);
+        const d=drops[i];
+        const dir=d.position.clone().sub(new THREE.Vector3(wx,wy,wz));
+        const len=Math.max(0.001,dir.length());
+        dir.multiplyScalar(1/len);
+        d.position.addScaledVector(dir,(r-len)*0.35);
       }
+    }
+    for(const t of primedTnts){
+      const dir=t.mesh.position.clone().sub(new THREE.Vector3(wx,wy,wz));
+      const dist=dir.length();
+      if(dist>8||dist<=0.001)continue;
+      dir.multiplyScalar(1/dist);
+      t.mesh.position.addScaledVector(dir,(8-dist)*0.18);
+      t.vy+=Math.max(0.8,(8-dist)*0.5);
+    }
+    for(const b of boats){
+      const dir=b.position.clone().sub(new THREE.Vector3(wx,wy,wz));
+      const dist=dir.length();
+      if(dist>8||dist<=0.001)continue;
+      dir.multiplyScalar(1/dist);
+      b.userData.vx=(b.userData.vx||0)+dir.x*(8-dist)*0.9;
+      b.userData.vz=(b.userData.vz||0)+dir.z*(8-dist)*0.9;
+      b.userData.vy=(b.userData.vy||0)+Math.max(0.5,(8-dist)*0.35);
     }
     const pd=player.pos.distanceTo(new THREE.Vector3(wx,wy,wz));
     if(pd<2.3)applyDamage(STATS.maxHealth+STATS.maxShield,true);
@@ -2233,7 +2338,7 @@ function getItemName(id){
       setChestMeta(key,{
         placedSneak,
         noPair:placedSneak||forceSingle,
-        nbt:{placedBy:'player',placedSneak,ver:'0.0.62a'},
+        nbt:{placedBy:'player',placedSneak,ver:'0.0.63a'},
       });
       if(placedSneak||forceSingle){
         const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
@@ -2305,6 +2410,9 @@ function getItemName(id){
      {w:1,h:2,pat:[B.PLANKS,B.PLANKS],out:{id:IT.STICK,count:4}},
      {w:1,h:2,pat:[IT.COAL,IT.STICK],out:{id:B.TORCH,count:6}},
      {w:2,h:1,pat:[IT.FLINT,IT.IRON_INGOT],out:{id:IT.FLINT_STEEL,count:1}},
+     {w:3,h:1,pat:[B.PLANKS,B.PLANKS,B.PLANKS],out:{id:B.OAK_SLAB,count:6}},
+     {w:3,h:1,pat:[B.STONE,B.STONE,B.STONE],out:{id:B.STONE_SLAB,count:6}},
+     {w:3,h:1,pat:[B.COBBLESTONE,B.COBBLESTONE,B.COBBLESTONE],out:{id:B.COBBLE_SLAB,count:6}},
      {w:2,h:2,pat:[B.PLANKS,B.PLANKS,B.PLANKS,B.PLANKS],out:{id:B.CRAFTING_TABLE,count:1}},
      {w:3,h:2,pat:[B.PLANKS,0,B.PLANKS,B.PLANKS,B.PLANKS,B.PLANKS],out:{id:IT.BOAT,count:1}},
      {w:3,h:3,pat:[B.PLANKS,B.PLANKS,B.PLANKS,B.PLANKS,0,B.PLANKS,B.PLANKS,B.PLANKS,B.PLANKS],out:{id:B.CHEST,count:1}},
@@ -2677,6 +2785,13 @@ function getItemName(id){
      sanitizeChestPairFor(openContainerKey,blockId);
      openContainerStorageKey=chestStorageKey(openContainerKey);
      openContainerSlots=ensureContainer(openContainerStorageKey,chestCapacity(blockId,openContainerKey));
+     if(blockId===B.DEV_CHEST){
+      const allIds=getAllKnownIds();
+      for(let i=0;i<openContainerSlots.length;i++){
+        const id=allIds[i%allIds.length];
+        openContainerSlots[i]=makeItemStack(id,getMaxStackForId(id));
+      }
+     }
      setCraftingSize(2,false);
    }
    
@@ -2884,10 +2999,22 @@ function getItemName(id){
      document.getElementById('pause-menu').style.display=isPaused?'flex':'none';
      if(isPaused){if(document.pointerLockElement)document.exitPointerLock();}
      else canvas.requestPointerLock();
-   }
+  }
+  function returnToMainMenu(){
+    saveGameLocal();
+    isPaused=false;
+    document.getElementById('pause-menu').style.display='none';
+    document.getElementById('inventory-screen').style.display='none';
+    document.getElementById('settings-menu').style.display='none';
+    document.getElementById('game-ui').style.display='none';
+    document.getElementById('game-canvas').style.display='none';
+    document.getElementById('main-menu').style.display='flex';
+    closeWorldScreens();
+    if(document.pointerLockElement)document.exitPointerLock();
+  }
   document.getElementById('pause-resume').addEventListener('click',()=>{isPaused=false;document.getElementById('pause-menu').style.display='none';canvas.requestPointerLock();});
   document.getElementById('pause-settings').addEventListener('click',openSettings);
-  document.getElementById('pause-saveMenu').addEventListener('click',()=>{saveGameLocal();location.reload();});
+  document.getElementById('pause-saveMenu').addEventListener('click',returnToMainMenu);
   document.getElementById('settings-back').addEventListener('click',closeSettingsMenu);
   document.getElementById('settings-experimental').addEventListener('click',()=>{
     document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
@@ -2909,6 +3036,7 @@ function getItemName(id){
      {key:'shadowsMode', label:'Shadows',type:'select',opts:['default','none','low','medium','high']},
      {key:'particlesMode',label:'Particles',type:'select',opts:['default','low','medium','high']},
      {key:'cloudsMode',label:'Clouds',type:'select',opts:['default','none','low','medium','high']},
+     {key:'enableVSync',label:'Enable V-Sync',type:'toggle'},
      {key:'_optimize', label:'Auto-Optimize for Device',type:'action',action:optimizeSettings},
    ];
   const PLAYER_SETTINGS=[
@@ -2917,10 +3045,7 @@ function getItemName(id){
      {key:'autoJump',label:'Auto Jump',type:'toggle'},
    ];
   const EXPERIMENTAL_SETTINGS=[
-    {key:'enableVSync',label:'Enable V-Sync',type:'toggle'},
     {key:'enableNixPlus',label:'Enable Nix+ (Enhanced Graphics)',type:'toggle'},
-    {key:'enableCubenixMobile',label:'Enable Cubenix Mobile',type:'toggle'},
-    {key:'enableCubenixConnect',label:'Enable Cubenix Connect',type:'toggle'},
     {key:'nixSaturation',label:'Nix+ Saturation',type:'range',min:0.8,max:1.8,step:0.05,unit:'x'},
     {key:'nixContrast',label:'Nix+ Contrast',type:'range',min:0.8,max:1.6,step:0.05,unit:'x'},
     {key:'nixGlow',label:'Nix+ Glow',type:'range',min:0,max:1,step:0.05,unit:''},
@@ -2975,7 +3100,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.62a',
+        version:'0.0.63a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -2989,6 +3114,7 @@ function getItemName(id){
        };
        localStorage.setItem(AUTOSAVE_KEY,JSON.stringify(data));
        localStorage.setItem(worldStateKey(CURRENT_WORLD_ID),JSON.stringify(data));
+       localStorage.setItem(LOCAL_JSON_SAVE_KEY,JSON.stringify({worldId:CURRENT_WORLD_ID,data}));
       localStorage.setItem(SEED_KEY,String(CURRENT_SEED));
        saveSettingsLocal();
      }catch{}
@@ -3099,11 +3225,6 @@ function getItemName(id){
     sun.castShadow=!nixPlus&&shScale>0;
     sun.shadow.mapSize.set(shScale>=0.95?2048:shScale>=0.7?1536:1024,shScale>=0.95?2048:shScale>=0.7?1536:1024);
     applyTouchControllerVisibility();
-    if(!CFG.enableCubenixConnect){
-      ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft'].forEach(k=>setVirtualKey(k,'pad',false));
-      CONTROLLER.prevButtons.length=0;
-      stopBreaking();
-    }
     applyGuiScale();
     saveSettingsLocal();
   }
@@ -3236,13 +3357,14 @@ function getItemName(id){
    // 19. DEBUG HUD
    // ═══════════════════════════════════════════════════════════
    let fps=0,fpsT=0,fpsN=0;
-   function updateHUD(dt){
-     fpsN++;fpsT+=dt;if(fpsT>=0.5){fps=Math.round(fpsN/fpsT);fpsN=0;fpsT=0;}
-     const p=player.pos,tod=dayTime<0.5?'Day':'Night';
-     document.getElementById('hud-debug').innerHTML=
-       `XYZ: ${p.x.toFixed(1)} / ${p.y.toFixed(1)} / ${p.z.toFixed(1)}<br>`+
+  function updateHUD(dt){
+    fpsN++;fpsT+=dt;if(fpsT>=0.5){fps=Math.round(fpsN/fpsT);fpsN=0;fpsT=0;}
+    const p=player.pos,tod=dayTime<0.5?'Day':'Night';
+    if(!showDebugOverlay){document.getElementById('hud-debug').innerHTML='';return;}
+    document.getElementById('hud-debug').innerHTML=
+      `XYZ: ${p.x.toFixed(1)} / ${p.y.toFixed(1)} / ${p.z.toFixed(1)}<br>`+
       `FPS: ${fps} | Chunks: ${loadedChunks.size} | ${tod} | Seed: ${CURRENT_SEED}<br>`+`Border: ${(WORLD_BORDER_BLOCKS-Math.max(Math.abs(p.x),Math.abs(p.z))).toFixed(0)} blocks`;
-   }
+  }
    
    // ═══════════════════════════════════════════════════════════
    // 20. MAIN LOOP
@@ -3473,7 +3595,7 @@ function getItemName(id){
   function loadWorldDefs(){
     try{
       const parsed=JSON.parse(localStorage.getItem(WORLDS_KEY)||'[]');
-      if(Array.isArray(parsed))return parsed.filter(w=>w&&w.id&&w.name);
+      if(Array.isArray(parsed))return parsed.filter(w=>w&&w.id&&w.name).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
     }catch{}
     return [];
   }
@@ -3503,8 +3625,9 @@ function getItemName(id){
       filtered.forEach(w=>{
         const row=document.createElement('div');
         row.className='world-row'+(w.id===selectedWorldId?' active':'');
-        row.textContent=`${w.name}  • Seed: ${w.seed}`;
+        row.innerHTML=`<div class="world-row-icon"></div><div class="world-row-meta"><div class="world-row-name">${w.name}</div><div class="world-row-desc">Seed: ${w.seed}</div></div><button class="world-play-btn">▶</button>`;
         row.onclick=()=>{selectedWorldId=w.id;openWorldList();};
+        row.querySelector('.world-play-btn')?.addEventListener('click',ev=>{ev.stopPropagation();selectedWorldId=w.id;launchSelectedWorld(false);});
         list.appendChild(row);
       });
       if(!selectedWorldId)selectedWorldId=filtered[0].id;
@@ -3518,6 +3641,10 @@ function getItemName(id){
     document.getElementById('world-seed-input').value=existing?String(existing.seed):'';
     document.getElementById('starter-chest-toggle').checked=existing?!!existing.starterChest:true;
     document.getElementById('developer-chest-toggle').checked=existing?!!existing.developerChest:false;
+    const lock=!!existing;
+    document.getElementById('world-seed-input').disabled=lock;
+    document.getElementById('starter-chest-toggle').disabled=lock;
+    document.getElementById('developer-chest-toggle').disabled=lock;
     document.getElementById('worlds-screen').style.display='none';
     document.getElementById('world-create-screen').style.display='flex';
   }
@@ -3535,7 +3662,8 @@ function getItemName(id){
       worlds.unshift(w);selectedWorldId=w.id;
     }
     saveWorldDefs(worlds);
-    openWorldList();
+    if(editingWorldId){openWorldList();return;}
+    launchSelectedWorld(false);
   }
   function launchSelectedWorld(recreate=false){
     const w=selectedWorld();
@@ -3558,7 +3686,9 @@ function getItemName(id){
   document.getElementById('world-play').addEventListener('click',()=>launchSelectedWorld(false));
   document.getElementById('world-recreate').addEventListener('click',()=>launchSelectedWorld(true));
   document.getElementById('btn-options').addEventListener('click',openSettingsFromMenu);
-  document.getElementById('btn-quit').addEventListener('click',()=>window.close());
+  document.getElementById('btn-quit').addEventListener('click',()=>{document.getElementById('quit-confirm').style.display='flex';});
+  document.getElementById('quit-confirm-no').addEventListener('click',()=>{document.getElementById('quit-confirm').style.display='none';});
+  document.getElementById('quit-confirm-yes').addEventListener('click',()=>window.close());
   window.addEventListener('beforeunload',()=>saveGameLocal());
    
    // ═══════════════════════════════════════════════════════════
