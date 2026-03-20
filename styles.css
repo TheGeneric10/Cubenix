@@ -65,7 +65,7 @@
    .world-row-desc{font-size:.8rem;color:#bcbcbc;}
    .world-play-btn{width:48px;height:48px;border:1px solid #aaa;background:#161616;color:#fff;font-size:1.1rem;cursor:pointer;animation:world-play-bob 1.2s ease-in-out infinite;}
    @keyframes world-play-bob{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
-   .world-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;position:sticky;bottom:0;z-index:2;background:rgba(30,22,16,0.96);padding-top:6px;}
+   .world-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;position:relative;z-index:3;background:rgba(30,22,16,0.98);padding-top:6px;flex-shrink:0;}
    .world-actions .pause-btn{flex:1;}
    .world-empty{display:flex;align-items:center;justify-content:center;min-height:58vh;text-align:center;font-size:1.1rem;letter-spacing:.06em;}
    .world-switch{color:#ddd;font-size:.82rem;display:flex;align-items:center;gap:8px;}

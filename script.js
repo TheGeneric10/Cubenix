@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.80a
+   CUBENIX — script.js — v0.0.81a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -366,6 +366,9 @@ function getItemName(id){
    document.addEventListener('contextmenu',e=>e.preventDefault());
    document.addEventListener('dragstart',  e=>e.preventDefault());
    document.addEventListener('selectstart',e=>e.preventDefault());
+   window.addEventListener('wheel',e=>{if(e.ctrlKey)e.preventDefault();},{passive:false});
+   window.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
+   window.addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});
    
    const canvas=document.getElementById('game-canvas');
    const renderer=new THREE.WebGLRenderer({
@@ -2700,7 +2703,7 @@ function getItemName(id){
       setChestMeta(key,{
         placedSneak,
         noPair:placedSneak||forceSingle,
-        nbt:{placedBy:'player',placedSneak,ver:'0.0.80a'},
+        nbt:{placedBy:'player',placedSneak,ver:'0.0.81a'},
       });
       if(placedSneak||forceSingle){
         const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
@@ -3484,7 +3487,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.80a',
+        version:'0.0.81a',
         seed:CURRENT_SEED,worldId:CURRENT_WORLD_ID,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -3933,8 +3936,8 @@ function getItemName(id){
    
      setLoad(5,isRegenerate?'GENERATING NEW WORLD':(isLoadingSaved?'PREPARING SAVED WORLD':'PREPARING WORLD'));
 
-     const cx0=0;
-     const cz0=0;
+     const cx0=savedWorldState?.player?Math.floor((savedWorldState.player.x||0)/16):0;
+     const cz0=savedWorldState?.player?Math.floor((savedWorldState.player.z||0)/16):0;
 
      setLoad(12,'GENERATING TERRAIN');
      const R=3;
