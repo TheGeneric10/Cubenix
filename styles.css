@@ -259,4 +259,3 @@
 .touch-btn.active { background:rgba(90,140,90,0.78); border-color:rgba(180,255,180,0.65); }
 #touch-sprint { position:relative; overflow:hidden; }
 #touch-sprint-cooldown { position:absolute; left:0; right:0; bottom:0; height:0%; background:rgba(220,60,60,0.5); pointer-events:none; transition:height 0.12s; }
-
