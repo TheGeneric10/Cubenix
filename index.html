@@ -22,7 +22,38 @@
         <button class="menu-btn disabled">Multiplayer <span class="soon">Soon</span></button>
         <button class="menu-btn" id="btn-quit">Quit Game</button>
       </div>
-      <div id="menu-version">Cubenix v0.0.58a</div>
+      <div id="menu-version">Cubenix v0.0.60a</div>
+    </div>
+  </div>
+
+  <!-- ══ WORLD SELECT / CREATE ══ -->
+  <div id="worlds-screen" style="display:none">
+    <div class="worlds-panel">
+      <div class="worlds-title">My Worlds</div>
+      <input id="world-search" type="text" placeholder="Search world..." />
+      <div id="world-list"></div>
+      <div class="world-actions">
+        <button class="pause-btn" id="world-play">Play Selected</button>
+        <button class="pause-btn" id="world-create-open">Create New World</button>
+      </div>
+      <div class="world-actions">
+        <button class="pause-btn" id="world-edit-open">Edit</button>
+        <button class="pause-btn" id="world-recreate">Re-Create</button>
+        <button class="pause-btn" id="worlds-back">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="world-create-screen" style="display:none">
+    <div class="worlds-panel">
+      <div class="worlds-title" id="world-form-title">Create New World</div>
+      <input id="world-name-input" type="text" placeholder="World Name" />
+      <input id="world-seed-input" type="text" placeholder="Seed (optional)" />
+      <label class="world-switch"><input id="starter-chest-toggle" type="checkbox" /> Starter Chest</label>
+      <div class="world-actions">
+        <button class="pause-btn" id="world-save-create">Save</button>
+        <button class="pause-btn" id="world-create-cancel">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -41,7 +72,7 @@
 
     <!-- Debug HUD top-left -->
     <div id="hud">
-      <div id="hud-title">Cubenix &mdash; Version: 0.0.58a</div>
+      <div id="hud-title">Cubenix &mdash; Version: 0.0.60a</div>
       <div id="hud-debug"></div>
     </div>
 
@@ -176,7 +207,6 @@
       <div id="pause-panel">
         <div class="pause-title">Game Paused</div>
         <button class="pause-btn" id="pause-resume">Resume Game</button>
-        <button class="pause-btn" id="pause-newWorld">Generate New World</button>
         <button class="pause-btn" id="pause-settings">Settings</button>
         <button class="pause-btn" id="pause-saveMenu">Save &amp; Main Menu</button>
       </div>
