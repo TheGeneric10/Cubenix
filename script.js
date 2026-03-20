@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.60a
+   CUBENIX — script.js — v0.0.61a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -54,6 +54,7 @@
 
    const AUTOSAVE_KEY='cubenix.autosave.v1';
    const WORLDS_KEY='cubenix.worlds.v1';
+   const WORLD_STATE_PREFIX='cubenix.worldstate.';
    const SETTINGS_KEY='cubenix.settings.v1';
    const SEED_KEY='cubenix.seed.v1';
 const WORLD_BORDER_BLOCKS=13000000;
@@ -64,14 +65,14 @@ const WORLD_BORDER_BLOCKS=13000000;
      SAND:5,WOOD:6,LEAVES:7,WATER:8,LAVA:9,
      COAL_ORE:10,IRON_ORE:11,GOLD_ORE:12,DIAMOND_ORE:13,
      GRAVEL:14,CRAFTING_TABLE:15,PLANKS:16,CHEST:17,IRON_CHEST:18,GOLD_CHEST:19,DIAMOND_CHEST:20,TNT:21,IRON_BLOCK:22,GOLD_BLOCK:23,DIAMOND_BLOCK:24,
-    COBBLESTONE:25,RED_SAND:26,TORCH:27,FIRE:28,
+    COBBLESTONE:25,RED_SAND:26,TORCH:27,FIRE:28,DEV_CHEST:29,
    };
    const BLOCK_NAMES=[
      'Air','Grass','Dirt','Stone','Bedrock','Sand',
      'Oak Log','Leaves','Water','Lava',
      'Coal Ore','Iron Ore','Gold Ore','Diamond Ore',
      'Gravel','Crafting Table','Oak Planks','Chest','Iron Chest','Gold Chest','Diamond Chest','TNT','Iron Block','Gold Block','Diamond Block',
-    'Cobblestone','Red Sand','Torch','Fire',
+    'Cobblestone','Red Sand','Torch','Fire','Developer Chest',
    ];
 
    const WOOL_BASE_ID=30;
@@ -137,7 +138,10 @@ function getItemName(id){
     [IT.DIAMOND_BLADE]:{atk:8,speed:1.18,type:'blade'},
    };
    function isHardMaterial(id){return id===B.STONE||id===B.COBBLESTONE||id===B.COAL_ORE||id===B.IRON_ORE||id===B.GOLD_ORE||id===B.DIAMOND_ORE||id===B.IRON_BLOCK||id===B.GOLD_BLOCK||id===B.DIAMOND_BLOCK;}
-   function isWoodMaterial(id){return id===B.WOOD||id===B.PLANKS||id===B.CRAFTING_TABLE||id===B.CHEST||id===B.IRON_CHEST||id===B.GOLD_CHEST||id===B.DIAMOND_CHEST;}
+   function isWoodMaterial(id){return id===B.WOOD||id===B.PLANKS||id===B.CRAFTING_TABLE||id===B.CHEST||id===B.IRON_CHEST||id===B.GOLD_CHEST||id===B.DIAMOND_CHEST||id===B.DEV_CHEST;}
+   function isBurnableBlock(id){
+    return id===B.WOOD||id===B.PLANKS||id===B.LEAVES||id===B.TNT||(id>=WOOL_BASE_ID&&id<WOOL_BASE_ID+WOOL_COLORS.length)||id===B.CHEST||id===B.DEV_CHEST;
+   }
    function getActiveToolStats(){const held=INV.hotbar[INV.active];return held?TOOL_STATS[held.id]||null:null;}
   function getBreakMultiplier(blockId){
     const t=getActiveToolStats();
@@ -187,14 +191,19 @@ function getItemName(id){
     if(abs>=10_000)return (n/1_000).toFixed(1).replace(/\.0$/,'')+'K';
     return String(Math.round(n));
    }
-   function getItemDescription(id,stack=null){
+  function getItemDescription(id,stack=null){
     const t=TOOL_STATS[id];
-    if(!t)return '';
-    let desc=t.type==='blade'
+    let desc='';
+    if(t){
+      desc=t.type==='blade'
       ?`Attack Damage: ${t.atk}\nAttack Speed: ${t.speed.toFixed(2)}`
       :`Attack Damage: ${t.atk}\nEfficiency Rate: ${t.eff}%`;
+    }
     const s=stack&&stack.id===id?stack:null;
-    if(s&&isDurableItemId(id))desc+=`\n────────\nDurability: ${formatCompactNumber(s.dur)} / ${formatCompactNumber(s.maxDur)}`;
+    if(s&&isDurableItemId(id)){
+      if(desc)desc+='\n────────\n';
+      desc+=`Durability: ${formatCompactNumber(s.dur)} / ${formatCompactNumber(s.maxDur)}`;
+    }
     return desc;
    }
    
@@ -203,7 +212,7 @@ function getItemName(id){
      [B.GRASS]:0.9,[B.DIRT]:0.75,[B.SAND]:0.75,[B.GRAVEL]:0.75,[B.RED_SAND]:0.75,
      [B.STONE]:7.5,[B.COBBLESTONE]:6.8,[B.COAL_ORE]:7.5,[B.IRON_ORE]:7.5,
      [B.GOLD_ORE]:7.5,[B.DIAMOND_ORE]:7.5,
-    [B.WOOD]:3.0,[B.LEAVES]:0.5,[B.PLANKS]:2.0,[B.CRAFTING_TABLE]:3.0,[B.CHEST]:2.6,[B.IRON_CHEST]:3.4,[B.GOLD_CHEST]:3.6,[B.DIAMOND_CHEST]:4.5,[B.TNT]:0.9,[B.IRON_BLOCK]:6.0,[B.GOLD_BLOCK]:6.0,[B.DIAMOND_BLOCK]:6.5,[B.TORCH]:0,[B.FIRE]:0,
+    [B.WOOD]:3.0,[B.LEAVES]:0.5,[B.PLANKS]:2.0,[B.CRAFTING_TABLE]:3.0,[B.CHEST]:2.6,[B.IRON_CHEST]:3.4,[B.GOLD_CHEST]:3.6,[B.DIAMOND_CHEST]:4.5,[B.DEV_CHEST]:4.8,[B.TNT]:0.9,[B.IRON_BLOCK]:6.0,[B.GOLD_BLOCK]:6.0,[B.DIAMOND_BLOCK]:6.5,[B.TORCH]:0,[B.FIRE]:0,
      [B.BEDROCK]:Infinity,[B.WATER]:Infinity,[B.LAVA]:Infinity,
    };
    for(let i=0;i<WOOL_COLORS.length;i++)BREAK_TIME[WOOL_BASE_ID+i]=0.65;
@@ -225,6 +234,7 @@ function getItemName(id){
      [B.DIAMOND_CHEST]: [{id:B.DIAMOND_CHEST,count:1,ch:1}],
      [B.IRON_CHEST]: [{id:B.IRON_CHEST,count:1,ch:1}],
      [B.GOLD_CHEST]: [{id:B.GOLD_CHEST,count:1,ch:1}],
+     [B.DEV_CHEST]: [{id:B.DEV_CHEST,count:1,ch:1}],
      [B.TNT]: [{id:B.TNT,count:1,ch:1}],
      [B.IRON_BLOCK]: [{id:B.IRON_BLOCK,count:1,ch:1}],
      [B.GOLD_BLOCK]: [{id:B.GOLD_BLOCK,count:1,ch:1}],
@@ -272,6 +282,7 @@ function getItemName(id){
      return Math.floor(Math.random()*9007199254740991);
    }
    let CURRENT_SEED=randomSeed();
+   let CURRENT_WORLD_ID='default';
    let SEED_NORM=0;
    function setWorldSeed(seed){
      CURRENT_SEED=Number.isFinite(seed)?Math.floor(seed):randomSeed();
@@ -450,6 +461,7 @@ function getItemName(id){
   TEX.ironChest=makeTex(g=>{g.fillStyle='#9aa2ab';g.fillRect(0,0,16,16);g.fillStyle='#cfd5de';g.fillRect(0,0,16,3);g.fillStyle='#5c6168';g.fillRect(0,13,16,3);g.fillStyle='#e8ecf2';g.fillRect(3,7,2,3);g.fillRect(11,7,2,3);});
   TEX.goldChest=makeTex(g=>{g.fillStyle='#bf8b18';g.fillRect(0,0,16,16);g.fillStyle='#f0cb55';g.fillRect(0,0,16,3);g.fillStyle='#7d5a0d';g.fillRect(0,13,16,3);g.fillStyle='#ffe184';g.fillRect(3,7,2,3);g.fillRect(11,7,2,3);});
   TEX.diamondChest=makeTex(g=>{g.fillStyle='#38b3c8';g.fillRect(0,0,16,16);g.fillStyle='#7ff2ff';g.fillRect(0,0,16,3);g.fillStyle='#146a7a';g.fillRect(0,13,16,3);g.fillStyle='#b9fbff';g.fillRect(3,7,2,3);g.fillRect(11,7,2,3);});
+  TEX.devChest=makeTex(g=>{g.fillStyle='#3d2066';g.fillRect(0,0,16,16);g.fillStyle='#8f6bf2';g.fillRect(0,0,16,3);g.fillStyle='#211035';g.fillRect(0,13,16,3);g.fillStyle='#d2c3ff';g.fillRect(7,6,2,4);});
   TEX.ironBlock=makeTex(g=>{g.fillStyle='#bcc3cc';g.fillRect(0,0,16,16);g.strokeStyle='#8a9098';for(let i=0;i<16;i+=4){g.beginPath();g.moveTo(i,0);g.lineTo(i,16);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(16,i);g.stroke();}});
   TEX.goldBlock=makeTex(g=>{g.fillStyle='#d3a223';g.fillRect(0,0,16,16);g.strokeStyle='#9c7311';for(let i=0;i<16;i+=4){g.beginPath();g.moveTo(i,0);g.lineTo(i,16);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(16,i);g.stroke();}});
   TEX.diamondBlock=makeTex(g=>{g.fillStyle='#3ec9d8';g.fillRect(0,0,16,16);g.strokeStyle='#248f9b';for(let i=0;i<16;i+=4){g.beginPath();g.moveTo(i,0);g.lineTo(i,16);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(16,i);g.stroke();}});
@@ -590,6 +602,7 @@ function getItemName(id){
      [B.IRON_CHEST]:{top:TEX.ironChest,bot:TEX.ironChest,side:TEX.ironChest},
      [B.GOLD_CHEST]:{top:TEX.goldChest,bot:TEX.goldChest,side:TEX.goldChest},
      [B.DIAMOND_CHEST]:{top:TEX.diamondChest,bot:TEX.diamondChest,side:TEX.diamondChest},
+     [B.DEV_CHEST]:{top:TEX.devChest,bot:TEX.devChest,side:TEX.devChest},
      [B.TNT]:{top:TEX.tntTop,bot:TEX.tntTop,side:TEX.tntSide},
      [B.IRON_BLOCK]:{top:TEX.ironBlock,bot:TEX.ironBlock,side:TEX.ironBlock},
      [B.GOLD_BLOCK]:{top:TEX.goldBlock,bot:TEX.goldBlock,side:TEX.goldBlock},
@@ -1191,12 +1204,16 @@ function getItemName(id){
   }
   function showChatTransient(ms=5000){
     const panel=document.getElementById('chat-panel');
-    panel.style.display='flex';
+    const feed=document.getElementById('chat-feed');
+    const last=CHAT.messages[CHAT.messages.length-1]||'';
+    panel.style.display='none';
+    feed.textContent=last;
+    feed.style.display='block';
     const input=document.getElementById('chat-input');
     input.blur();
     if(chatHideTimer)clearTimeout(chatHideTimer);
     chatHideTimer=setTimeout(()=>{
-      if(!isChatOpen)panel.style.display='none';
+      if(!isChatOpen)feed.style.display='none';
       chatHideTimer=null;
     },ms);
   }
@@ -1216,6 +1233,7 @@ function getItemName(id){
     isChatOpen=false;
     const panel=document.getElementById('chat-panel');
     panel.style.display='none';
+    document.getElementById('chat-feed').style.display='none';
     if(chatHideTimer){clearTimeout(chatHideTimer);chatHideTimer=null;}
     const input=document.getElementById('chat-input');
     input.value='';
@@ -1608,6 +1626,8 @@ function getItemName(id){
       if(xOk)player.pos.x=startX;
       if(zOk)player.pos.z=startZ;
       if(!xOk&&!zOk){player.pos.x=startX;player.pos.z=startZ;}
+      player.vel.x=0;player.vel.z=0;
+      if(player.vel.y<0)player.vel.y=0;
     }
 
     const borderClamp=WORLD_BORDER_BLOCKS-0.35;
@@ -1776,10 +1796,36 @@ function getItemName(id){
     for(let dx=-12;dx<=12;dx++)for(let dz=-12;dz<=12;dz++)for(let dy=8;dy>=-8;dy--){
       const wx=px+dx,wy=py+dy,wz=pz+dz;
       if(worldGet(wx,wy,wz)!==B.FIRE)continue;
-      const supported=isSolid(worldGet(wx,wy-1,wz));
-      if(!supported||Math.random()<0.006){
+      const nearWater=[[1,0,0],[-1,0,0],[0,0,1],[0,0,-1],[0,-1,0],[0,1,0]].some(([ax,ay,az])=>worldGet(wx+ax,wy+ay,wz+az)===B.WATER);
+      if(nearWater){
         worldSet(wx,wy,wz,B.AIR);
         buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));
+        continue;
+      }
+      const supported=isSolid(worldGet(wx,wy-1,wz));
+      const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+      for(const [sx,sz] of dirs){
+        const bid=worldGet(wx+sx,wy,wz+sz);
+        if(isBurnableBlock(bid)&&Math.random()<0.015){
+          worldSet(wx+sx,wy,wz+sz,B.FIRE);
+          buildChunkMesh(Math.floor((wx+sx)/16),Math.floor((wz+sz)/16));
+        }
+      }
+      if(!supported||Math.random()<0.009){
+        worldSet(wx,wy,wz,B.AIR);
+        buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));
+      }
+    }
+    for(let dx=-10;dx<=10;dx++)for(let dz=-10;dz<=10;dz++)for(let dy=6;dy>=-6;dy--){
+      const wx=px+dx,wy=py+dy,wz=pz+dz;
+      if(worldGet(wx,wy,wz)!==B.LAVA)continue;
+      const around=[[1,0],[-1,0],[0,1],[0,-1]];
+      for(const [sx,sz] of around){
+        const bid=worldGet(wx+sx,wy,wz+sz);
+        if(isBurnableBlock(bid)&&Math.random()<0.008){
+          worldSet(wx+sx,wy,wz+sz,B.FIRE);
+          buildChunkMesh(Math.floor((wx+sx)/16),Math.floor((wz+sz)/16));
+        }
       }
     }
   }
@@ -2181,14 +2227,15 @@ function getItemName(id){
      if(worldGet(px,py,pz)!==B.AIR&&!isFluid(worldGet(px,py,pz)))return;
      worldSet(px,py,pz,held.id);
      if(CHEST_UI[held.id]){
-      const key=worldPosKey(px,py,pz);
+     const key=worldPosKey(px,py,pz);
       const placedSneak=isShiftPlacement();
+      const forceSingle=!!CHEST_UI[held.id]?.noPair;
       setChestMeta(key,{
         placedSneak,
-        noPair:placedSneak,
-        nbt:{placedBy:'player',placedSneak,ver:'0.0.60a'},
+        noPair:placedSneak||forceSingle,
+        nbt:{placedBy:'player',placedSneak,ver:'0.0.61a'},
       });
-      if(placedSneak){
+      if(placedSneak||forceSingle){
         const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
         if(near){setChestMeta(near,{noPair:true});clearPair(key);clearPair(near);}
       }else tryPairChest(px,py,pz,held.id);
@@ -2409,6 +2456,7 @@ function getItemName(id){
     [B.IRON_CHEST]:{name:'Iron Chest',single:54,cols:9},
     [B.GOLD_CHEST]:{name:'Gold Chest',single:81,cols:9},
     [B.DIAMOND_CHEST]:{name:'Diamond Chest',single:108,cols:9},
+    [B.DEV_CHEST]:{name:'Developer Chest',single:135,cols:9,noPair:true},
   };
   const chestPairs=new Map();
   const chestMeta=new Map();
@@ -2472,6 +2520,7 @@ function getItemName(id){
   }
   function tryPairChest(wx,wy,wz,blockId){
     const key=worldPosKey(wx,wy,wz);
+    if(CHEST_UI[blockId]?.noPair)return;
     if(isChestNoPair(key)||wasChestPlacedSneak(key))return;
     clearPair(key);
     const candidates=chestNeighbors(wx,wy,wz,blockId).filter(k=>!getPairKey(k)&&!isChestNoPair(k)&&!wasChestPlacedSneak(k));
@@ -2911,20 +2960,35 @@ function getItemName(id){
      }
      return out;
    }
+   function serializeChunks(){
+    return [...chunkData.entries()].map(([k,v])=>[k,Array.from(v)]);
+   }
+   function deserializeChunks(entries){
+    chunkData.clear();
+    for(const [k,arr] of (entries||[])){
+      if(!Array.isArray(arr)||arr.length!==(16*16*256))continue;
+      chunkData.set(k,new Uint8Array(arr));
+    }
+   }
+   function worldStateKey(id){return `${WORLD_STATE_PREFIX}${id||'default'}`;}
    function saveGameLocal(){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.60a',
+        version:'0.0.61a',
         seed:CURRENT_SEED,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
          inv:{hotbar:serializeInventory(INV.hotbar),main:serializeInventory(INV.main),active:INV.active,craftGrid:serializeInventory(INV.craftGrid)},
          containers:[...(typeof containerData!=='undefined'?containerData.entries():[])].map(([k,v])=>[k,serializeInventory(v)]),
          chestMeta:[...(typeof chestMeta!=='undefined'?chestMeta.entries():[])],
+         chunks:serializeChunks(),
+         drops:drops.map(d=>({id:d.userData.id,count:d.userData.count,x:d.position.x,y:d.position.y,z:d.position.z,vy:d.userData.vy,pickupDelay:d.userData.pickupDelay})),
+         boats:boats.map(b=>({x:b.position.x,y:b.position.y,z:b.position.z,rot:b.rotation.y,vx:b.userData.vx,vy:b.userData.vy,vz:b.userData.vz})),
          ts:Date.now(),
        };
        localStorage.setItem(AUTOSAVE_KEY,JSON.stringify(data));
+       localStorage.setItem(worldStateKey(CURRENT_WORLD_ID),JSON.stringify(data));
       localStorage.setItem(SEED_KEY,String(CURRENT_SEED));
        saveSettingsLocal();
      }catch{}
@@ -2936,6 +3000,14 @@ function getItemName(id){
        const data=JSON.parse(raw);
        if(!data||!data.player)return null;
        return data;
+    }catch{return null;}
+  }
+  function loadWorldState(id){
+    try{
+      const raw=localStorage.getItem(worldStateKey(id));
+      if(!raw)return null;
+      const data=JSON.parse(raw);
+      return data&&data.player?data:null;
     }catch{return null;}
   }
 
@@ -3214,13 +3286,17 @@ function getItemName(id){
      const options=typeof opts==='boolean'?{regenerate:opts}:opts;
      const isRegenerate=!!options.regenerate;
      const starterChest=options.starterChest!==false;
+     const developerChestEnabled=!!options.developerChest;
+     CURRENT_WORLD_ID=options.worldId||CURRENT_WORLD_ID||'default';
      CFG.autosave=true;
      isPaused=false;
      if(isInvOpen)closeUiScreen();
      document.getElementById('pause-menu').style.display='none';
      clearWorldState();
+     const savedWorldState=!isRegenerate?loadWorldState(CURRENT_WORLD_ID):null;
      const chosenSeed=(options.seed!==undefined&&options.seed!==null&&String(options.seed).trim()!=='')?Number(options.seed):randomSeed();
-     setWorldSeed(Number.isFinite(chosenSeed)?Math.floor(chosenSeed):randomSeed());
+     const useSeed=savedWorldState?.seed??chosenSeed;
+     setWorldSeed(Number.isFinite(useSeed)?Math.floor(useSeed):randomSeed());
      document.getElementById('main-menu').style.display='none';
      const loadingEl=document.getElementById('loading-screen');
      loadingEl.style.transition='none';
@@ -3239,16 +3315,21 @@ function getItemName(id){
      const R=3;
      const coords=[];
      for(let dx=-R;dx<=R;dx++)for(let dz=-R;dz<=R;dz++)coords.push({cx:cx0+dx,cz:cz0+dz});
-     const genTotal=coords.length;
      let done=0,lastYield=performance.now();
-     for(const {cx,cz} of coords){
-       generateChunk(cx,cz);done++;
-       if(performance.now()-lastYield>10){
-         setLoad(12+Math.round(done/genTotal*52),'GENERATING TERRAIN');
-         await delay(0);lastYield=performance.now();
+     if(savedWorldState?.chunks?.length){
+       deserializeChunks(savedWorldState.chunks);
+       setLoad(64,'LOADING SAVED WORLD');
+     }else{
+       const genTotal=coords.length;
+       for(const {cx,cz} of coords){
+         generateChunk(cx,cz);done++;
+         if(performance.now()-lastYield>10){
+           setLoad(12+Math.round(done/genTotal*52),'GENERATING TERRAIN');
+           await delay(0);lastYield=performance.now();
+         }
        }
+       setLoad(64,'GENERATING TERRAIN');
      }
-     setLoad(64,'GENERATING TERRAIN');
 
     // Always start a new world in singleplayer for now
     STATS.health=STATS.maxHealth;STATS.shield=STATS.maxShield;STATS.hunger=STATS.maxHunger;STATS.energy=STATS.maxEnergy;STATS.air=STATS.maxAir;
@@ -3256,15 +3337,38 @@ function getItemName(id){
     INV.hotbar=Array(9).fill(null);
     INV.main=Array(27).fill(null);
     if(typeof chestMeta!=='undefined')chestMeta.clear();
+    if(typeof containerData!=='undefined')containerData.clear();
+    if(savedWorldState?.inv){
+      INV.hotbar=deserializeInventory(savedWorldState.inv.hotbar,9);
+      INV.main=deserializeInventory(savedWorldState.inv.main,27);
+      INV.active=Math.max(0,Math.min(8,savedWorldState.inv.active|0));
+    }
+    if(savedWorldState?.containers){
+      for(const [k,v] of savedWorldState.containers){
+        if(typeof k!=='string')continue;
+        containerData.set(k,deserializeInventory(v,Array.isArray(v)?v.length:27));
+      }
+    }
+    if(savedWorldState?.chestMeta&&typeof chestMeta!=='undefined'){
+      for(const [k,v] of savedWorldState.chestMeta){if(typeof k==='string')chestMeta.set(k,v||{});}
+    }
     setCraftingSize(2,false);
     INV.uiMode='inventory';
-    INV.active=0;
-    const spawn=findSafeSpawn(100,cx0*16,cz0*16);
-    if(spawn){
-      player.pos.set(spawn.wx+0.5,spawn.y+1,spawn.wz+0.5);
+    if(!savedWorldState?.inv)INV.active=0;
+    if(savedWorldState?.player){
+      player.pos.set(savedWorldState.player.x,savedWorldState.player.y,savedWorldState.player.z);
+      player.yaw=savedWorldState.player.yaw||0;player.pitch=savedWorldState.player.pitch||0;
+      STATS.health=Math.max(0,Math.min(STATS.maxHealth,savedWorldState.stats?.health??STATS.maxHealth));
+      STATS.shield=Math.max(0,Math.min(STATS.maxShield,savedWorldState.stats?.shield??STATS.maxShield));
+      STATS.hunger=Math.max(0,Math.min(STATS.maxHunger,savedWorldState.stats?.hunger??STATS.maxHunger));
+      STATS.energy=Math.max(0,Math.min(STATS.maxEnergy,savedWorldState.stats?.energy??STATS.maxEnergy));
     }else{
-      const y=Math.max(CFG.seaLevel+2,getHeight(cx0*16,cz0*16)+1);
-      player.pos.set(cx0*16+0.5,y,cz0*16+0.5);
+      const spawn=findSafeSpawn(100,cx0*16,cz0*16);
+      if(spawn)player.pos.set(spawn.wx+0.5,spawn.y+1,spawn.wz+0.5);
+      else{
+        const y=Math.max(CFG.seaLevel+2,getHeight(cx0*16,cz0*16)+1);
+        player.pos.set(cx0*16+0.5,y,cz0*16+0.5);
+      }
     }
     player.vel.set(0,0,0);
     player.onGround=false;
@@ -3272,7 +3376,7 @@ function getItemName(id){
     player.eyeOffset=player.standEyeOffset;
     camera.position.set(player.pos.x,player.pos.y+player.eyeOffset,player.pos.z);
 
-    if(starterChest){
+    if(!savedWorldState&&starterChest){
       const frontX=Math.round(-Math.sin(player.yaw))||1;
       const frontZ=Math.round(-Math.cos(player.yaw));
       const chestX=Math.floor(player.pos.x)+frontX;
@@ -3281,10 +3385,29 @@ function getItemName(id){
       worldSet(chestX,chestY,chestZ,B.CHEST);
       const alphaKey=worldPosKey(chestX,chestY,chestZ);
       const alphaSlots=ensureContainer(alphaKey,chestCapacity(B.CHEST,alphaKey));
-      alphaSlots[0]=makeItemStack(B.PLANKS,32);
-      alphaSlots[1]=makeItemStack(IT.STICK,24);
-      alphaSlots[2]=makeItemStack(IT.FLINT_STEEL,1);
-      alphaSlots[3]=makeItemStack(B.TORCH,16);
+      const LOOT=[makeItemStack(B.PLANKS,16+((Math.random()*24)|0)),makeItemStack(IT.STICK,8+((Math.random()*24)|0)),makeItemStack(B.TORCH,8+((Math.random()*24)|0)),makeItemStack(IT.FLINT_STEEL,1),makeItemStack(IT.COAL,4+((Math.random()*14)|0)),makeItemStack(B.COBBLESTONE,12+((Math.random()*28)|0))];
+      for(let i=0;i<Math.min(alphaSlots.length,LOOT.length);i++)alphaSlots[i]=LOOT[i];
+    }
+    if(!savedWorldState&&developerChestEnabled){
+      const chestX=Math.floor(player.pos.x)-1;
+      const chestZ=Math.floor(player.pos.z);
+      const chestY=Math.max(1,Math.floor(player.pos.y));
+      worldSet(chestX,chestY,chestZ,B.DEV_CHEST);
+      const devKey=worldPosKey(chestX,chestY,chestZ);
+      setChestMeta(devKey,{noPair:true,placedSneak:true,nbt:{developer:true}});
+      const slots=ensureContainer(devKey,chestCapacity(B.DEV_CHEST,devKey));
+      const allIds=getAllKnownIds();
+      for(let i=0;i<slots.length&&i<allIds.length;i++)slots[i]=makeItemStack(allIds[i],getMaxStackForId(allIds[i]));
+    }
+    if(savedWorldState?.drops){
+      for(const d of savedWorldState.drops)spawnDropStack(Math.floor(d.x),Math.floor(d.y),Math.floor(d.z),d.id,d.count,d.pickupDelay||0);
+    }
+    if(savedWorldState?.boats){
+      for(const b of savedWorldState.boats){
+        const boat=spawnBoat(Math.floor(b.x),Math.floor(b.y),Math.floor(b.z),b.rot||0);
+        boat.position.set(b.x,b.y,b.z);
+        boat.userData.vx=b.vx||0;boat.userData.vy=b.vy||0;boat.userData.vz=b.vz||0;
+      }
     }
 
      setLoad(70,'BUILDING MESHES');
@@ -3394,6 +3517,7 @@ function getItemName(id){
     document.getElementById('world-name-input').value=existing?.name||'';
     document.getElementById('world-seed-input').value=existing?String(existing.seed):'';
     document.getElementById('starter-chest-toggle').checked=existing?!!existing.starterChest:true;
+    document.getElementById('developer-chest-toggle').checked=existing?!!existing.developerChest:false;
     document.getElementById('worlds-screen').style.display='none';
     document.getElementById('world-create-screen').style.display='flex';
   }
@@ -3402,11 +3526,12 @@ function getItemName(id){
     const seedRaw=(document.getElementById('world-seed-input').value||'').trim();
     const seed=seedRaw===''?randomSeed():parseInt(seedRaw,10);
     const starterChest=!!document.getElementById('starter-chest-toggle').checked;
+    const developerChest=!!document.getElementById('developer-chest-toggle').checked;
     if(editingWorldId){
       const w=worlds.find(v=>v.id===editingWorldId);
-      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;}
+      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;w.developerChest=developerChest;}
     }else{
-      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,createdAt:Date.now()};
+      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,developerChest,createdAt:Date.now()};
       worlds.unshift(w);selectedWorldId=w.id;
     }
     saveWorldDefs(worlds);
@@ -3416,7 +3541,14 @@ function getItemName(id){
     const w=selectedWorld();
     if(!w){openWorldCreate();return;}
     closeWorldScreens();
-    startGame({seed:w.seed,starterChest:w.starterChest!==false,regenerate:!!recreate});
+    startGame({worldId:w.id,seed:w.seed,starterChest:w.starterChest!==false,developerChest:!!w.developerChest,regenerate:!!recreate});
+  }
+  function applyWorldLayoutSizing(){
+    const vw=window.innerWidth,vh=window.innerHeight;
+    document.querySelectorAll('.worlds-panel').forEach(p=>{
+      p.style.width=Math.max(520,Math.floor(vw*0.78))+'px';
+      p.style.maxHeight=Math.max(380,Math.floor(vh*0.9))+'px';
+    });
   }
 
   document.getElementById('btn-singleplayer').addEventListener('click',()=>{
@@ -3433,6 +3565,8 @@ function getItemName(id){
   document.getElementById('world-save-create').addEventListener('click',saveWorldFromForm);
   document.getElementById('world-play').addEventListener('click',()=>launchSelectedWorld(false));
   document.getElementById('world-recreate').addEventListener('click',()=>launchSelectedWorld(true));
+  setInterval(applyWorldLayoutSizing,50);
+  applyWorldLayoutSizing();
   document.getElementById('btn-options').addEventListener('click',openSettingsFromMenu);
   document.getElementById('btn-quit').addEventListener('click',()=>window.close());
   window.addEventListener('beforeunload',()=>saveGameLocal());
