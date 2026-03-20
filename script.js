@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.71a
+   CUBENIX — script.js — v0.0.72a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -2678,7 +2678,7 @@ function getItemName(id){
       setChestMeta(key,{
         placedSneak,
         noPair:placedSneak||forceSingle,
-        nbt:{placedBy:'player',placedSneak,ver:'0.0.71a'},
+        nbt:{placedBy:'player',placedSneak,ver:'0.0.72a'},
       });
       if(placedSneak||forceSingle){
         const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
@@ -3440,22 +3440,28 @@ function getItemName(id){
      }
      return out;
    }
-   function serializeChunks(){
+  function serializeChunks(){
     return [...chunkData.entries()].map(([k,v])=>[k,Array.from(v)]);
    }
    function deserializeChunks(entries){
     chunkData.clear();
-    for(const [k,arr] of (entries||[])){
+   for(const [k,arr] of (entries||[])){
       if(!Array.isArray(arr)||arr.length!==(16*16*256))continue;
       chunkData.set(k,new Uint8Array(arr));
-    }
    }
-   function worldStateKey(id){return `${WORLD_STATE_PREFIX}${id||'default'}`;}
-   function saveGameLocal(){
+  }
+  function encodeSavePayload(obj){
+    try{return btoa(unescape(encodeURIComponent(JSON.stringify(obj))));}catch{return '';}
+  }
+  function decodeSavePayload(txt){
+    try{return JSON.parse(decodeURIComponent(escape(atob(txt||''))));}catch{return null;}
+  }
+  function worldStateKey(id){return `${WORLD_STATE_PREFIX}${id||'default'}`;}
+  function saveGameLocal(){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.71a',
+        version:'0.0.72a',
         seed:CURRENT_SEED,worldId:CURRENT_WORLD_ID,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor},
@@ -3472,6 +3478,19 @@ function getItemName(id){
        localStorage.setItem(worldStateKey(CURRENT_WORLD_ID),JSON.stringify(data));
        localStorage.setItem(LOCAL_JSON_SAVE_KEY,JSON.stringify({worldId:CURRENT_WORLD_ID,data}));
       localStorage.setItem(SEED_KEY,String(CURRENT_SEED));
+       const defs=loadWorldDefs();
+       const existing=defs.find(w=>w.id===CURRENT_WORLD_ID);
+       const playerNbt={x:data.player.x,y:data.player.y,z:data.player.z,yaw:data.player.yaw,pitch:data.player.pitch,stats:data.stats};
+       const enc=encodeSavePayload({name:existing?.name||`World ${CURRENT_WORLD_ID}`,seed:data.seed,playerNbt});
+       if(existing){
+        existing.seed=data.seed;
+        existing.lastPlayedAt=Date.now();
+        existing.playerNbt=playerNbt;
+        existing.saveBlobEnc=enc;
+       }else{
+        defs.unshift({id:CURRENT_WORLD_ID,name:`World ${CURRENT_WORLD_ID}`,seed:data.seed,createdAt:Date.now(),lastPlayedAt:Date.now(),playerNbt,saveBlobEnc:enc});
+       }
+       saveWorldDefs(defs);
        saveSettingsLocal();
      }catch{}
    }
@@ -3492,6 +3511,10 @@ function getItemName(id){
         return auto?.worldId===id?auto:null;
       }
       const data=JSON.parse(raw);
+      if(data?.saveBlobEnc&&!data.seed){
+        const blob=decodeSavePayload(data.saveBlobEnc);
+        if(blob?.seed)data.seed=blob.seed;
+      }
       return data&&data.player?data:null;
     }catch{return null;}
   }
@@ -3794,8 +3817,8 @@ function getItemName(id){
      isPaused=false;
      if(isInvOpen)closeUiScreen();
      document.getElementById('pause-menu').style.display='none';
-     clearWorldState();
-     const savedWorldState=!isRegenerate?loadWorldState(CURRENT_WORLD_ID):null;
+    clearWorldState();
+    const savedWorldState=!isRegenerate?loadWorldState(CURRENT_WORLD_ID):null;
      const chosenSeed=(options.seed!==undefined&&options.seed!==null&&String(options.seed).trim()!=='')?Number(options.seed):randomSeed();
      const useSeed=savedWorldState?.seed??chosenSeed;
      setWorldSeed(Number.isFinite(useSeed)?Math.floor(useSeed):randomSeed());
@@ -3804,11 +3827,12 @@ function getItemName(id){
      loadingEl.style.transition='none';
      loadingEl.style.opacity='1';
      loadingEl.style.display='flex';
-     document.getElementById('loading-sub').textContent=isRegenerate?'Generating New World...':'Generating World...';
+    const isLoadingSaved=!!(savedWorldState&&!isRegenerate);
+    document.getElementById('loading-sub').textContent=isRegenerate?'Generating New World...':(isLoadingSaved?'Loading Saved World...':'Generating World...');
      document.getElementById('game-canvas').style.display='block';
      document.getElementById('game-ui').style.display='block';
    
-     setLoad(5,isRegenerate?'GENERATING NEW WORLD':'PREPARING WORLD');
+     setLoad(5,isRegenerate?'GENERATING NEW WORLD':(isLoadingSaved?'PREPARING SAVED WORLD':'PREPARING WORLD'));
 
      const cx0=0;
      const cz0=0;
@@ -3995,7 +4019,7 @@ function getItemName(id){
   function loadWorldDefs(){
     try{
       const parsed=JSON.parse(localStorage.getItem(WORLDS_KEY)||'[]');
-      if(Array.isArray(parsed))return parsed.filter(w=>w&&w.id&&w.name).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+      if(Array.isArray(parsed))return parsed.filter(w=>w&&w.id&&w.name).sort((a,b)=>(b.lastPlayedAt||b.createdAt||0)-(a.lastPlayedAt||a.createdAt||0));
     }catch{}
     return [];
   }
@@ -4009,6 +4033,7 @@ function getItemName(id){
     document.getElementById('world-create-screen').style.display='none';
   }
   function openWorldList(){
+    worlds=loadWorldDefs();
     const mm=document.getElementById('main-menu');
     mm.style.display='flex';
     document.getElementById('worlds-screen').style.display='flex';
@@ -4019,7 +4044,7 @@ function getItemName(id){
     const filtered=worlds.filter(w=>w.name.toLowerCase().includes(q));
     if(filtered.length===0){
       const empty=document.createElement('div');
-      empty.className='world-row';empty.textContent='No worlds yet. Create one!';
+      empty.className='world-row world-empty';empty.textContent='No Worlds Found';
       list.appendChild(empty);
     }else{
       filtered.forEach(w=>{
@@ -4030,7 +4055,7 @@ function getItemName(id){
         row.querySelector('.world-play-btn')?.addEventListener('click',ev=>{ev.stopPropagation();selectedWorldId=w.id;launchSelectedWorld(false);});
         list.appendChild(row);
       });
-      if(!selectedWorldId)selectedWorldId=filtered[0].id;
+      if(!selectedWorldId||!filtered.some(w=>w.id===selectedWorldId))selectedWorldId=filtered[0].id;
     }
   }
   function openWorldCreate(editId=null){
@@ -4056,9 +4081,9 @@ function getItemName(id){
     const developerChest=!!document.getElementById('developer-chest-toggle').checked;
     if(editingWorldId){
       const w=worlds.find(v=>v.id===editingWorldId);
-      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;w.developerChest=developerChest;}
+      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;w.developerChest=developerChest;w.lastPlayedAt=w.lastPlayedAt||Date.now();}
     }else{
-      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,developerChest,createdAt:Date.now()};
+      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,developerChest,createdAt:Date.now(),lastPlayedAt:Date.now()};
       worlds.unshift(w);selectedWorldId=w.id;
     }
     saveWorldDefs(worlds);
@@ -4068,6 +4093,8 @@ function getItemName(id){
   function launchSelectedWorld(recreate=false){
     const w=selectedWorld();
     if(!w){openWorldCreate();return;}
+    w.lastPlayedAt=Date.now();
+    saveWorldDefs(worlds);
     closeWorldScreens();
     startGame({worldId:w.id,seed:w.seed,starterChest:w.starterChest!==false,developerChest:!!w.developerChest,regenerate:!!recreate});
   }
@@ -4081,7 +4108,15 @@ function getItemName(id){
   document.getElementById('worlds-back').addEventListener('click',closeWorldScreens);
   document.getElementById('world-create-open').addEventListener('click',()=>openWorldCreate(null));
   document.getElementById('world-edit-open').addEventListener('click',()=>openWorldCreate(selectedWorldId));
-  document.getElementById('world-create-cancel').addEventListener('click',openWorldList);
+  document.getElementById('world-create-cancel').addEventListener('click',()=>{
+    worlds=loadWorldDefs();
+    if(worlds.length===0){
+      closeWorldScreens();
+      document.getElementById('main-menu').style.display='flex';
+      return;
+    }
+    openWorldList();
+  });
   document.getElementById('world-save-create').addEventListener('click',saveWorldFromForm);
   document.getElementById('world-play').addEventListener('click',()=>launchSelectedWorld(false));
   document.getElementById('world-recreate').addEventListener('click',()=>launchSelectedWorld(true));

@@ -50,13 +50,13 @@
     position:fixed;inset:0;z-index:260;display:flex;align-items:stretch;justify-content:stretch;background:linear-gradient(180deg,rgba(9,18,24,0.94),rgba(8,12,18,0.98));
    }
    .worlds-panel{
-    width:100vw;height:100vh;max-height:none;overflow:auto;background:rgba(30,22,16,0.93);border:0;padding:24px;display:flex;flex-direction:column;gap:12px;
+    width:100vw;height:100vh;max-height:none;overflow:hidden;background:rgba(30,22,16,0.93);border:0;padding:24px;display:flex;flex-direction:column;gap:12px;
    }
    .worlds-title{color:#fff;font-size:1.4rem;letter-spacing:.07em;text-align:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.18);}
    #world-search,#world-name-input,#world-seed-input{
     height:36px;background:#0f0f0f;border:1px solid #555;color:#fff;padding:0 10px;font-family:inherit;font-size:.8rem;
    }
-   #world-list{display:flex;flex-direction:column;gap:6px;flex:1;overflow:auto;min-height:0;}
+   #world-list{display:flex;flex-direction:column;gap:6px;flex:1;overflow:auto;min-height:0;padding-bottom:4px;}
    .world-row{border:1px solid #6f5a45;background:#1d1712;color:#ddd;padding:8px;cursor:pointer;}
    .world-row.active{border-color:#ddd;background:#3f3226;}
    .world-row{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;gap:10px;}
@@ -65,8 +65,9 @@
    .world-row-desc{font-size:.8rem;color:#bcbcbc;}
    .world-play-btn{width:48px;height:48px;border:1px solid #aaa;background:#161616;color:#fff;font-size:1.1rem;cursor:pointer;animation:world-play-bob 1.2s ease-in-out infinite;}
    @keyframes world-play-bob{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
-   .world-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;}
+   .world-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;position:sticky;bottom:0;z-index:2;background:rgba(30,22,16,0.96);padding-top:6px;}
    .world-actions .pause-btn{flex:1;}
+   .world-empty{display:flex;align-items:center;justify-content:center;min-height:58vh;text-align:center;font-size:1.1rem;letter-spacing:.06em;}
    .world-switch{color:#ddd;font-size:.82rem;display:flex;align-items:center;gap:8px;}
    .world-switch input[type=checkbox]{
     -webkit-appearance:none;appearance:none;width:24px;height:24px;border:3px solid #e8e8e8;background:#0b0b0b;display:inline-block;position:relative;border-radius:0;
