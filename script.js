@@ -5149,6 +5149,7 @@ function getItemName(id){
   function loop(){
      requestAnimationFrame(loop);
     const now=performance.now();const dt=Math.min((now-lastNow)*0.001,0.05);lastNow=now;
+    updateSurvivalStats(dt);
     if(!isPaused){
       updateSurvivalStats(dt);
       updateControllerInput();
@@ -5174,6 +5175,8 @@ function getItemName(id){
       updateFallingEntities(dt);
        updateLeavesDecay(dt);
      processChunkQueue(worldLoadLock?2:1,worldLoadLock?7:3);
+     }else{
+      updateMobs(dt);updateDayNight(dt);updateWeather(dt);updateAnimTex(dt);updateDrops(dt);updateProjectiles(dt);updateChestShineFx(dt);updateParticles(dt);
      }
     const targetFov=bowChargeActive?(CFG.fov-(Math.min(1,bowChargeTime/1.2)*8)):CFG.fov;
     if(Math.abs(camera.fov-targetFov)>0.01){camera.fov=targetFov;camera.updateProjectionMatrix();}
