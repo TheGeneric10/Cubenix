@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.89_patch6
+   CUBENIX — script.js — v0.0.89a_patch7
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -68,7 +68,7 @@ const WORLD_BORDER_BLOCKS=13000000;
      SAND:5,WOOD:6,LEAVES:7,WATER:8,LAVA:9,
      COAL_ORE:10,IRON_ORE:11,GOLD_ORE:12,DIAMOND_ORE:13,
      GRAVEL:14,CRAFTING_TABLE:15,PLANKS:16,CHEST:17,IRON_CHEST:18,GOLD_CHEST:19,DIAMOND_CHEST:20,TNT:21,IRON_BLOCK:22,GOLD_BLOCK:23,DIAMOND_BLOCK:24,
-    COBBLESTONE:25,RED_SAND:26,TORCH:27,FIRE:28,DEV_CHEST:29,GRASS_PATH:30,FARMLAND_DRY:31,FARMLAND_WET:32,BED:33,
+    COBBLESTONE:25,RED_SAND:26,TORCH:27,FIRE:28,DEV_CHEST:29,GRASS_PATH:30,FARMLAND_DRY:31,FARMLAND_WET:32,BED:33,FLOWING_WATER:34,FLOWING_LAVA:35,
     OAK_SLAB:93,STONE_SLAB:94,COBBLE_SLAB:95,
   };
    const BLOCK_NAMES=[
@@ -76,7 +76,7 @@ const WORLD_BORDER_BLOCKS=13000000;
      'Oak Log','Leaves','Water','Lava',
      'Coal Ore','Iron Ore','Gold Ore','Diamond Ore',
      'Gravel','Crafting Table','Oak Planks','Chest','Iron Chest','Gold Chest','Diamond Chest','TNT','Iron Block','Gold Block','Diamond Block',
-    'Cobblestone','Red Sand','Torch','Fire','Developer Chest','Grass Path','Farmland','Wet Farmland','Bed',
+    'Cobblestone','Red Sand','Torch','Fire','Developer Chest','Grass Path','Farmland','Wet Farmland','Bed','Flowing Water','Flowing Lava',
    ];
 
    const WOOL_BASE_ID=40;
@@ -277,6 +277,7 @@ function getItemName(id){
     if(id===B.OAK_SLAB||id===B.STONE_SLAB||id===B.COBBLE_SLAB)return 0.5;
     if(id===B.GRASS_PATH||id===B.FARMLAND_DRY||id===B.FARMLAND_WET)return 0.9;
     if(id===B.BED)return 0.56;
+    if(id===B.FLOWING_WATER||id===B.FLOWING_LAVA)return 0.72;
     return 1;
   }
   function isPartialHeightBlock(id){return getBlockHeight(id)<1;}
@@ -686,8 +687,8 @@ function getItemName(id){
     g.fillStyle='rgba(255,60,0,0.7)';
     g.fillRect(4,7,2,6);g.fillRect(10,8,2,5);
   });
-  TEX.bedTop=makeTex(g=>{g.fillStyle='#6a2fa2';g.fillRect(0,0,16,16);g.fillStyle='#9f73d8';g.fillRect(1,1,14,6);g.fillStyle='#e8e1f5';g.fillRect(5,2,6,3);g.fillStyle='#2a183f';g.fillRect(0,12,16,4);});
-  TEX.bedSide=makeTex(g=>{g.fillStyle='#4d2c1a';g.fillRect(0,0,16,16);g.fillStyle='#6a2fa2';g.fillRect(0,0,16,9);g.fillStyle='#9f73d8';g.fillRect(1,1,14,3);});
+  TEX.bedTop=makeTex(g=>{g.fillStyle='#0f0f0f';g.fillRect(0,0,16,16);g.fillStyle='#f4f4f4';g.fillRect(0,0,16,9);g.fillStyle='#ffffff';g.fillRect(1,1,14,6);g.fillStyle='#d9d9d9';g.fillRect(3,2,10,3);g.fillStyle='#000000';g.fillRect(0,9,16,7);});
+  TEX.bedSide=makeTex(g=>{g.fillStyle='#050505';g.fillRect(0,0,16,16);g.fillStyle='#ffffff';g.fillRect(0,0,16,7);g.fillStyle='#dcdcdc';g.fillRect(1,1,14,3);g.fillStyle='#111111';g.fillRect(0,7,16,9);g.fillStyle='#2b2b2b';g.fillRect(1,10,14,5);});
   TEX.flint=makeTex(g=>{
     g.clearRect(0,0,16,16);
     g.fillStyle='#4d4d4d';g.fillRect(4,4,8,8);
@@ -801,6 +802,8 @@ function getItemName(id){
      [B.LEAVES]:  {top:TEX.leaves,bot:TEX.leaves,side:TEX.leaves},
      [B.WATER]:   {top:TEX.waterFrames[0],bot:TEX.waterFrames[0],side:TEX.waterFrames[0]},
      [B.LAVA]:    {top:TEX.lavaFrames[0],bot:TEX.lavaFrames[0],side:TEX.lavaFrames[0]},
+     [B.FLOWING_WATER]:{top:TEX.waterFrames[0],bot:TEX.waterFrames[0],side:TEX.waterFrames[0]},
+     [B.FLOWING_LAVA]:{top:TEX.lavaFrames[0],bot:TEX.lavaFrames[0],side:TEX.lavaFrames[0]},
      [B.COAL_ORE]:    {top:TEX.coalOre,bot:TEX.coalOre,side:TEX.coalOre},
      [B.IRON_ORE]:    {top:TEX.ironOre,bot:TEX.ironOre,side:TEX.ironOre},
      [B.GOLD_ORE]:    {top:TEX.goldOre,bot:TEX.goldOre,side:TEX.goldOre},
@@ -856,8 +859,9 @@ function getItemName(id){
    function getMats(id){
      if(matCache[id]) return matCache[id];
      const bt=BLOCK_TEX[id]||BLOCK_TEX[B.STONE];
-    const tr=id===B.LEAVES||id===B.WATER||id===B.LAVA||id===B.TORCH||id===B.FIRE;
-   const op={transparent:tr,opacity:id===B.WATER?0.76:id===B.LEAVES?0.86:1,side:THREE.DoubleSide,depthWrite:!tr,alphaTest:(id===B.TORCH||id===B.FIRE)?0.08:0};
+    const tr=id===B.LEAVES||isFluid(id)||id===B.TORCH||id===B.FIRE;
+   const fluidOpacity=isWaterBlock(id)?0.76:(isLavaBlock(id)?0.88:1);
+   const op={transparent:tr,opacity:isFluid(id)?fluidOpacity:(id===B.LEAVES?0.86:1),side:THREE.DoubleSide,depthWrite:!tr,alphaTest:(id===B.TORCH||id===B.FIRE)?0.08:0};
      const base=tr?op:{side:THREE.DoubleSide};
      matCache[id]=[
        new THREE.MeshLambertMaterial({map:bt.side,...base}),
@@ -929,7 +933,7 @@ function getItemName(id){
         const y=getSurfaceY(wx,wz);
         if(y<=CFG.seaLevel+1)continue;
         const here=worldGet(wx,y,wz);
-        if(here===B.WATER||here===B.LAVA)continue;
+        if(isFluid(here))continue;
         const n1=getSurfaceY(wx+1,wz),n2=getSurfaceY(wx-1,wz),n3=getSurfaceY(wx,wz+1),n4=getSurfaceY(wx,wz-1);
         const steep=Math.max(Math.abs(n1-y),Math.abs(n2-y),Math.abs(n3-y),Math.abs(n4-y));
         if(steep>3)continue;
@@ -965,9 +969,15 @@ function getItemName(id){
     requestWorldSave();
   }
   function isSolid(id){
-    return id!==B.AIR&&id!==B.LEAVES&&id!==B.WATER&&id!==B.LAVA&&id!==B.TORCH&&id!==B.FIRE;
+    return id!==B.AIR&&id!==B.LEAVES&&!isFluid(id)&&id!==B.TORCH&&id!==B.FIRE;
   }
-   function isFluid(id){return id===B.WATER||id===B.LAVA;}
+   function getFluidFamily(id){return (id===B.WATER||id===B.FLOWING_WATER)?'water':((id===B.LAVA||id===B.FLOWING_LAVA)?'lava':null);}
+   function isWaterBlock(id){return getFluidFamily(id)==='water';}
+   function isLavaBlock(id){return getFluidFamily(id)==='lava';}
+   function isSourceFluid(id){return id===B.WATER||id===B.LAVA;}
+   function isFluid(id){return !!getFluidFamily(id);}
+   function getFluidFlowId(id){return getFluidFamily(id)==='water'?B.FLOWING_WATER:(getFluidFamily(id)==='lava'?B.FLOWING_LAVA:B.AIR);}
+   function getFluidSourceId(id){return getFluidFamily(id)==='water'?B.WATER:(getFluidFamily(id)==='lava'?B.LAVA:B.AIR);}
    
    // Ore vein generation
    function oreBlock(wx,wy,wz){
@@ -1172,11 +1182,13 @@ function getItemName(id){
      if(n===B.AIR)return true;
      if(s===B.TORCH&&n===B.TORCH)return false;
      if(faceDir&&faceDir[1]===0&&getBlockHeight(s)>getBlockHeight(n)+0.001)return true;
-     if((s===B.WATER||s===B.LAVA)&&n!==s)return true;
+     const sf=getFluidFamily(s),nf=getFluidFamily(n);
+     if(sf&&sf!==nf)return true;
+     if(sf&&sf===nf)return false;
      if(s===B.LEAVES&&n===B.AIR)return true;
      if(n===B.TORCH)return true;
-     const sop=s!==B.WATER&&s!==B.LAVA&&s!==B.LEAVES;
-     const nop=n!==B.WATER&&n!==B.LAVA&&n!==B.LEAVES&&n!==B.AIR;
+     const sop=!isFluid(s)&&s!==B.LEAVES;
+     const nop=!isFluid(n)&&n!==B.LEAVES&&n!==B.AIR;
      return sop&&!nop;
    }
    
@@ -1785,7 +1797,7 @@ function getItemName(id){
       const mx=Math.floor(player.pos.x+Math.cos(angle)*radius);
       const mz=Math.floor(player.pos.z+Math.sin(angle)*radius);
       const y=getSurfaceY(mx,mz);
-      if(y>0&&worldGet(mx,y+1,mz)===B.AIR&&worldGet(mx,y,mz)!==B.WATER&&Math.hypot(mx-player.pos.x,mz-player.pos.z)>24){
+      if(y>0&&worldGet(mx,y+1,mz)===B.AIR&&!isWaterBlock(worldGet(mx,y,mz))&&Math.hypot(mx-player.pos.x,mz-player.pos.z)>24){
         const lowLight=night||y<CFG.seaLevel-2;
         if(lowLight&&night&&Math.random()<0.52)spawnMob('zombie',mx,y+1,mz);
         else if(!night){
@@ -1843,7 +1855,7 @@ function getItemName(id){
       const nextWX=Math.floor(nextX),nextWZ=Math.floor(nextZ);
       const aheadY=getSurfaceY(nextWX,nextWZ);
       const nextFoot=worldGet(nextWX,Math.max(1,Math.floor(m.position.y-0.2)),nextWZ);
-      const waterAhead=nextFoot===B.WATER||worldGet(nextWX,Math.max(1,Math.floor(m.position.y+0.6)),nextWZ)===B.WATER;
+      const waterAhead=isWaterBlock(nextFoot)||isWaterBlock(worldGet(nextWX,Math.max(1,Math.floor(m.position.y+0.6)),nextWZ));
       if(aheadY>0&&aheadY-m.position.y>0.45&&m.userData.jumpVy<=0)m.userData.jumpVy=4.6;
       const grav=waterAhead?4.2:12;
       m.userData.jumpVy=Math.max(waterAhead?-2.5:-8,(m.userData.jumpVy||0)-grav*dt);
@@ -1851,15 +1863,15 @@ function getItemName(id){
       m.position.y+=m.userData.jumpVy*dt;
       const sy=getSurfaceY(Math.floor(m.position.x),Math.floor(m.position.z));
       const fluidHere=worldGet(Math.floor(m.position.x),Math.max(1,Math.floor(m.position.y)),Math.floor(m.position.z));
-      if(fluidHere===B.WATER||fluidHere===B.LAVA){
-        const fluidLift=fluidHere===B.WATER?0.7:0.5;
-        const fluidRise=fluidHere===B.WATER?2.4:1.35;
-        const fluidFloor=fluidHere===B.WATER?0.35:0.12;
+      if(isFluid(fluidHere)){
+        const fluidLift=isWaterBlock(fluidHere)?0.7:0.5;
+        const fluidRise=isWaterBlock(fluidHere)?2.4:1.35;
+        const fluidFloor=isWaterBlock(fluidHere)?0.35:0.12;
         const targetY=Math.max(sy+fluidLift,m.position.y);
         m.position.y+=Math.min((targetY-m.position.y),dt*fluidRise);
         m.userData.jumpVy=Math.max(m.userData.jumpVy,fluidFloor);
-        if(fluidHere===B.WATER&&Math.random()<0.14*dt*60)spawnColorParticles(m.position.x,m.position.y+0.35,m.position.z,0x66bbff,1,0.12);
-        if(fluidHere===B.LAVA&&Math.random()<0.18*dt*60)spawnColorParticles(m.position.x,m.position.y+0.4,m.position.z,0xff7b22,2,0.14);
+        if(isWaterBlock(fluidHere)&&Math.random()<0.14*dt*60)spawnColorParticles(m.position.x,m.position.y+0.35,m.position.z,0x66bbff,1,0.12);
+        if(isLavaBlock(fluidHere)&&Math.random()<0.18*dt*60)spawnColorParticles(m.position.x,m.position.y+0.4,m.position.z,0xff7b22,2,0.14);
       }else if(sy>0&&m.position.y<=sy+1){m.position.y=sy+1;m.userData.jumpVy=0;}
       const desiredYaw=Math.atan2(m.userData.vx||0,m.userData.vz||0);
       if(Number.isFinite(desiredYaw))m.userData.targetYaw=desiredYaw;
@@ -1873,8 +1885,8 @@ function getItemName(id){
         m.userData.hp-=dt*5.5;
         if(Math.random()<0.2)spawnColorParticles(m.position.x,m.position.y+1.1,m.position.z,0xffa54b,2,0.18);
       }
-      if(feet===B.FIRE||feet===B.LAVA){m.userData.burnT=2.5;m.userData.hp-=dt*(feet===B.LAVA?12:6);}
-      if(fluidHere===B.WATER&&(m.userData.burnT||0)>0)m.userData.burnT=Math.max(0,(m.userData.burnT||0)-dt*4);
+      if(feet===B.FIRE||isLavaBlock(feet)){m.userData.burnT=2.5;m.userData.hp-=dt*(isLavaBlock(feet)?12:6);}
+      if(isWaterBlock(fluidHere)&&(m.userData.burnT||0)>0)m.userData.burnT=Math.max(0,(m.userData.burnT||0)-dt*4);
       else m.userData.burnT=Math.max(0,(m.userData.burnT||0)-dt);
       if(def.hostile&&m.position.distanceTo(player.pos)<1.4)applyDamage(6*dt,false);
       if(m.userData.hp<=0){killMob(m,(m.userData.burnT||0)>0);continue;}
@@ -2402,7 +2414,7 @@ function getItemName(id){
     const bx=Math.floor(player.pos.x),bz=Math.floor(player.pos.z);
     for(let y=Math.floor(player.pos.y);y<=Math.floor(player.pos.y+player.height);y++){
       const id=worldGet(bx,y,bz);
-      if(id===B.WATER||id===B.LAVA)return id;
+      if(isFluid(id))return id;
     }
     return B.AIR;
   }
@@ -2468,7 +2480,7 @@ function getItemName(id){
     for(const [ox,oz] of samples){
       const wx=Math.floor(boat.position.x+ox),wz=Math.floor(boat.position.z+oz);
       for(let y=Math.floor(boat.position.y+1);y>=Math.floor(boat.position.y-2);y--){
-        if(worldGet(wx,y,wz)===B.WATER){highest=Math.max(highest,y+0.62);found=true;break;}
+        if(isWaterBlock(worldGet(wx,y,wz))){highest=Math.max(highest,y+(worldGet(wx,y,wz)===B.WATER?0.62:0.38));found=true;break;}
       }
     }
     return found?highest:null;
@@ -2545,12 +2557,12 @@ function getItemName(id){
      }
      const bodyFluid=playerBodyFluid();
      // Gravity / buoyancy
-     if(bodyFluid===B.WATER){
+     if(isWaterBlock(bodyFluid)){
        player.vel.y+=(2.7-(isShiftDown()?1.2:0))*dt;
        player.vel.y-=CFG.gravity*0.22*dt;
        if(KEYS['Space'])player.vel.y=Math.min(player.vel.y+11*dt,3.6);
        player.vel.x*=0.7;player.vel.z*=0.7;
-     }else if(bodyFluid===B.LAVA){
+     }else if(isLavaBlock(bodyFluid)){
        player.vel.y+=(1.8-(isShiftDown()?0.8:0))*dt;
        player.vel.y-=CFG.gravity*0.3*dt;
        if(KEYS['Space'])player.vel.y=Math.min(player.vel.y+9*dt,2.8);
@@ -2590,7 +2602,7 @@ function getItemName(id){
       const impact=-Math.min(0,lastGroundedVy);
       const feetBlock=worldGet(Math.floor(player.pos.x),Math.floor(player.pos.y),Math.floor(player.pos.z));
       const headBlock=worldGet(Math.floor(player.pos.x),Math.floor(player.pos.y+player.eyeOffset),Math.floor(player.pos.z));
-      if(impact>14&&bodyFluid!==B.WATER&&bodyFluid!==B.LAVA&&feetBlock!==B.WATER&&feetBlock!==B.LAVA&&headBlock!==B.WATER&&headBlock!==B.LAVA){
+      if(impact>14&&!isFluid(bodyFluid)&&!isFluid(feetBlock)&&!isFluid(headBlock)){
         const excess=impact-14;
         applyDamage(excess*2.1,true);
       }
@@ -2612,15 +2624,15 @@ function getItemName(id){
     const headY=Math.floor(player.pos.y+player.eyeOffset);
     const headBlock=worldGet(Math.floor(player.pos.x),headY,Math.floor(player.pos.z));
     const bodyFluid=worldGet(Math.floor(player.pos.x),Math.floor(player.pos.y+0.2),Math.floor(player.pos.z));
-    if(headBlock===B.WATER){
+    if(isWaterBlock(headBlock)){
       STATS.air=Math.max(0,STATS.air-7.5*dt);
       if(STATS.air<=0)applyDamage(12*dt,true);
     }else STATS.air=Math.min(STATS.maxAir,STATS.air+45*dt);
-    if(bodyFluid===B.WATER){
+    if(isWaterBlock(bodyFluid)){
       waterContactT+=dt;
       if(waterContactT>0.08){waterContactT=0;spawnContactParticle(0x66bbff,0.55);} 
     }else waterContactT=0;
-    if(bodyFluid===B.LAVA){
+    if(isLavaBlock(bodyFluid)){
       applyDamage(18*dt,false);
       lavaContactT+=dt;
       if(lavaContactT>0.11){lavaContactT=0;spawnContactParticle(0xff5500,0.45);spawnContactParticle(0xffaa33,0.4);} 
@@ -2632,7 +2644,7 @@ function getItemName(id){
     const hungerMul=hungerPauseT>0?0:1;
     STATS.hunger=Math.max(0,STATS.hunger-hungerDrain*dt*hungerMul);
     STATS.saturation=Math.max(0,STATS.saturation-((hungerDrain*0.55)*dt));
-    if(STATS.hunger<=0)applyDamage(4*dt,true);
+    if(STATS.hunger<=0)applyDamage(1.2*dt,true);
     if(STATS.hunger>STATS.maxHunger*0.6&&STATS.shield<STATS.maxShield){
       STATS.shield=Math.min(STATS.maxShield,STATS.shield+1.8*dt);
     }
@@ -2692,7 +2704,9 @@ function getItemName(id){
   function flowFluidOnce(fluidId,range=12){
     const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
     const changes=[];
+    const removals=[];
     const queued=new Set();
+    const flowId=getFluidFlowId(fluidId);
     const queueChange=(wx,wy,wz,id)=>{
       const k=`${wx},${wy},${wz}`;
       if(queued.has(k))return;
@@ -2703,8 +2717,11 @@ function getItemName(id){
     for(let dx=-range;dx<=range;dx++)for(let dz=-range;dz<=range;dz++)for(let dy=8;dy>=-12;dy--){
       if(changes.length>=maxChanges)break;
       const wx=px+dx,wy=py+dy,wz=pz+dz;
-      if(worldGet(wx,wy,wz)!==fluidId)continue;
-      if(worldGet(wx,wy-1,wz)===B.AIR){queueChange(wx,wy-1,wz,fluidId);continue;}
+      const here=worldGet(wx,wy,wz);
+      if(getFluidFamily(here)!==getFluidFamily(fluidId))continue;
+      const isSource=here===fluidId;
+      const below=worldGet(wx,wy-1,wz);
+      if(below===B.AIR){queueChange(wx,wy-1,wz,isSource?fluidId:flowId);continue;}
       const dirs=[[1,0],[-1,0],[0,1],[0,-1]].sort(()=>Math.random()-0.5);
       for(const [sx,sz] of dirs){
         if(changes.length>=maxChanges)break;
@@ -2716,29 +2733,36 @@ function getItemName(id){
           const support=[worldGet(wx+sx+1,wy,wz+sz),worldGet(wx+sx-1,wy,wz+sz),worldGet(wx+sx,wy,wz+sz+1),worldGet(wx+sx,wy,wz+sz-1)].filter(isSolid).length;
           if(support<2)continue;
         }
-        queueChange(wx+sx,wy,wz+sz,fluidId);
+        queueChange(wx+sx,wy,wz+sz,flowId);
       }
-
-      // Corner rounding pass: fill diagonal pockets between two touching fluid sides.
-      const corners=[
-        [[1,0],[0,1]],[[1,0],[0,-1]],[[-1,0],[0,1]],[[-1,0],[0,-1]],
-      ];
-      for(const [[ax,az],[bx,bz]] of corners){
-        if(changes.length>=maxChanges)break;
-        const tx=wx+ax+bx,tz=wz+az+bz;
-        if(worldGet(tx,wy,tz)!==B.AIR||worldGet(tx,wy-1,tz)===B.AIR)continue;
-        if(worldGet(wx+ax,wy,wz+az)!==fluidId||worldGet(wx+bx,wy,wz+bz)!==fluidId)continue;
-        const cornerN=frac(Math.abs(h2(tx*1.13+wy*0.37,tz*1.09-fluidId)));
-        const cornerChance=fluidId===B.LAVA?0.26:0.52;
-        if(cornerN>cornerChance)continue;
-        queueChange(tx,wy,tz,fluidId);
+      if(here===flowId){
+        const fed=isSourceFluid(worldGet(wx,wy+1,wz))||[[1,0],[-1,0],[0,1],[0,-1]].some(([sx,sz])=>isFluid(worldGet(wx+sx,wy,wz+sz)));
+        if(!fed)removals.push([wx,wy,wz]);
       }
     }
     for(const [wx,wy,wz,id] of changes){
-      const opposite=id===B.WATER?B.LAVA:(id===B.LAVA?B.WATER:B.AIR);
-      const nearOpp=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].some(([dx,dy,dz])=>worldGet(wx+dx,wy+dy,wz+dz)===opposite);
+      const opposite=getFluidFamily(id)==='water'?B.LAVA:(getFluidFamily(id)==='lava'?B.WATER:B.AIR);
+      const nearOpp=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].some(([dx,dy,dz])=>getFluidFamily(worldGet(wx+dx,wy+dy,wz+dz))===getFluidFamily(opposite));
       worldSet(wx,wy,wz,nearOpp?B.COBBLESTONE:id);
       buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));
+    }
+    for(const [wx,wy,wz] of removals){
+      if(worldGet(wx,wy,wz)===flowId){worldSet(wx,wy,wz,B.AIR);buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));}
+    }
+  }
+
+  function dropUnsupportedTorch(wx,wy,wz){
+    if(worldGet(wx,wy,wz)!==B.TORCH)return false;
+    if(isSolid(worldGet(wx,wy-1,wz)))return false;
+    worldSet(wx,wy,wz,B.AIR);
+    spawnDrops(wx,wy,wz,B.TORCH,0.35);
+    buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));
+    return true;
+  }
+  function updateUnsupportedTorches(){
+    const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
+    for(let dx=-10;dx<=10;dx++)for(let dz=-10;dz<=10;dz++)for(let dy=10;dy>=-8;dy--){
+      dropUnsupportedTorch(px+dx,py+dy,pz+dz);
     }
   }
 
@@ -2762,7 +2786,7 @@ function getItemName(id){
     for(let dx=-12;dx<=12;dx++)for(let dz=-12;dz<=12;dz++)for(let dy=8;dy>=-8;dy--){
       const wx=px+dx,wy=py+dy,wz=pz+dz;
       if(worldGet(wx,wy,wz)!==B.FIRE)continue;
-      const nearWater=[[1,0,0],[-1,0,0],[0,0,1],[0,0,-1],[0,-1,0],[0,1,0]].some(([ax,ay,az])=>worldGet(wx+ax,wy+ay,wz+az)===B.WATER);
+      const nearWater=[[1,0,0],[-1,0,0],[0,0,1],[0,0,-1],[0,-1,0],[0,1,0]].some(([ax,ay,az])=>isWaterBlock(worldGet(wx+ax,wy+ay,wz+az)));
       if(nearWater){
         worldSet(wx,wy,wz,B.AIR);
         buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));
@@ -2785,7 +2809,7 @@ function getItemName(id){
     }
     for(let dx=-10;dx<=10;dx++)for(let dz=-10;dz<=10;dz++)for(let dy=6;dy>=-6;dy--){
       const wx=px+dx,wy=py+dy,wz=pz+dz;
-      if(worldGet(wx,wy,wz)!==B.LAVA)continue;
+      if(!isLavaBlock(worldGet(wx,wy,wz)))continue;
       const around=[[1,0],[-1,0],[0,1],[0,-1]];
       for(const [sx,sz] of around){
         const bid=worldGet(wx+sx,wy,wz+sz);
@@ -2816,7 +2840,7 @@ function getItemName(id){
   function isSkyVisible(wx,wy,wz){
     for(let y=wy+1;y<CFG.chunkH;y++){
       const id=worldGet(wx,y,wz);
-      if(id!==B.AIR&&id!==B.LEAVES&&id!==B.WATER)return false;
+      if(id!==B.AIR&&id!==B.LEAVES&&!isWaterBlock(id))return false;
     }
     return true;
   }
@@ -2842,7 +2866,7 @@ function getItemName(id){
   function isNearWater(wx,wy,wz,r=1){
     const checks=[[0,0],[1,0],[-1,0],[0,1],[0,-1]];
     for(const [dx,dz] of checks){
-      if(worldGet(wx+dx,wy,wz+dz)===B.WATER||worldGet(wx+dx,wy+1,wz+dz)===B.WATER)return true;
+      if(isWaterBlock(worldGet(wx+dx,wy,wz+dz))||isWaterBlock(worldGet(wx+dx,wy+1,wz+dz)))return true;
     }
     return false;
   }
@@ -2898,6 +2922,12 @@ function getItemName(id){
       outlineMesh.position.set((fp.minX+fp.maxX+1)/2,wy+0.5,(fp.minZ+fp.maxZ+1)/2);
       return;
     }
+    const bedFp=id===B.BED?getBedFootprint(wx,wy,wz):null;
+    if(bedFp){
+      outlineMesh.scale.set(bedFp.maxX-bedFp.minX+1,1,bedFp.maxZ-bedFp.minZ+1);
+      outlineMesh.position.set((bedFp.minX+bedFp.maxX+1)/2,wy+0.5,(bedFp.minZ+bedFp.maxZ+1)/2);
+      return;
+    }
     if(id===B.TORCH){
       outlineMesh.scale.set(0.25,0.75,0.25);
       outlineMesh.position.set(wx+0.5,wy+0.375,wz+0.5);
@@ -2909,6 +2939,13 @@ function getItemName(id){
   }
 
   function rayHitsBlockShape(id,wx,wy,wz,dir,dist){
+    if(id===B.BED){
+      const fp=getBedFootprint(wx,wy,wz);
+      if(fp){
+        const pt=new THREE.Vector3(camera.position.x,camera.position.y,camera.position.z).addScaledVector(dir,Math.max(0,dist));
+        return pt.x>=fp.minX&&pt.x<=fp.maxX+1&&pt.y>=fp.minY&&pt.y<=fp.maxY&&pt.z>=fp.minZ&&pt.z<=fp.maxZ+1;
+      }
+    }
     if(id===B.TORCH){
       const pt=new THREE.Vector3(camera.position.x,camera.position.y,camera.position.z).addScaledVector(dir,Math.max(0,dist));
       return pt.x>=wx+0.375&&pt.x<=wx+0.625&&pt.y>=wy&&pt.y<=wy+0.75&&pt.z>=wz+0.375&&pt.z<=wz+0.625;
@@ -3128,13 +3165,13 @@ function getItemName(id){
          d.position.y+=d.userData.vy*dt;
          const by=Math.floor(d.position.y-0.14);
          const below=worldGet(Math.floor(d.position.x),by,Math.floor(d.position.z));
-         if(isSolid(below)||below===B.WATER||below===B.LAVA){
+         if(isSolid(below)||isFluid(below)){
            d.position.y=by+1.14;d.userData.vy=0;d.userData.onGround=true;
          }
        }else{
          const by=Math.floor(d.position.y-0.16);
          const below=worldGet(Math.floor(d.position.x),by,Math.floor(d.position.z));
-         if(!(isSolid(below)||below===B.WATER||below===B.LAVA))d.userData.onGround=false;
+         if(!(isSolid(below)||isFluid(below)))d.userData.onGround=false;
        }
       d.userData.bob+=dt*2;
       if(d.userData.onGround)d.position.y+=Math.sin(d.userData.bob)*0.004;
@@ -3393,7 +3430,7 @@ function getItemName(id){
      if(held.id===IT.BUCKET||held.id===IT.WATER_BUCKET||held.id===IT.LAVA_BUCKET){
       const tid=worldGet(targetBlock.wx,targetBlock.wy,targetBlock.wz);
       const pickupFluid=(wx,wy,wz,fluidId)=>{
-        if(fluidId!==B.WATER&&fluidId!==B.LAVA)return false;
+        if(!isSourceFluid(fluidId))return false;
         if(worldGet(wx,wy,wz)!==fluidId)return false;
         worldSet(wx,wy,wz,B.AIR);
         convertHeldBucket(fluidId===B.WATER?IT.WATER_BUCKET:IT.LAVA_BUCKET);
@@ -3401,11 +3438,11 @@ function getItemName(id){
         requestWorldSave(120);
         return true;
       };
-      if(held.id===IT.BUCKET&&(tid===B.WATER||tid===B.LAVA)){
+      if(held.id===IT.BUCKET&&isSourceFluid(tid)){
         if(pickupFluid(targetBlock.wx,targetBlock.wy,targetBlock.wz,tid))return;
       }else if(held.id===IT.BUCKET&&targetBlock.face[1]!==0){
         const aboveId=worldGet(targetBlock.wx,targetBlock.wy+targetBlock.face[1],targetBlock.wz);
-        if((aboveId===B.WATER||aboveId===B.LAVA)&&pickupFluid(targetBlock.wx,targetBlock.wy+targetBlock.face[1],targetBlock.wz,aboveId))return;
+        if(isSourceFluid(aboveId)&&pickupFluid(targetBlock.wx,targetBlock.wy+targetBlock.face[1],targetBlock.wz,aboveId))return;
       }
       if(held.id===IT.WATER_BUCKET||held.id===IT.LAVA_BUCKET){
         const [fx,fy,fz]=targetBlock.face;
@@ -3463,7 +3500,7 @@ function getItemName(id){
       for(const [bx,by,bz] of candidates){
         const cells=[[bx,bz],[bx+dirX,bz+dirZ]];
         const ok=cells.every(([cx,cz])=>{
-          const fluid=worldGet(cx,by,cz)===B.WATER||worldGet(cx,by-1,cz)===B.WATER;
+          const fluid=isWaterBlock(worldGet(cx,by,cz))||isWaterBlock(worldGet(cx,by-1,cz));
           const free=!isSolid(worldGet(cx,by,cz))&&!isSolid(worldGet(cx,by+1,cz));
           return fluid&&free;
         });
@@ -3506,7 +3543,7 @@ function getItemName(id){
       setChestMeta(key,{
         placedSneak,
         noPair:placedSneak||forceSingle,
-        nbt:{placedBy:'player',placedSneak,ver:'0.0.89_patch6'},
+        nbt:{placedBy:'player',placedSneak,ver:'0.0.89a_patch7'},
       });
       if(placedSneak||forceSingle){
         const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
@@ -3528,13 +3565,11 @@ function getItemName(id){
      const wf=Math.floor(waterAnim),lf=Math.floor(lavaAnim);
      if(wf!==lastWaterFrame){
       lastWaterFrame=wf;
-      const wm=getMats(B.WATER);
-      wm.forEach(m=>{m.map=TEX.waterFrames[wf];m.needsUpdate=true;});
+      [B.WATER,B.FLOWING_WATER].forEach(id=>{const wm=getMats(id);wm.forEach(m=>{m.map=TEX.waterFrames[wf];m.needsUpdate=true;});});
      }
      if(lf!==lastLavaFrame){
       lastLavaFrame=lf;
-      const lm=getMats(B.LAVA);
-      lm.forEach(m=>{m.map=TEX.lavaFrames[lf];m.needsUpdate=true;});
+      [B.LAVA,B.FLOWING_LAVA].forEach(id=>{const lm=getMats(id);lm.forEach(m=>{m.map=TEX.lavaFrames[lf];m.needsUpdate=true;});});
      }
    }
    
@@ -3652,7 +3687,7 @@ function getItemName(id){
    }
 
 // ── HOTBAR 3D ICON RENDERER ───────────────────────────────
-  function shouldUseFlatIcon(id){return id>=100||id===B.TORCH||id===B.WATER||id===B.LAVA||id===B.FIRE;}
+  function shouldUseFlatIcon(id){return id>=100||id===B.TORCH||isFluid(id)||id===B.FIRE;}
   function drawFlatIcon(g,w,h,id){
     const tex=getItemTex(id);
     if(!tex?.image)return;
@@ -3847,6 +3882,19 @@ function getItemName(id){
       minX:Math.min(wx,other.wx),maxX:Math.max(wx,other.wx),
       minZ:Math.min(wz,other.wz),maxZ:Math.max(wz,other.wz),
       other
+    };
+  }
+  function getBedFootprint(wx,wy,wz){
+    if(worldGet(wx,wy,wz)!==B.BED)return null;
+    const footKey=getBedFootKeyFromAny(wx,wy,wz);
+    const foot=parseWorldPosKey(footKey);
+    const meta=bedMetaGet(footKey)||{};
+    const other=parseWorldPosKey(meta.otherKey||footKey);
+    if(!foot||!other||other.wy!==foot.wy||worldGet(other.wx,other.wy,other.wz)!==B.BED)return null;
+    return {
+      minX:Math.min(foot.wx,other.wx),maxX:Math.max(foot.wx,other.wx),
+      minZ:Math.min(foot.wz,other.wz),maxZ:Math.max(foot.wz,other.wz),
+      minY:foot.wy,maxY:foot.wy+1
     };
   }
 
@@ -4550,7 +4598,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.89_patch6',
+        version:'0.0.89a_patch7',
         seed:CURRENT_SEED,worldId:CURRENT_WORLD_ID,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor,saturation:STATS.saturation},
@@ -5047,7 +5095,7 @@ function getItemName(id){
     if(!showDebugOverlay){document.getElementById('hud-debug').innerHTML='';return;}
     document.getElementById('hud-debug').innerHTML=
       `XYZ: ${p.x.toFixed(1)} / ${p.y.toFixed(1)} / ${p.z.toFixed(1)}<br>`+
-      `FPS: ${fps} | Chunks: ${loadedChunks.size} | ${tod} | Moon ${moonPhase} | Seed: ${CURRENT_SEED}<br>`+`Border: ${(WORLD_BORDER_BLOCKS-Math.max(Math.abs(p.x),Math.abs(p.z))).toFixed(0)} blocks`;
+      `FPS: ${fps} | Chunks: ${loadedChunks.size} | Day: ${dayCount} | ${tod} | Seed: ${CURRENT_SEED}<br>`+`Border: ${(WORLD_BORDER_BLOCKS-Math.max(Math.abs(p.x),Math.abs(p.z))).toFixed(0)} blocks`;
   }
    
    // ═══════════════════════════════════════════════════════════
@@ -5386,7 +5434,7 @@ function getItemName(id){
   let pendingDeleteWorldId=null;
   function selectedWorld(){return worlds.find(w=>w.id===selectedWorldId)||null;}
   function formatWorldDescription(w){
-    return `Seed: ${w.seed} | Created on ${formatDateStamp(w.createdAt)} | Last played ${formatDateStamp(w.lastPlayedAt||w.createdAt)} | Version: ${w.version||'0.0.89_patch6'}`;
+    return `Seed: ${w.seed} | Created on ${formatDateStamp(w.createdAt)} | Last played ${formatDateStamp(w.lastPlayedAt||w.createdAt)} | Version: ${w.version||'0.0.89a_patch7'}`;
   }
   function setWorldActionState(btnId,enabled){
     const el=document.getElementById(btnId);
@@ -5404,16 +5452,22 @@ function getItemName(id){
     document.getElementById('world-create-screen').style.display='none';
     document.getElementById('world-delete-confirm').style.display='none';
   }
+  let deleteWorldReturnMode='list';
   function openDeleteWorldConfirm(worldId){
     const w=worlds.find(v=>v.id===worldId);
     if(!w)return;
     pendingDeleteWorldId=w.id;
+    deleteWorldReturnMode=editingWorldId?'edit':'list';
     document.getElementById('world-delete-copy').textContent=`Delete "${w.name}"? This action cannot be undone.`;
+    document.getElementById('world-create-screen').style.display='none';
     document.getElementById('world-delete-confirm').style.display='flex';
   }
   function closeDeleteWorldConfirm(){
     pendingDeleteWorldId=null;
     document.getElementById('world-delete-confirm').style.display='none';
+    if(deleteWorldReturnMode==='edit'&&editingWorldId){
+      document.getElementById('world-create-screen').style.display='flex';
+    }
   }
   function openWorldList(){
     worlds=loadWorldDefs();
@@ -5499,9 +5553,9 @@ function getItemName(id){
     const developerChest=!!document.getElementById('developer-chest-toggle').checked;
     if(editingWorldId){
       const w=worlds.find(v=>v.id===editingWorldId);
-      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;w.developerChest=developerChest;w.lastPlayedAt=w.lastPlayedAt||Date.now();w.version='0.0.89_patch6';}
+      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;w.developerChest=developerChest;w.lastPlayedAt=w.lastPlayedAt||Date.now();w.version='0.0.89a_patch7';}
     }else{
-      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,developerChest,createdAt:Date.now(),lastPlayedAt:Date.now(),version:'0.0.89_patch6'};
+      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,developerChest,createdAt:Date.now(),lastPlayedAt:Date.now(),version:'0.0.89a_patch7'};
       worlds.unshift(w);selectedWorldId=w.id;
     }
     saveWorldDefs(worlds);

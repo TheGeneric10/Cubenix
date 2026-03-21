@@ -175,11 +175,11 @@
    
    /* ══ STATUS BARS ══ */
 #status-left, #status-right {
-  position: fixed; bottom: var(--meter-bottom); z-index: 15; pointer-events: none;
-  display: flex; flex-direction: column; gap: 10px;
+  position: fixed; left: 14px; z-index: 15; pointer-events: none;
+  display: flex; flex-direction: column; gap: 8px; align-items:flex-start;
 }
-#status-left  { left: calc(50% - var(--meter-offset)); align-items: flex-start; }
-#status-right { right: calc(50% - var(--meter-offset)); align-items: flex-end; }
+#status-left  { bottom: 88px; }
+#status-right { bottom: 16px; right: auto; }
 .stat-row { display: flex; align-items: center; gap: 8px; }
 .stat-icon{
   width:18px; height:18px; display:flex; align-items:center; justify-content:center;
@@ -344,3 +344,6 @@
 #settings-body::-webkit-scrollbar-track{background:#101010;border-left:1px solid #2d2d2d;}
 
 #system-toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:46;max-width:min(680px,82vw);padding:7px 12px;background:rgba(0,0,0,0.68);border:1px solid rgba(255,255,255,0.22);color:#fff;font-size:0.74rem;line-height:1.3;text-align:center;pointer-events:none;text-shadow:1px 1px 0 #000;}
+
+#quit-confirm .worlds-panel,#world-delete-confirm .worlds-panel{justify-content:flex-start;}
+#quit-confirm .world-actions,#world-delete-confirm .world-actions{margin-top:auto;}
