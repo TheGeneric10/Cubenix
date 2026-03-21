@@ -4964,6 +4964,7 @@ function getItemName(id){
     const now=performance.now();const dt=Math.min((now-lastNow)*0.001,0.05);lastNow=now;
     updateSurvivalStats(dt);
     if(!isPaused){
+      updateSurvivalStats(dt);
       updateControllerInput();
       updateEating(dt);
       if(bowChargeActive)bowChargeTime=Math.min(2,bowChargeTime+dt);
