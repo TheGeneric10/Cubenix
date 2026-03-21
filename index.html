@@ -22,7 +22,7 @@
         <button class="menu-btn disabled">Multiplayer <span class="soon">Soon</span></button>
         <button class="menu-btn" id="btn-quit">Quit Game</button>
       </div>
-      <div id="menu-version">Cubenix v0.0.82a</div>
+      <div id="menu-version">Cubenix v0.0.83a</div>
     </div>
   </div>
   <div id="quit-confirm" style="display:none">
@@ -56,12 +56,15 @@
   <div id="world-create-screen" style="display:none">
     <div class="worlds-panel">
       <div class="worlds-title" id="world-form-title">Create New World</div>
-      <input id="world-name-input" type="text" placeholder="World Name" />
-      <input id="world-seed-input" type="text" placeholder="Seed (optional)" />
-      <label class="world-switch"><input id="starter-chest-toggle" type="checkbox" /> Starter Chest</label>
-      <label class="world-switch"><input id="developer-chest-toggle" type="checkbox" /> Developer Chest</label>
+      <div id="world-form-body">
+        <input id="world-name-input" type="text" placeholder="World Name" />
+        <input id="world-seed-input" type="text" placeholder="Seed (optional)" />
+        <label class="world-switch"><input id="starter-chest-toggle" type="checkbox" /> Starter Chest</label>
+        <label class="world-switch"><input id="developer-chest-toggle" type="checkbox" /> Developer Chest</label>
+      </div>
       <div class="world-actions">
         <button class="pause-btn" id="world-save-create">Save</button>
+        <button class="pause-btn" id="world-delete">Delete World</button>
         <button class="pause-btn" id="world-create-cancel">Cancel</button>
       </div>
     </div>
@@ -82,7 +85,7 @@
 
     <!-- Debug HUD top-left -->
     <div id="hud">
-      <div id="hud-title">Cubenix &mdash; Version: 0.0.82a</div>
+      <div id="hud-title">Cubenix &mdash; Version: 0.0.83a</div>
       <div id="hud-debug"></div>
     </div>
 

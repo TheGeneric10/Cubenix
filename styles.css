@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — styles.css — v0.0.82a
+   CUBENIX — styles.css — v0.0.83a
    ============================================================ */
    @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&display=swap');
 
@@ -68,6 +68,8 @@
    @keyframes world-play-bob{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
    .world-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;position:sticky;bottom:0;z-index:3;background:linear-gradient(180deg,rgba(30,22,16,0.4),rgba(30,22,16,0.98) 24%,rgba(30,22,16,1));padding-top:8px;flex-shrink:0;}
    .world-actions .pause-btn{flex:1;}
+   #world-create-screen .world-actions{margin-top:auto;}
+   #world-form-body{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;}
    .world-empty{display:flex;align-items:center;justify-content:center;min-height:58vh;text-align:center;font-size:1.1rem;letter-spacing:.06em;}
    .world-switch{color:#ddd;font-size:.82rem;display:flex;align-items:center;gap:8px;}
    .world-switch input[type=checkbox]{
@@ -160,6 +162,9 @@
 .slot-disabled{
   opacity:0.48;
   filter:saturate(0.8);
+}
+.pause-btn.slot-disabled{
+  pointer-events:none;
 }
    
    /* ══ STATUS BARS ══ */
