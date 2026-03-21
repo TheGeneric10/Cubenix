@@ -138,7 +138,7 @@
      background: rgba(0,0,0,0.42); border: 2px solid #555; padding: 2px;
    }
 #hud,#chat-panel,#chat-feed,#status-left,#status-right,#inv-panel,#pause-panel,#settings-panel{transform:scale(var(--gui-scale));}
-#status-left,#status-right,#pause-panel,#settings-panel{transform-origin:center bottom;}
+#status-left,#status-right,#pause-panel,#settings-panel{transform-origin:center center;}
 #hud{transform-origin:top left;}
 #hotbar{transform:translateX(-50%) scale(var(--gui-scale));transform-origin:center bottom;}
 #chat-panel,#chat-feed{transform-origin:left bottom;}
@@ -277,8 +277,8 @@
    #inv-close:hover { color: #a00; }
    
    /* ══ PAUSE ══ */
-   #pause-menu { position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.55); }
-   #pause-panel { background:rgba(22,22,22,0.94); border:2px solid #666; padding:22px 30px; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:300px; }
+   #pause-menu { position:fixed; inset:0; z-index:380; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(0,0,0,0.55); }
+   #pause-panel { background:rgba(22,22,22,0.94); border:2px solid #666; padding:22px 30px; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:min(300px,100%); width:min(320px,100%); max-width:100%; box-sizing:border-box; }
    .pause-title { font-size:1.05rem; color:#fff; letter-spacing:0.1em; margin-bottom:7px; }
    .pause-btn { width:100%; background:rgba(75,75,75,0.75); border:2px solid #888; color:#fff; font-family:'Titillium Web',monospace; font-size:0.88rem; padding:8px 0; cursor:pointer; letter-spacing:0.03em; transition:background 0.1s,border-color 0.1s; outline:none; }
    .pause-btn:hover { background:rgba(105,105,105,0.88); border-color:#bbb; }

@@ -1256,10 +1256,19 @@ function getItemName(id){
         const head=meta.part==='head';
         const headboardDepth=0.12;
         let hx0=lx,hx1=lx+1,hz0=lz,hz1=lz+1;
-        if(dir===0)hz0=lz+1-headboardDepth;
-        else if(dir===2)hz1=lz+headboardDepth;
-        else if(dir===1)hx0=lx+1-headboardDepth;
-        else hx1=lx+headboardDepth;
+        if(dir===0){
+          hz0=lz+1-headboardDepth;
+          hz1=lz+1;
+        }else if(dir===2){
+          hz0=lz;
+          hz1=lz+headboardDepth;
+        }else if(dir===1){
+          hx0=lx+1-headboardDepth;
+          hx1=lx+1;
+        }else{
+          hx0=lx;
+          hx1=lx+headboardDepth;
+        }
         if(head){
           const bb=[[hx1,y+h,lz],[hx1,y+1.0,lz],[hx1,y+1.0,lz+1],[hx1,y+h,lz+1],[hx0,y+h,lz+1],[hx0,y+1.0,lz+1],[hx0,y+1.0,lz],[hx0,y+h,lz]];
           const start=d.pos.length/3;
@@ -1838,10 +1847,15 @@ function getItemName(id){
       m.position.y+=m.userData.jumpVy*dt;
       const sy=getSurfaceY(Math.floor(m.position.x),Math.floor(m.position.z));
       const fluidHere=worldGet(Math.floor(m.position.x),Math.max(1,Math.floor(m.position.y)),Math.floor(m.position.z));
-      if(fluidHere===B.WATER){
-        const targetY=Math.max(sy+0.7,m.position.y);
-        m.position.y+=Math.min((targetY-m.position.y),dt*2.4);
-        m.userData.jumpVy=Math.max(m.userData.jumpVy,0.35);
+      if(fluidHere===B.WATER||fluidHere===B.LAVA){
+        const fluidLift=fluidHere===B.WATER?0.7:0.5;
+        const fluidRise=fluidHere===B.WATER?2.4:1.35;
+        const fluidFloor=fluidHere===B.WATER?0.35:0.12;
+        const targetY=Math.max(sy+fluidLift,m.position.y);
+        m.position.y+=Math.min((targetY-m.position.y),dt*fluidRise);
+        m.userData.jumpVy=Math.max(m.userData.jumpVy,fluidFloor);
+        if(fluidHere===B.WATER&&Math.random()<0.14*dt*60)spawnColorParticles(m.position.x,m.position.y+0.35,m.position.z,0x66bbff,1,0.12);
+        if(fluidHere===B.LAVA&&Math.random()<0.18*dt*60)spawnColorParticles(m.position.x,m.position.y+0.4,m.position.z,0xff7b22,2,0.14);
       }else if(sy>0&&m.position.y<=sy+1){m.position.y=sy+1;m.userData.jumpVy=0;}
       const desiredYaw=Math.atan2(m.userData.vx||0,m.userData.vz||0);
       if(Number.isFinite(desiredYaw))m.userData.targetYaw=desiredYaw;
@@ -1856,6 +1870,7 @@ function getItemName(id){
         if(Math.random()<0.2)spawnColorParticles(m.position.x,m.position.y+1.1,m.position.z,0xffa54b,2,0.18);
       }
       if(feet===B.FIRE||feet===B.LAVA){m.userData.burnT=2.5;m.userData.hp-=dt*(feet===B.LAVA?12:6);}
+      if(fluidHere===B.WATER&&(m.userData.burnT||0)>0)m.userData.burnT=Math.max(0,(m.userData.burnT||0)-dt*4);
       else m.userData.burnT=Math.max(0,(m.userData.burnT||0)-dt);
       if(def.hostile&&m.position.distanceTo(player.pos)<1.4)applyDamage(6*dt,false);
       if(m.userData.hp<=0){killMob(m,(m.userData.burnT||0)>0);continue;}
@@ -1879,9 +1894,13 @@ function getItemName(id){
     }catch{}
   }
   function autoPauseGame(reason='hidden'){
-    if(isPaused||document.getElementById('game-ui').style.display!=='block')return;
+    if(document.getElementById('game-ui').style.display!=='block')return;
     isPaused=true;
     document.getElementById('pause-menu').style.display='flex';
+    document.getElementById('settings-menu').style.display='none';
+    stopBreaking();
+    bowChargeActive=false;
+    eating.active=false;
     if(document.pointerLockElement)document.exitPointerLock();
     if(reason==='hidden')notifyAutoPause();
   }
@@ -3341,17 +3360,29 @@ function getItemName(id){
      };
      if(held.id===IT.BUCKET||held.id===IT.WATER_BUCKET||held.id===IT.LAVA_BUCKET){
       const tid=worldGet(targetBlock.wx,targetBlock.wy,targetBlock.wz);
+      const pickupFluid=(wx,wy,wz,fluidId)=>{
+        if(fluidId!==B.WATER&&fluidId!==B.LAVA)return false;
+        if(worldGet(wx,wy,wz)!==fluidId)return false;
+        worldSet(wx,wy,wz,B.AIR);
+        convertHeldBucket(fluidId===B.WATER?IT.WATER_BUCKET:IT.LAVA_BUCKET);
+        buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));
+        requestWorldSave(120);
+        return true;
+      };
       if(held.id===IT.BUCKET&&(tid===B.WATER||tid===B.LAVA)){
-        worldSet(targetBlock.wx,targetBlock.wy,targetBlock.wz,B.AIR);
-        convertHeldBucket(tid===B.WATER?IT.WATER_BUCKET:IT.LAVA_BUCKET);
-        buildChunkMesh(Math.floor(targetBlock.wx/16),Math.floor(targetBlock.wz/16));
-      }else if(held.id===IT.WATER_BUCKET||held.id===IT.LAVA_BUCKET){
+        if(pickupFluid(targetBlock.wx,targetBlock.wy,targetBlock.wz,tid))return;
+      }else if(held.id===IT.BUCKET&&targetBlock.face[1]!==0){
+        const aboveId=worldGet(targetBlock.wx,targetBlock.wy+targetBlock.face[1],targetBlock.wz);
+        if((aboveId===B.WATER||aboveId===B.LAVA)&&pickupFluid(targetBlock.wx,targetBlock.wy+targetBlock.face[1],targetBlock.wz,aboveId))return;
+      }
+      if(held.id===IT.WATER_BUCKET||held.id===IT.LAVA_BUCKET){
         const [fx,fy,fz]=targetBlock.face;
         const px=targetBlock.wx+fx,py=targetBlock.wy+fy,pz=targetBlock.wz+fz;
         if(worldGet(px,py,pz)===B.AIR||isFluid(worldGet(px,py,pz))){
           worldSet(px,py,pz,held.id===IT.WATER_BUCKET?B.WATER:B.LAVA);
           convertHeldBucket(IT.BUCKET);
           buildChunkMesh(Math.floor(px/16),Math.floor(pz/16));
+          requestWorldSave(120);
         }
       }
       return;
@@ -4276,10 +4307,13 @@ function getItemName(id){
   function togglePause(){
      if(isChatOpen)closeChat();
      if(isInvOpen)return;
-     isPaused=!isPaused;
-     document.getElementById('pause-menu').style.display=isPaused?'flex':'none';
-     if(isPaused){if(document.pointerLockElement)document.exitPointerLock();}
-     else canvas.requestPointerLock();
+     if(!isPaused){
+       autoPauseGame('manual');
+       return;
+     }
+     isPaused=false;
+     document.getElementById('pause-menu').style.display='none';
+     canvas.requestPointerLock();
   }
   function returnToMainMenu(){
     saveGameLocal();
@@ -4601,9 +4635,11 @@ function getItemName(id){
   }
   function applyNixPlusPreset(){
     CFG.leavesQuality='ultra';
-    CFG.shadowsMode='ultra';
+    CFG.shadowsMode='high';
     CFG.particlesMode='ultra';
     CFG.cloudsMode='ultra';
+    CFG.renderDist=Math.max(CFG.renderDist,10);
+    CFG.simDist=Math.max(CFG.simDist,8);
   }
   function isNixLockedSetting(key){
     return !!CFG.enableNixPlus&&['leavesQuality','shadowsMode','particlesMode','cloudsMode'].includes(key);
@@ -4792,7 +4828,7 @@ function getItemName(id){
   function updateDayNight(dt){
     const prev=dayTime;
     dayTime=(dayTime+dt/DAY)%1;
-    if(dayTime<prev){dayCount++;moonPhase=(dayCount%8)+1;TEX.moonDisc=makeMoonPhaseTex(moonPhase);moonMesh.material.map=TEX.moonDisc;moonMesh.material.needsUpdate=true;}
+    if(dayTime<prev){dayCount++;moonPhase=(dayCount%8)+1;TEX.moonDisc=makeMoonPhaseTex(moonPhase);moonMesh.material.map=TEX.moonDisc;moonMesh.material.needsUpdate=true;requestWorldSave(240);}
     const ang=(dayTime*2-0.5)*Math.PI,R=200;
     const orbitSun=new THREE.Vector3(Math.cos(ang)*R,Math.sin(ang)*R,0);
     const orbitMoon=new THREE.Vector3(-Math.cos(ang)*R,-Math.sin(ang)*R,0);
@@ -4977,7 +5013,7 @@ function getItemName(id){
     if(!showDebugOverlay){document.getElementById('hud-debug').innerHTML='';return;}
     document.getElementById('hud-debug').innerHTML=
       `XYZ: ${p.x.toFixed(1)} / ${p.y.toFixed(1)} / ${p.z.toFixed(1)}<br>`+
-      `FPS: ${fps} | Chunks: ${loadedChunks.size} | ${tod} | Day ${dayCount} | Moon ${moonPhase} | Seed: ${CURRENT_SEED}<br>`+`Border: ${(WORLD_BORDER_BLOCKS-Math.max(Math.abs(p.x),Math.abs(p.z))).toFixed(0)} blocks`;
+      `FPS: ${fps} | Chunks: ${loadedChunks.size} | ${tod} | Moon ${moonPhase} | Seed: ${CURRENT_SEED}<br>`+`Border: ${(WORLD_BORDER_BLOCKS-Math.max(Math.abs(p.x),Math.abs(p.z))).toFixed(0)} blocks`;
   }
    
    // ═══════════════════════════════════════════════════════════
