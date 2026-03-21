@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — styles.css — v0.0.83a
+   CUBENIX — styles.css — v0.0.84a
    ============================================================ */
    @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&display=swap');
 
@@ -46,7 +46,7 @@
    .soon { font-size: 0.65rem; color: #888; margin-left: 5px; }
    #menu-version { margin-top: 14px; font-size: 0.65rem; color: #555; letter-spacing: 0.08em; }
 
-   #worlds-screen,#world-create-screen,#quit-confirm{
+   #worlds-screen,#world-create-screen,#quit-confirm,#world-delete-confirm{
     position:fixed;inset:0;z-index:260;display:flex;align-items:stretch;justify-content:stretch;background:linear-gradient(180deg,rgba(9,18,24,0.94),rgba(8,12,18,0.98));
    }
    .worlds-panel{
@@ -70,6 +70,7 @@
    .world-actions .pause-btn{flex:1;}
    #world-create-screen .world-actions{margin-top:auto;}
    #world-form-body{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;}
+   .world-confirm-copy{display:flex;align-items:center;justify-content:center;flex:1;min-height:0;color:#ddd;text-align:center;font-size:1rem;line-height:1.5;padding:12px 4px;}
    .world-empty{display:flex;align-items:center;justify-content:center;min-height:58vh;text-align:center;font-size:1.1rem;letter-spacing:.06em;}
    .world-switch{color:#ddd;font-size:.82rem;display:flex;align-items:center;gap:8px;}
    .world-switch input[type=checkbox]{
