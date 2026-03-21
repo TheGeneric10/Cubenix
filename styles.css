@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — styles.css — v0.0.84a
+   CUBENIX — styles.css — v0.0.85a
    ============================================================ */
    @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&display=swap');
 
@@ -284,6 +284,7 @@
    .setting-row input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:10px; height:10px; background:#5aaa3c; cursor:pointer; }
    .setting-btn { font-size:0.68rem; color:#fff; background:#363636; border:1px solid #4e4e4e; padding:2px 7px; cursor:pointer; font-family:inherit; flex-shrink:0; }
    .setting-btn:hover { background:#505050; }
+   .setting-btn.duplicate { color:#ff9a9a; border-color:#994b4b; }
 #settings-optimize { grid-column:span 2; background:#1e2035; border-color:#3a4888; }
 #settings-optimize label { color:#8899ee; max-width:none; }
 
