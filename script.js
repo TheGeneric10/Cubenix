@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.89a_patch5
+   CUBENIX — script.js — v0.0.89_patch6
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -1518,6 +1518,7 @@ function getItemName(id){
     pushBoatOutOfSolids(boat);
   }
   function updateBoats(dt){
+    if(isPaused)return;
     for(const boat of boats){
       if(boat===ridingBoat)continue;
       updateBoatPhysics(boat,dt,false);
@@ -1776,6 +1777,7 @@ function getItemName(id){
     return true;
   }
   function updateMobs(dt){
+    if(isPaused)return;
     const night=dayTime>=0.53&&dayTime<=0.95;
     if(mobs.length<32&&Math.random()<dt*(night?1.65:1.15)){
       const angle=Math.random()*Math.PI*2;
@@ -1901,20 +1903,19 @@ function getItemName(id){
     bowChargeTime=0;
     eating.active=false;
     eatAction.active=false;
-    POINTER_STATE.primary=false;
-    POINTER_STATE.secondary=false;
-    clearMovementKeys();
+    resetGameplayInputs(true);
   }
   function canCapturePointer(){
     return document.getElementById('game-ui').style.display==='block'&&!isPaused&&!isInvOpen&&!isChatOpen&&!sleeping.active&&document.getElementById('settings-menu').style.display!=='flex';
   }
   function autoPauseGame(reason='hidden'){
     if(document.getElementById('game-ui').style.display!=='block')return;
+    if(document.pointerLockElement)document.exitPointerLock();
     isPaused=true;
     document.getElementById('pause-menu').style.display='flex';
     document.getElementById('settings-menu').style.display='none';
     forcePauseGameplayState();
-    if(document.pointerLockElement)document.exitPointerLock();
+    applyHudVisibility();
     if(reason==='hidden')notifyAutoPause();
   }
    
@@ -2045,6 +2046,24 @@ function getItemName(id){
       if(TOUCH.keySources.has(k))TOUCH.keySources.get(k).clear();
       KEYS[k]=false;
     });
+  }
+  function resetGameplayInputs(resetTouchToggles=true){
+    for(const key of Object.keys(PHYS_KEYS))PHYS_KEYS[key]=false;
+    for(const key of Object.keys(KEYS))KEYS[key]=false;
+    for(const sources of TOUCH.keySources.values())sources.clear();
+    TOUCH.lookTouchId=null;
+    TOUCH.lastLookX=0;
+    TOUCH.lastLookY=0;
+    if(resetTouchToggles){
+      TOUCH.forceSprint=false;
+      TOUCH.forceSneak=false;
+      document.getElementById('touch-sprint')?.classList.remove('active');
+      document.getElementById('touch-sneak')?.classList.remove('active');
+    }
+    CONTROLLER.prevButtons.length=0;
+    POINTER_STATE.primary=false;
+    POINTER_STATE.secondary=false;
+    sprintTap=false;
   }
   let chatHideTimer=null;
   let systemToastTimer=null;
@@ -3487,7 +3506,7 @@ function getItemName(id){
       setChestMeta(key,{
         placedSneak,
         noPair:placedSneak||forceSingle,
-        nbt:{placedBy:'player',placedSneak,ver:'0.0.89a_patch5'},
+        nbt:{placedBy:'player',placedSneak,ver:'0.0.89_patch6'},
       });
       if(placedSneak||forceSingle){
         const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
@@ -4339,7 +4358,7 @@ function getItemName(id){
     closeWorldScreens();
     if(document.pointerLockElement)document.exitPointerLock();
   }
-  document.getElementById('pause-resume').addEventListener('click',()=>{isPaused=false;document.getElementById('pause-menu').style.display='none';});
+  document.getElementById('pause-resume').addEventListener('click',()=>{isPaused=false;document.getElementById('pause-menu').style.display='none';resetGameplayInputs(false);applyHudVisibility();});
   document.getElementById('pause-settings').addEventListener('click',openSettings);
   document.getElementById('pause-saveMenu').addEventListener('click',returnToMainMenu);
   document.getElementById('settings-back').addEventListener('click',closeSettingsMenu);
@@ -4531,7 +4550,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.89a_patch5',
+        version:'0.0.89_patch6',
         seed:CURRENT_SEED,worldId:CURRENT_WORLD_ID,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor,saturation:STATS.saturation},
@@ -5367,7 +5386,7 @@ function getItemName(id){
   let pendingDeleteWorldId=null;
   function selectedWorld(){return worlds.find(w=>w.id===selectedWorldId)||null;}
   function formatWorldDescription(w){
-    return `Seed: ${w.seed} | Created on ${formatDateStamp(w.createdAt)} | Last played ${formatDateStamp(w.lastPlayedAt||w.createdAt)} | Version: ${w.version||'0.0.89a_patch5'}`;
+    return `Seed: ${w.seed} | Created on ${formatDateStamp(w.createdAt)} | Last played ${formatDateStamp(w.lastPlayedAt||w.createdAt)} | Version: ${w.version||'0.0.89_patch6'}`;
   }
   function setWorldActionState(btnId,enabled){
     const el=document.getElementById(btnId);
@@ -5480,9 +5499,9 @@ function getItemName(id){
     const developerChest=!!document.getElementById('developer-chest-toggle').checked;
     if(editingWorldId){
       const w=worlds.find(v=>v.id===editingWorldId);
-      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;w.developerChest=developerChest;w.lastPlayedAt=w.lastPlayedAt||Date.now();w.version='0.0.89a_patch5';}
+      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;w.developerChest=developerChest;w.lastPlayedAt=w.lastPlayedAt||Date.now();w.version='0.0.89_patch6';}
     }else{
-      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,developerChest,createdAt:Date.now(),lastPlayedAt:Date.now(),version:'0.0.89a_patch5'};
+      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,developerChest,createdAt:Date.now(),lastPlayedAt:Date.now(),version:'0.0.89_patch6'};
       worlds.unshift(w);selectedWorldId=w.id;
     }
     saveWorldDefs(worlds);
