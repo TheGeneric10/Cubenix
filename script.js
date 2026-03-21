@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.89a_patch7
+   CUBENIX — script.js — v0.0.90a
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -141,7 +141,30 @@ const WORLD_BORDER_BLOCKS=13000000;
     {action:'pause',label:'Pause',canonical:'KeyP'},
   ];
   const KEYBINDS={...KEYBIND_DEFAULTS};
-   const FOOD_STATS={
+   const CONTENT_REGISTRY={recipes:[],foodStats:new Map(),mobs:new Map()};
+  const ITEM_TAGS={
+    wool:new Set(Array.from({length:WOOL_COLORS.length},(_,i)=>WOOL_BASE_ID+i)),
+  };
+  function contentRegistryRecipes(){return [...RECIPES,...CONTENT_REGISTRY.recipes];}
+  function resolveFoodStats(foodId){return CONTENT_REGISTRY.foodStats.get(foodId)||FOOD_STATS[foodId]||null;}
+  function resolveMobDef(type){return CONTENT_REGISTRY.mobs.get(type)||MOB_DEF[type]||null;}
+  function registerRecipe(recipe){
+    if(!recipe||!Array.isArray(recipe.pat)||!recipe.out)return false;
+    CONTENT_REGISTRY.recipes.push({...recipe,pat:recipe.pat.slice()});
+    return true;
+  }
+  function registerFood(foodId,stats){
+    if(!Number.isFinite(foodId)||!stats)return false;
+    CONTENT_REGISTRY.foodStats.set(foodId,{...stats});
+    return true;
+  }
+  function registerMobType(type,def){
+    if(!type||!def)return false;
+    CONTENT_REGISTRY.mobs.set(type,{...def});
+    return true;
+  }
+
+  const FOOD_STATS={
     [IT.PORKCHOP_RAW]:{nutrition:5,sat:2.6},
     [IT.PORKCHOP_COOKED]:{nutrition:10,sat:6.2},
     [IT.LAMB_RAW]:{nutrition:4,sat:2.2},
@@ -1763,7 +1786,7 @@ function getItemName(id){
     requestWorldSave(250);
   }
   function spawnMob(type,wx,wy,wz,variantOverride=null){
-    const def=MOB_DEF[type];if(!def)return null;
+    const def=resolveMobDef(type);if(!def)return null;
     const variant=variantOverride??(type==='sheep'?pickSheepVariant():0);
     const mesh=createMobModel(type,variant);
     const modelParts=mesh.userData.modelParts||[];
@@ -1797,17 +1820,30 @@ function getItemName(id){
       const mx=Math.floor(player.pos.x+Math.cos(angle)*radius);
       const mz=Math.floor(player.pos.z+Math.sin(angle)*radius);
       const y=getSurfaceY(mx,mz);
-      if(y>0&&worldGet(mx,y+1,mz)===B.AIR&&!isWaterBlock(worldGet(mx,y,mz))&&Math.hypot(mx-player.pos.x,mz-player.pos.z)>24){
+      const farEnough=Math.hypot(mx-player.pos.x,mz-player.pos.z)>24;
+      const crowded=mobs.some(m=>Math.hypot(m.position.x-(mx+0.5),m.position.z-(mz+0.5))<8);
+      if(y>0&&farEnough&&!crowded&&worldGet(mx,y+1,mz)===B.AIR&&!isWaterBlock(worldGet(mx,y,mz))){
         const lowLight=night||y<CFG.seaLevel-2;
         if(lowLight&&night&&Math.random()<0.52)spawnMob('zombie',mx,y+1,mz);
         else if(!night){
           const t=['pig','cow','chicken','sheep'][Math.floor(Math.random()*4)];
-          if(!mobs.some(m=>Math.hypot(m.position.x-(mx+0.5),m.position.z-(mz+0.5))<8))spawnMob(t,mx,y+1,mz);
+          spawnMob(t,mx,y+1,mz);
+        }
+      }
+      const caveFloor=Math.min(y-3,Math.max(6,Math.floor(player.pos.y+(Math.random()*28)-18)));
+      if(farEnough&&!crowded&&caveFloor>6){
+        for(let tries=0;tries<5;tries++){
+          const sy=Math.max(6,Math.min(caveFloor,Math.floor(player.pos.y+(Math.random()*34)-20)));
+          if(worldGet(mx,sy,mz)!==B.AIR||worldGet(mx,sy+1,mz)!==B.AIR||!isSolid(worldGet(mx,sy-1,mz)))continue;
+          if(isSkyVisible(mx,sy+1,mz))continue;
+          if(isWaterBlock(worldGet(mx,sy-1,mz))||isLavaBlock(worldGet(mx,sy-1,mz)))continue;
+          if(Math.random()<0.42){spawnMob('zombie',mx,sy,mz);break;}
         }
       }
     }
     for(let i=mobs.length-1;i>=0;i--){
-      const m=mobs[i],def=MOB_DEF[m.userData.type];
+      const m=mobs[i],def=resolveMobDef(m.userData.type);
+      if(!def){killMob(m,false);continue;}
       m.userData.hurtT=Math.max(0,(m.userData.hurtT||0)-dt);
       const mobParts=m.userData.modelParts||[];
       if(m.userData.hurtT>0){
@@ -1878,7 +1914,8 @@ function getItemName(id){
       m.rotation.y+=angleDelta(m.userData.targetYaw||m.rotation.y,m.rotation.y)*Math.min(1,dt*5);
       updateMobAnimation(m,dt);
       const feet=worldGet(Math.floor(m.position.x),Math.floor(m.position.y-0.6),Math.floor(m.position.z));
-      const clearSky=worldGet(Math.floor(m.position.x),Math.floor(m.position.y+2.2),Math.floor(m.position.z))===B.AIR;
+      const mobWX=Math.floor(m.position.x),mobWY=Math.max(1,Math.floor(m.position.y+1.2)),mobWZ=Math.floor(m.position.z);
+      const clearSky=isSkyVisible(mobWX,mobWY,mobWZ);
       const daylight=dayTime>=0.06&&dayTime<=0.47;
       if(m.userData.type==='zombie'&&daylight&&WEATHER.state!=='thunder'&&clearSky){
         m.userData.burnT=Math.max(1.6,m.userData.burnT||0);
@@ -2650,10 +2687,10 @@ function getItemName(id){
     }
     const fullFed=STATS.hunger>=STATS.maxHunger-0.25;
     if(fullFed&&STATS.saturation>0&&STATS.health<STATS.maxHealth){
-      const fastRegen=2.8+STATS.saturation*0.22;
+      const fastRegen=3.15+STATS.saturation*0.24;
       STATS.health=Math.min(STATS.maxHealth,STATS.health+fastRegen*dt);
-      STATS.saturation=Math.max(0,STATS.saturation-1.15*dt);
-      healFlashT=Math.min(1.2,healFlashT+dt*0.8);
+      STATS.saturation=Math.max(0,STATS.saturation-1.1*dt);
+      healFlashT=Math.min(1.2,healFlashT+dt*0.95);
     }
   }
 
@@ -2748,21 +2785,6 @@ function getItemName(id){
     }
     for(const [wx,wy,wz] of removals){
       if(worldGet(wx,wy,wz)===flowId){worldSet(wx,wy,wz,B.AIR);buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));}
-    }
-  }
-
-  function dropUnsupportedTorch(wx,wy,wz){
-    if(worldGet(wx,wy,wz)!==B.TORCH)return false;
-    if(isSolid(worldGet(wx,wy-1,wz)))return false;
-    worldSet(wx,wy,wz,B.AIR);
-    spawnDrops(wx,wy,wz,B.TORCH,0.35);
-    buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));
-    return true;
-  }
-  function updateUnsupportedTorches(){
-    const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
-    for(let dx=-10;dx<=10;dx++)for(let dz=-10;dz<=10;dz++)for(let dy=10;dy>=-8;dy--){
-      dropUnsupportedTorch(px+dx,py+dy,pz+dz);
     }
   }
 
@@ -3368,18 +3390,18 @@ function getItemName(id){
   function consumeFoodNow(slotIndex,foodId){
     const held=INV.hotbar[slotIndex];
     if(!held||held.id!==foodId)return false;
-    const f=FOOD_STATS[foodId];
+    const f=resolveFoodStats(foodId);
     if(!f)return false;
     const hungerMissing=Math.max(0,STATS.maxHunger-STATS.hunger);
     const almostFull=STATS.hunger>=STATS.maxHunger-2;
     const canHealWithFood=!f.bad&&(almostFull||hungerMissing<=f.nutrition*0.35)&&STATS.health<STATS.maxHealth;
     if(hungerMissing<=0&&STATS.health>=STATS.maxHealth&&!f.bad&&STATS.shield>=STATS.maxShield)return false;
-    if(hungerMissing>0)STATS.hunger=Math.min(STATS.maxHunger,STATS.hunger+Math.min(hungerMissing,f.nutrition*0.5));
+    if(hungerMissing>0)STATS.hunger=Math.min(STATS.maxHunger,STATS.hunger+Math.min(hungerMissing,Math.max(1,f.nutrition*0.72)));
     if(!f.bad)STATS.saturation=Math.min(STATS.maxSaturation,STATS.saturation+f.sat);
     if(canHealWithFood){
-      const healAmt=Math.max(0.35,f.sat*0.4+(f.nutrition*0.08));
+      const healAmt=Math.max(0.65,f.sat*0.52+(f.nutrition*0.16));
       STATS.health=Math.min(STATS.maxHealth,STATS.health+healAmt);
-      healFlashT=Math.min(1.2,healFlashT+0.2+healAmt*0.03);
+      healFlashT=Math.min(1.2,healFlashT+0.28+healAmt*0.04);
     }
     if(!f.bad&&almostFull){
       STATS.shield=Math.min(STATS.maxShield,STATS.shield+Math.max(0.2,f.sat*0.08));
@@ -3394,7 +3416,7 @@ function getItemName(id){
   }
   function startEatingHeldFood(){
     const held=INV.hotbar[INV.active];
-    if(!held||!FOOD_STATS[held.id])return false;
+    if(!held||!resolveFoodStats(held.id))return false;
     if(eatAction.active&&eatAction.slot===INV.active&&eatAction.itemId===held.id)return true;
     eatAction={active:true,slot:INV.active,itemId:held.id,time:0,total:getFoodEatDuration(held.id)};
     return true;
@@ -3543,7 +3565,7 @@ function getItemName(id){
       setChestMeta(key,{
         placedSneak,
         noPair:placedSneak||forceSingle,
-        nbt:{placedBy:'player',placedSneak,ver:'0.0.89a_patch7'},
+        nbt:{placedBy:'player',placedSneak,ver:'0.0.90a'},
       });
       if(placedSneak||forceSingle){
         const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
@@ -3612,7 +3634,7 @@ function getItemName(id){
      {w:1,h:1,pat:[B.STONE],out:{id:B.COBBLESTONE,count:1}},
      {w:1,h:2,pat:[B.PLANKS,B.PLANKS],out:{id:IT.STICK,count:4}},
      {w:1,h:2,pat:[IT.COAL,IT.STICK],out:{id:B.TORCH,count:6}},
-     {w:3,h:2,pat:[WOOL_BASE_ID,WOOL_BASE_ID,WOOL_BASE_ID,IT.STICK,IT.STICK,IT.STICK],out:{id:IT.BED,count:1}},
+     {w:3,h:2,pat:['tag:wool','tag:wool','tag:wool',IT.STICK,IT.STICK,IT.STICK],out:{id:IT.BED,count:1}},
      {w:2,h:1,pat:[IT.FLINT,IT.IRON_INGOT],out:{id:IT.FLINT_STEEL,count:1}},
      {w:1,h:2,pat:[IT.IRON_INGOT,0],out:{id:IT.BUCKET,count:1}},
      {w:3,h:1,pat:[IT.STICK,IT.STICK,IT.STICK],out:{id:IT.ARROW,count:6}},
@@ -3671,12 +3693,33 @@ function getItemName(id){
      return {w,h,pat};
    }
 
+   function recipeCellMatches(expected,actual){
+     if(Array.isArray(expected))return expected.includes(actual);
+     if(typeof expected==='string'&&expected.startsWith('tag:')){
+       const tag=ITEM_TAGS[expected.slice(4)];
+       return !!tag&&tag.has(actual);
+     }
+     if(typeof expected==='function')return !!expected(actual);
+     return expected===actual;
+   }
+
+   function recipePatternMatches(expectedPat,actualPat,allowMirror=true){
+     if(expectedPat.length!==actualPat.length)return false;
+     if(expectedPat.every((v,i)=>recipeCellMatches(v,actualPat[i])))return true;
+     if(!allowMirror)return false;
+     const w=Math.sqrt(actualPat.length)|0;
+     if(w*w!==actualPat.length)return false;
+     const mirrored=[];
+     for(let y=0;y<w;y++)for(let x=0;x<w;x++)mirrored.push(actualPat[y*w+(w-1-x)]);
+     return expectedPat.every((v,i)=>recipeCellMatches(v,mirrored[i]));
+   }
+
    function matchRecipe(grid,size){
      const norm=normalizeCraftGrid(grid,size);
      if(!norm)return null;
-     for(const rec of RECIPES){
+     for(const rec of contentRegistryRecipes()){
        if(rec.w!==norm.w||rec.h!==norm.h)continue;
-       if(rec.pat.every((v,i)=>v===norm.pat[i]))return rec.out;
+       if(recipePatternMatches(rec.pat,norm.pat,rec.mirror!==false))return rec.out;
      }
      return null;
    }
@@ -4406,7 +4449,7 @@ function getItemName(id){
     closeWorldScreens();
     if(document.pointerLockElement)document.exitPointerLock();
   }
-  document.getElementById('pause-resume').addEventListener('click',()=>{isPaused=false;document.getElementById('pause-menu').style.display='none';resetGameplayInputs(false);applyHudVisibility();});
+  document.getElementById('pause-resume').addEventListener('click',()=>{isPaused=false;document.getElementById('pause-menu').style.display='none';resetGameplayInputs(false);applyHudVisibility();if(canCapturePointer())canvas.requestPointerLock();});
   document.getElementById('pause-settings').addEventListener('click',openSettings);
   document.getElementById('pause-saveMenu').addEventListener('click',returnToMainMenu);
   document.getElementById('settings-back').addEventListener('click',closeSettingsMenu);
@@ -4598,7 +4641,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.89a_patch7',
+        version:'0.0.90a',
         seed:CURRENT_SEED,worldId:CURRENT_WORLD_ID,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor,saturation:STATS.saturation},
@@ -5434,7 +5477,7 @@ function getItemName(id){
   let pendingDeleteWorldId=null;
   function selectedWorld(){return worlds.find(w=>w.id===selectedWorldId)||null;}
   function formatWorldDescription(w){
-    return `Seed: ${w.seed} | Created on ${formatDateStamp(w.createdAt)} | Last played ${formatDateStamp(w.lastPlayedAt||w.createdAt)} | Version: ${w.version||'0.0.89a_patch7'}`;
+    return `Seed: ${w.seed} | Created on ${formatDateStamp(w.createdAt)} | Last played ${formatDateStamp(w.lastPlayedAt||w.createdAt)} | Version: ${w.version||'0.0.90a'}`;
   }
   function setWorldActionState(btnId,enabled){
     const el=document.getElementById(btnId);
@@ -5553,9 +5596,9 @@ function getItemName(id){
     const developerChest=!!document.getElementById('developer-chest-toggle').checked;
     if(editingWorldId){
       const w=worlds.find(v=>v.id===editingWorldId);
-      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;w.developerChest=developerChest;w.lastPlayedAt=w.lastPlayedAt||Date.now();w.version='0.0.89a_patch7';}
+      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;w.developerChest=developerChest;w.lastPlayedAt=w.lastPlayedAt||Date.now();w.version='0.0.90a';}
     }else{
-      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,developerChest,createdAt:Date.now(),lastPlayedAt:Date.now(),version:'0.0.89a_patch7'};
+      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,developerChest,createdAt:Date.now(),lastPlayedAt:Date.now(),version:'0.0.90a'};
       worlds.unshift(w);selectedWorldId=w.id;
     }
     saveWorldDefs(worlds);
@@ -5614,6 +5657,13 @@ function getItemName(id){
   document.getElementById('btn-quit').addEventListener('click',()=>{document.getElementById('quit-confirm').style.display='flex';});
   document.getElementById('quit-confirm-no').addEventListener('click',()=>{document.getElementById('quit-confirm').style.display='none';});
   document.getElementById('quit-confirm-yes').addEventListener('click',()=>window.close());
+  window.CubenixContent=Object.freeze({
+    registerRecipe,
+    registerFood,
+    registerMobType,
+    itemTags:ITEM_TAGS,
+  });
+
   window.addEventListener('beforeunload',()=>saveGameLocal());
    
    // ═══════════════════════════════════════════════════════════
