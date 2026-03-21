@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.89_patch3
+   CUBENIX — script.js — v0.0.89a_patch5
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -1354,7 +1354,7 @@ function getItemName(id){
    // ═══════════════════════════════════════════════════════════
    // 7.  SKY + CLOUDS
    // ═══════════════════════════════════════════════════════════
-   const skyMat=new THREE.MeshBasicMaterial({color:0x87ceeb,side:THREE.BackSide});
+   const skyMat=new THREE.MeshBasicMaterial({color:0x87ceeb,side:THREE.BackSide,depthWrite:false});
    scene.add(new THREE.Mesh(new THREE.SphereGeometry(480,8,8),skyMat));
    const starPositions=[];
    for(let i=0;i<320;i++){
@@ -1392,9 +1392,11 @@ function getItemName(id){
    },64);
    let moonPhase=1;
    TEX.moonDisc=makeMoonPhaseTex(moonPhase);
-   const sunMesh=new THREE.Mesh(new THREE.PlaneGeometry(22,22),new THREE.MeshBasicMaterial({map:TEX.sunDisc,transparent:true,depthWrite:false,depthTest:false,side:THREE.DoubleSide}));
-   const moonMesh=new THREE.Mesh(new THREE.PlaneGeometry(18,18),new THREE.MeshBasicMaterial({map:TEX.moonDisc,transparent:true,depthWrite:false,depthTest:false,side:THREE.DoubleSide}));
-   sunMesh.frustumCulled=false;moonMesh.frustumCulled=false;sunMesh.renderOrder=999;moonMesh.renderOrder=999;
+   const sunMat=new THREE.MeshBasicMaterial({map:TEX.sunDisc,color:0xffe27a,transparent:true,depthWrite:false,depthTest:true,side:THREE.DoubleSide,toneMapped:false});
+   const moonMat=new THREE.MeshBasicMaterial({map:TEX.moonDisc,color:0xdfe8ff,transparent:true,depthWrite:false,depthTest:true,side:THREE.DoubleSide,toneMapped:false});
+   const sunMesh=new THREE.Mesh(new THREE.PlaneGeometry(22,22),sunMat);
+   const moonMesh=new THREE.Mesh(new THREE.PlaneGeometry(18,18),moonMat);
+   sunMesh.frustumCulled=false;moonMesh.frustumCulled=false;sunMesh.renderOrder=2;moonMesh.renderOrder=2;
    scene.add(sunMesh);scene.add(moonMesh);
    const cloudMat=new THREE.MeshLambertMaterial({color:0xffffff,transparent:true,opacity:0.88});
    const clouds=[];
@@ -1893,20 +1895,31 @@ function getItemName(id){
       }
     }catch{}
   }
+  function forcePauseGameplayState(){
+    stopBreaking();
+    bowChargeActive=false;
+    bowChargeTime=0;
+    eating.active=false;
+    eatAction.active=false;
+    POINTER_STATE.primary=false;
+    POINTER_STATE.secondary=false;
+    clearMovementKeys();
+  }
+  function canCapturePointer(){
+    return document.getElementById('game-ui').style.display==='block'&&!isPaused&&!isInvOpen&&!isChatOpen&&!sleeping.active&&document.getElementById('settings-menu').style.display!=='flex';
+  }
   function autoPauseGame(reason='hidden'){
     if(document.getElementById('game-ui').style.display!=='block')return;
     isPaused=true;
     document.getElementById('pause-menu').style.display='flex';
     document.getElementById('settings-menu').style.display='none';
-    stopBreaking();
-    bowChargeActive=false;
-    eating.active=false;
+    forcePauseGameplayState();
     if(document.pointerLockElement)document.exitPointerLock();
     if(reason==='hidden')notifyAutoPause();
   }
    
    // Pointer lock
-   canvas.addEventListener('click',()=>{if(!document.pointerLockElement)canvas.requestPointerLock();});
+   canvas.addEventListener('click',()=>{if(!document.pointerLockElement&&canCapturePointer())canvas.requestPointerLock();});
   document.addEventListener('pointerlockchange',()=>{
      const locked=!!document.pointerLockElement;
      if(!locked)bowChargeActive=false;
@@ -3241,7 +3254,7 @@ function getItemName(id){
     if(e.button===0)stopBreaking();
     if(e.button===2&&bowChargeActive)releaseBowShot();
    });
-   window.addEventListener('blur',()=>{POINTER_STATE.primary=false;POINTER_STATE.secondary=false;stopBreaking();});
+   window.addEventListener('blur',()=>{POINTER_STATE.primary=false;POINTER_STATE.secondary=false;forcePauseGameplayState();if(document.getElementById('game-ui').style.display==='block'&&!isInvOpen&&!isChatOpen)autoPauseGame('hidden');});
    
  
   function finishBreaking(){
@@ -3474,7 +3487,7 @@ function getItemName(id){
       setChestMeta(key,{
         placedSneak,
         noPair:placedSneak||forceSingle,
-        nbt:{placedBy:'player',placedSneak,ver:'0.0.89_patch3'},
+        nbt:{placedBy:'player',placedSneak,ver:'0.0.89a_patch5'},
       });
       if(placedSneak||forceSingle){
         const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
@@ -4125,7 +4138,6 @@ function getItemName(id){
     INV.uiMode='inventory';
     openContainerKey=null;openContainerStorageKey=null;openContainerSlots=null;
     setCraftingSize(2,false);
-    if(document.getElementById('game-ui').style.display==='block')canvas.requestPointerLock();
   }
 
   function toggleInventory(){
@@ -4313,7 +4325,6 @@ function getItemName(id){
      }
      isPaused=false;
      document.getElementById('pause-menu').style.display='none';
-     canvas.requestPointerLock();
   }
   function returnToMainMenu(){
     saveGameLocal();
@@ -4328,7 +4339,7 @@ function getItemName(id){
     closeWorldScreens();
     if(document.pointerLockElement)document.exitPointerLock();
   }
-  document.getElementById('pause-resume').addEventListener('click',()=>{isPaused=false;document.getElementById('pause-menu').style.display='none';canvas.requestPointerLock();});
+  document.getElementById('pause-resume').addEventListener('click',()=>{isPaused=false;document.getElementById('pause-menu').style.display='none';});
   document.getElementById('pause-settings').addEventListener('click',openSettings);
   document.getElementById('pause-saveMenu').addEventListener('click',returnToMainMenu);
   document.getElementById('settings-back').addEventListener('click',closeSettingsMenu);
@@ -4520,7 +4531,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.89_patch3',
+        version:'0.0.89a_patch5',
         seed:CURRENT_SEED,worldId:CURRENT_WORLD_ID,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor,saturation:STATS.saturation},
@@ -4851,6 +4862,10 @@ function getItemName(id){
      moon.intensity=si<0.1?0.18*Math.max(0.45,1-weatherFx.stormStrength*Math.max(0,WEATHER.blend||0)):0;
      sun.color.setHex(0xffde45);
      moon.color.setHex(0xf5f7ff);
+     sunMat.color.setHex(0xffdd66);
+     moonMat.color.setHex(0xdfe8ff);
+     sunMat.opacity=Math.max(0.18,Math.min(1,0.4+weatherFx.sun*0.7));
+     moonMat.opacity=Math.max(0.18,Math.min(1,0.22+moon.intensity*3.2));
      starsMesh.material.opacity=Math.max(0,Math.min(1,(0.16-si)*6))*(1-Math.max(0,WEATHER.blend||0)*0.9);
      starsMesh.visible=starsMesh.material.opacity>0.02;
      updateDynamicCanvasFilter(weatherFx.saturation,si);
@@ -5352,7 +5367,7 @@ function getItemName(id){
   let pendingDeleteWorldId=null;
   function selectedWorld(){return worlds.find(w=>w.id===selectedWorldId)||null;}
   function formatWorldDescription(w){
-    return `Seed: ${w.seed} | Created on ${formatDateStamp(w.createdAt)} | Last played ${formatDateStamp(w.lastPlayedAt||w.createdAt)} | Version: ${w.version||'0.0.89_patch3'}`;
+    return `Seed: ${w.seed} | Created on ${formatDateStamp(w.createdAt)} | Last played ${formatDateStamp(w.lastPlayedAt||w.createdAt)} | Version: ${w.version||'0.0.89a_patch5'}`;
   }
   function setWorldActionState(btnId,enabled){
     const el=document.getElementById(btnId);
@@ -5465,9 +5480,9 @@ function getItemName(id){
     const developerChest=!!document.getElementById('developer-chest-toggle').checked;
     if(editingWorldId){
       const w=worlds.find(v=>v.id===editingWorldId);
-      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;w.developerChest=developerChest;w.lastPlayedAt=w.lastPlayedAt||Date.now();w.version='0.0.89_patch3';}
+      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;w.developerChest=developerChest;w.lastPlayedAt=w.lastPlayedAt||Date.now();w.version='0.0.89a_patch5';}
     }else{
-      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,developerChest,createdAt:Date.now(),lastPlayedAt:Date.now(),version:'0.0.89_patch3'};
+      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,developerChest,createdAt:Date.now(),lastPlayedAt:Date.now(),version:'0.0.89a_patch5'};
       worlds.unshift(w);selectedWorldId=w.id;
     }
     saveWorldDefs(worlds);
