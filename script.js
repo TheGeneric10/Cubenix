@@ -2766,6 +2766,21 @@ function getItemName(id){
     }
   }
 
+  function dropUnsupportedTorch(wx,wy,wz){
+    if(worldGet(wx,wy,wz)!==B.TORCH)return false;
+    if(isSolid(worldGet(wx,wy-1,wz)))return false;
+    worldSet(wx,wy,wz,B.AIR);
+    spawnDrops(wx,wy,wz,B.TORCH,0.35);
+    buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));
+    return true;
+  }
+  function updateUnsupportedTorches(){
+    const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
+    for(let dx=-10;dx<=10;dx++)for(let dz=-10;dz<=10;dz++)for(let dy=10;dy>=-8;dy--){
+      dropUnsupportedTorch(px+dx,py+dy,pz+dz);
+    }
+  }
+
   function updateFireBlocks(){
     const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
     for(let dx=-12;dx<=12;dx++)for(let dz=-12;dz<=12;dz++)for(let dy=8;dy>=-8;dy--){
@@ -5091,6 +5106,7 @@ function getItemName(id){
   function loop(){
      requestAnimationFrame(loop);
     const now=performance.now();const dt=Math.min((now-lastNow)*0.001,0.05);lastNow=now;
+    updateSurvivalStats(dt);
     if(!isPaused){
       updateSurvivalStats(dt);
       updateControllerInput();
@@ -5116,6 +5132,8 @@ function getItemName(id){
       updateFallingEntities(dt);
        updateLeavesDecay(dt);
      processChunkQueue(worldLoadLock?2:1,worldLoadLock?7:3);
+     }else{
+      updateMobs(dt);updateDayNight(dt);updateWeather(dt);updateAnimTex(dt);updateDrops(dt);updateProjectiles(dt);updateChestShineFx(dt);updateParticles(dt);
      }
     const targetFov=bowChargeActive?(CFG.fov-(Math.min(1,bowChargeTime/1.2)*8)):CFG.fov;
     if(Math.abs(camera.fov-targetFov)>0.01){camera.fov=targetFov;camera.updateProjectionMatrix();}
