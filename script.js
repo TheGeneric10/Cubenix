@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — script.js — v0.0.89a
+   CUBENIX — script.js — v0.0.89_patch3
    + Survival mode: gravity, jump, collision, no fly
    + Improved caves: tunnels, ravines, surface openings
    + Island / river / lake / lava pool world gen
@@ -224,7 +224,7 @@ function getItemName(id){
    function isDurableItemId(id){return !!(TOOL_STATS[id]||DURABILITY_MAX[id]);}
    function getMaxStackForId(id){
     if(id===IT.BUCKET)return 9;
-    if(id===IT.WATER_BUCKET||id===IT.LAVA_BUCKET)return 1;
+    if(id===IT.WATER_BUCKET||id===IT.LAVA_BUCKET||id===IT.BED)return 1;
     return isDurableItemId(id)||id===IT.BOAT?1:99;
    }
    function getMaxDurabilityForItem(id){return DURABILITY_MAX[id]||1;}
@@ -1653,7 +1653,10 @@ function getItemName(id){
     }else{
       parts.push(makeMobPart(0.72,1.1,0.42,0xffffff,0,0.95,0,root,TEX.zombieShirt));
       parts.push(makeMobPart(0.58,0.58,0.58,0xffffff,0,1.78,0,root,TEX.zombieSkin));
-      [[-0.18,0.35,-0.1],[0.18,0.35,-0.1],[-0.18,0.35,0.1],[0.18,0.35,0.1]].forEach(([x,y,z],idx)=>parts.push(makeMobPart(0.16,0.7,0.16,0xffffff,x,y,z,root,idx<2?TEX.zombiePants:TEX.zombieShirt)));
+      parts.push(makeMobPart(0.18,0.78,0.18,0xffffff,-0.18,0.39,0,root,TEX.zombiePants));
+      parts.push(makeMobPart(0.18,0.78,0.18,0xffffff,0.18,0.39,0,root,TEX.zombiePants));
+      parts.push(makeMobPart(0.16,0.86,0.16,0xffffff,-0.46,1.0,0,root,TEX.zombieShirt));
+      parts.push(makeMobPart(0.16,0.86,0.16,0xffffff,0.46,1.0,0,root,TEX.zombieShirt));
     }
     root.userData.modelParts=parts;
     return root;
@@ -1845,6 +1848,13 @@ function getItemName(id){
       m.rotation.y+=angleDelta(m.userData.targetYaw||m.rotation.y,m.rotation.y)*Math.min(1,dt*5);
       updateMobAnimation(m,dt);
       const feet=worldGet(Math.floor(m.position.x),Math.floor(m.position.y-0.6),Math.floor(m.position.z));
+      const clearSky=worldGet(Math.floor(m.position.x),Math.floor(m.position.y+2.2),Math.floor(m.position.z))===B.AIR;
+      const daylight=dayTime>=0.06&&dayTime<=0.47;
+      if(m.userData.type==='zombie'&&daylight&&WEATHER.state!=='thunder'&&clearSky){
+        m.userData.burnT=Math.max(1.6,m.userData.burnT||0);
+        m.userData.hp-=dt*5.5;
+        if(Math.random()<0.2)spawnColorParticles(m.position.x,m.position.y+1.1,m.position.z,0xffa54b,2,0.18);
+      }
       if(feet===B.FIRE||feet===B.LAVA){m.userData.burnT=2.5;m.userData.hp-=dt*(feet===B.LAVA?12:6);}
       else m.userData.burnT=Math.max(0,(m.userData.burnT||0)-dt);
       if(def.hostile&&m.position.distanceTo(player.pos)<1.4)applyDamage(6*dt,false);
@@ -2005,6 +2015,7 @@ function getItemName(id){
     });
   }
   let chatHideTimer=null;
+  let systemToastTimer=null;
   function renderChatLog(){
     const log=document.getElementById('chat-log');
     log.innerHTML='';
@@ -2023,6 +2034,17 @@ function getItemName(id){
     while(CHAT.messages.length>CHAT.maxLines)CHAT.messages.shift();
     renderChatLog();
   }
+
+  function showSystemToast(msg,ms=3200){
+    const el=document.getElementById('system-toast');
+    if(!el)return;
+    el.textContent=String(msg||'').trim();
+    if(!el.textContent)return;
+    el.style.display='block';
+    if(systemToastTimer)clearTimeout(systemToastTimer);
+    systemToastTimer=setTimeout(()=>{el.style.display='none';systemToastTimer=null;},ms);
+  }
+
   function showChatTransient(ms=5000){
     const panel=document.getElementById('chat-panel');
     const feed=document.getElementById('chat-feed');
@@ -2047,8 +2069,7 @@ function getItemName(id){
     input.value='';
     showChatTransient(5000);
     if(document.getElementById('game-ui').style.display==='block'&&!isPaused&&!isInvOpen&&document.getElementById('settings-menu').style.display!=='flex'){
-      canvas.requestPointerLock();
-    }
+      }
   }
   function closeChat(){
     isChatOpen=false;
@@ -2060,8 +2081,7 @@ function getItemName(id){
     input.value='';
     input.blur();
     if(document.getElementById('game-ui').style.display==='block'&&!isPaused&&!isInvOpen&&document.getElementById('settings-menu').style.display!=='flex'){
-      canvas.requestPointerLock();
-    }
+      }
   }
   function openChat(){
     if(isPaused||isInvOpen||document.getElementById('settings-menu').style.display==='flex')return;
@@ -2074,6 +2094,9 @@ function getItemName(id){
   }
 
   window.addEventListener('keydown',e=>{
+    const ae=document.activeElement;
+    const editing=!!ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable);
+    if(editing&&e.ctrlKey&&e.code==='KeyA')return;
     if(keybindCaptureAction&&document.getElementById('settings-menu').style.display==='flex'){
       e.preventDefault();
       if(e.code!=='Escape')KEYBINDS[keybindCaptureAction]=e.code;
@@ -2100,6 +2123,7 @@ function getItemName(id){
     if(isChatOpen){
       return;
     }
+    if(editing)return;
     const canonical=canonicalForEvent(e.code);
     if(canonical){
       PHYS_KEYS[canonical]=true;
@@ -3419,7 +3443,7 @@ function getItemName(id){
       setChestMeta(key,{
         placedSneak,
         noPair:placedSneak||forceSingle,
-        nbt:{placedBy:'player',placedSneak,ver:'0.0.89a'},
+        nbt:{placedBy:'player',placedSneak,ver:'0.0.89_patch3'},
       });
       if(placedSneak||forceSingle){
         const near=chestNeighbors(px,py,pz,held.id).find(k=>{const pos=parseWorldPosKey(k);return pos&&worldGet(pos.wx,pos.wy,pos.wz)===held.id;});
@@ -4112,11 +4136,12 @@ function getItemName(id){
     return true;
   }
   function beginSleepAtBed(wx,wy,wz){
+    const canSleep=(dayTime>=0.53&&dayTime<=0.95)||WEATHER.state==='thunder';
+    if(!canSleep){showSystemToast('You can only sleep during nighttime or during thunderstorms.');return false;}
     const footKey=getBedFootKeyFromAny(wx,wy,wz);
     const foot=parseWorldPosKey(footKey); if(!foot)return false;
     const meta=bedMetaGet(footKey)||{};
     sleeping={active:true,timer:0,duration:1.35,wx:foot.wx,wy:foot.wy,wz:foot.wz,dir:meta.dir||0,otherKey:meta.otherKey||null};
-    if(document.pointerLockElement)document.exitPointerLock();
     isPaused=false;
     return true;
   }
@@ -4129,7 +4154,6 @@ function getItemName(id){
     sleeping.active=false;
     player.pitch=0;
     requestWorldSave(180);
-    canvas.requestPointerLock();
   }
   function updateSleepAnimation(dt){
     if(!sleeping.active)return;
@@ -4462,7 +4486,7 @@ function getItemName(id){
      if(!CFG.autosave)return;
      try{
        const data={
-        version:'0.0.89a',
+        version:'0.0.89_patch3',
         seed:CURRENT_SEED,worldId:CURRENT_WORLD_ID,
          player:{x:player.pos.x,y:player.pos.y,z:player.pos.z,yaw:player.yaw,pitch:player.pitch},
          stats:{health:STATS.health,shield:STATS.shield,hunger:STATS.hunger,energy:STATS.energy,armor:STATS.armor,saturation:STATS.saturation},
@@ -4769,11 +4793,13 @@ function getItemName(id){
     const prev=dayTime;
     dayTime=(dayTime+dt/DAY)%1;
     if(dayTime<prev){dayCount++;moonPhase=(dayCount%8)+1;TEX.moonDisc=makeMoonPhaseTex(moonPhase);moonMesh.material.map=TEX.moonDisc;moonMesh.material.needsUpdate=true;}
-    const ang=dayTime*Math.PI*2,R=200;
-    sun.position.set(Math.cos(ang)*R,Math.sin(ang)*R,0);
-    moon.position.set(-Math.cos(ang)*R,-Math.sin(ang)*R,0);
-    sunMesh.position.copy(sun.position).multiplyScalar(0.95);
-    moonMesh.position.copy(moon.position).multiplyScalar(0.95);
+    const ang=(dayTime*2-0.5)*Math.PI,R=200;
+    const orbitSun=new THREE.Vector3(Math.cos(ang)*R,Math.sin(ang)*R,0);
+    const orbitMoon=new THREE.Vector3(-Math.cos(ang)*R,-Math.sin(ang)*R,0);
+    sun.position.copy(camera.position).add(orbitSun);
+    moon.position.copy(camera.position).add(orbitMoon);
+    sunMesh.position.copy(camera.position).add(orbitSun.clone().multiplyScalar(0.95));
+    moonMesh.position.copy(camera.position).add(orbitMoon.clone().multiplyScalar(0.95));
     sunMesh.lookAt(camera.position);
     moonMesh.lookAt(camera.position);
      const t=dayTime;let skyC,amb,si;
@@ -5290,7 +5316,7 @@ function getItemName(id){
   let pendingDeleteWorldId=null;
   function selectedWorld(){return worlds.find(w=>w.id===selectedWorldId)||null;}
   function formatWorldDescription(w){
-    return `Seed: ${w.seed} | Created on ${formatDateStamp(w.createdAt)} | Last played ${formatDateStamp(w.lastPlayedAt||w.createdAt)} | Version: ${w.version||'0.0.89a'}`;
+    return `Seed: ${w.seed} | Created on ${formatDateStamp(w.createdAt)} | Last played ${formatDateStamp(w.lastPlayedAt||w.createdAt)} | Version: ${w.version||'0.0.89_patch3'}`;
   }
   function setWorldActionState(btnId,enabled){
     const el=document.getElementById(btnId);
@@ -5403,9 +5429,9 @@ function getItemName(id){
     const developerChest=!!document.getElementById('developer-chest-toggle').checked;
     if(editingWorldId){
       const w=worlds.find(v=>v.id===editingWorldId);
-      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;w.developerChest=developerChest;w.lastPlayedAt=w.lastPlayedAt||Date.now();w.version='0.0.89a';}
+      if(w){w.name=name;w.seed=Number.isFinite(seed)?seed:randomSeed();w.starterChest=starterChest;w.developerChest=developerChest;w.lastPlayedAt=w.lastPlayedAt||Date.now();w.version='0.0.89_patch3';}
     }else{
-      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,developerChest,createdAt:Date.now(),lastPlayedAt:Date.now(),version:'0.0.89a'};
+      const w={id:`w_${Date.now()}_${Math.floor(Math.random()*9999)}`,name,seed:Number.isFinite(seed)?seed:randomSeed(),starterChest,developerChest,createdAt:Date.now(),lastPlayedAt:Date.now(),version:'0.0.89_patch3'};
       worlds.unshift(w);selectedWorldId=w.id;
     }
     saveWorldDefs(worlds);
