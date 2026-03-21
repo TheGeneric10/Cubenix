@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — styles.css — v0.0.86a
+   CUBENIX — styles.css — v0.0.88a
    ============================================================ */
    @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&display=swap');
 
@@ -11,7 +11,7 @@
      font-family: 'Titillium Web', monospace;
      image-rendering: pixelated;
    }
-   :root { --gui-scale: 1; --meter-offset: 188px; --meter-bottom: 48px; }
+   :root { --gui-scale: 1; --meter-offset: 254px; --meter-bottom: 64px; }
    img, a, canvas, div { -webkit-user-drag: none; user-drag: none; -webkit-tap-highlight-color: transparent; }
    
    /* Sharp pixel-style scrollbars */
@@ -25,7 +25,7 @@
    /* ══ MAIN MENU ══ */
    #main-menu { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; }
    #menu-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-   #menu-overlay { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; }
+   #menu-overlay { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; padding: 22px 28px; background: linear-gradient(180deg, rgba(7,14,18,0.18), rgba(7,14,18,0.42)); backdrop-filter: blur(1px); }
    #menu-logo { text-align: center; margin-bottom: 30px; }
    .logo-line1 {
      font-size: clamp(3rem, 7vw, 5rem); font-weight: 700; color: #fff; letter-spacing: 0.1em;
@@ -128,7 +128,7 @@
    .dg-count { position: absolute; bottom: 0; right: 1px; font-size: 0.58rem; color: #fff; text-shadow: 1px 1px 0 #000; font-weight: 600; }
    
    /* ══ HAND OVERLAY ══ */
-   #hand-overlay { position: fixed; bottom: 0; right: 0; width: 160px; height: 220px; pointer-events: none; z-index: 12; }
+   #hand-overlay { position: fixed; bottom: 0; right: 0; width: 188px; height: 248px; pointer-events: none; z-index: 12; }
    #hand-canvas  { width: 100%; height: 100%; image-rendering: pixelated; }
    
    /* ══ HOTBAR ══ */
@@ -176,11 +176,11 @@
    /* ══ STATUS BARS ══ */
 #status-left, #status-right {
   position: fixed; bottom: var(--meter-bottom); z-index: 15; pointer-events: none;
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: 10px;
 }
 #status-left  { left: calc(50% - var(--meter-offset)); align-items: flex-start; }
 #status-right { right: calc(50% - var(--meter-offset)); align-items: flex-end; }
-.stat-row { display: flex; align-items: center; gap: 6px; }
+.stat-row { display: flex; align-items: center; gap: 8px; }
 .stat-icon{
   width:18px; height:18px; display:flex; align-items:center; justify-content:center;
   border:2px solid #4d4d4d; background:#151515; color:#fff; font-size:0.72rem; line-height:1;
@@ -194,8 +194,8 @@
 .stat-icon-air{color:#89d7ff;}
 .bar-bg {
   position: relative;
-  width: 162px;
-  height: 14px;
+  width: 174px;
+  height: 15px;
   background: #171717;
   border: 2px solid #474747;
   overflow: hidden;
@@ -336,3 +336,9 @@
 .touch-btn.active { background:rgba(90,140,90,0.78); border-color:rgba(180,255,180,0.65); }
 #touch-sprint { position:relative; overflow:hidden; }
 #touch-sprint-cooldown { position:absolute; left:0; right:0; bottom:0; height:0%; background:rgba(220,60,60,0.5); pointer-events:none; transition:height 0.12s; }
+
+.setting-locked{opacity:0.72;}
+.setting-locked label::after{content:' • ULTRA';color:#9db0ff;}
+#settings-body::-webkit-scrollbar{width:12px;}
+#settings-body::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#8e8e8e,#525252);border:1px solid #1a1a1a;box-shadow:inset 1px 1px 0 rgba(255,255,255,0.18), inset -1px -1px 0 rgba(0,0,0,0.35);}
+#settings-body::-webkit-scrollbar-track{background:#101010;border-left:1px solid #2d2d2d;}
