@@ -22,7 +22,7 @@
         <button class="menu-btn disabled">Multiplayer <span class="soon">Soon</span></button>
         <button class="menu-btn" id="btn-quit">Quit Game</button>
       </div>
-      <div id="menu-version">Cubenix v0.0.85a</div>
+      <div id="menu-version">Cubenix v0.0.86a</div>
     </div>
   </div>
   <div id="quit-confirm" style="display:none">
@@ -92,10 +92,11 @@
   <!-- ══ GAME UI ══ -->
   <div id="game-ui" style="display:none">
     <div id="sky-overlay"></div>
+    <div id="status-vignette"></div>
 
     <!-- Debug HUD top-left -->
     <div id="hud">
-      <div id="hud-title">Cubenix &mdash; Version: 0.0.85a</div>
+      <div id="hud-title">Cubenix &mdash; Version: 0.0.86a</div>
       <div id="hud-debug"></div>
     </div>
 
@@ -155,22 +156,25 @@
     <!-- ── STATUS left (armor / shield / health) ── -->
     <div id="status-left">
       <div class="stat-row" id="armor-bar-wrap">
+        <span class="stat-icon stat-icon-armor" aria-hidden="true">⛨</span>
         <div class="bar-bg">
-          <span class="bar-label">AR</span>
+          <span class="bar-label">ARMOR</span>
           <div id="armor-bar" class="bar bar-armor"></div>
           <span class="bar-pct" id="armor-pct">0%</span>
         </div>
       </div>
       <div class="stat-row" id="shield-bar-wrap">
+        <span class="stat-icon stat-icon-shield" aria-hidden="true">✦</span>
         <div class="bar-bg">
-          <span class="bar-label">SH</span>
+          <span class="bar-label">SHIELD</span>
           <div id="shield-bar" class="bar bar-shield"></div>
           <span class="bar-pct" id="shield-pct">100%</span>
         </div>
       </div>
       <div class="stat-row" id="health-bar-wrap">
+        <span class="stat-icon stat-icon-health" aria-hidden="true">♥</span>
         <div class="bar-bg">
-          <span class="bar-label">HP</span>
+          <span class="bar-label">HEALTH</span>
           <div id="health-bar" class="bar bar-health"></div>
           <span class="bar-pct" id="health-pct">100%</span>
         </div>
@@ -180,6 +184,7 @@
     <!-- ── STATUS right (energy / hunger) ── -->
     <div id="status-right">
       <div class="stat-row" id="air-bar-wrap" style="display:none">
+        <span class="stat-icon stat-icon-air" aria-hidden="true">◌</span>
         <div class="bar-bg">
           <span class="bar-label">AIR</span>
           <div id="air-bar" class="bar bar-air"></div>
@@ -187,15 +192,17 @@
         </div>
       </div>
       <div class="stat-row" id="energy-bar-wrap">
+        <span class="stat-icon stat-icon-energy" aria-hidden="true">⚡</span>
         <div class="bar-bg">
-          <span class="bar-label">EN</span>
+          <span class="bar-label">ENERGY</span>
           <div id="energy-bar" class="bar bar-energy"></div>
           <span class="bar-pct" id="energy-pct">100%</span>
         </div>
       </div>
       <div class="stat-row" id="hunger-bar-wrap">
+        <span class="stat-icon stat-icon-hunger" aria-hidden="true">🍖</span>
         <div class="bar-bg">
-          <span class="bar-label">HU</span>
+          <span class="bar-label">HUNGER</span>
           <div id="hunger-bar" class="bar bar-hunger"></div>
           <span class="bar-pct" id="hunger-pct">100%</span>
         </div>

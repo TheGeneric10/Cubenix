@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — styles.css — v0.0.85a
+   CUBENIX — styles.css — v0.0.86a
    ============================================================ */
    @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&display=swap');
 
@@ -11,16 +11,16 @@
      font-family: 'Titillium Web', monospace;
      image-rendering: pixelated;
    }
-   :root { --gui-scale: 1; }
+   :root { --gui-scale: 1; --meter-offset: 188px; --meter-bottom: 48px; }
    img, a, canvas, div { -webkit-user-drag: none; user-drag: none; -webkit-tap-highlight-color: transparent; }
    
-   /* Minecraft-style scrollbars */
-   ::-webkit-scrollbar { width: 8px; height: 8px; }
-   ::-webkit-scrollbar-track { background: #1a1a1a; border: 1px solid #333; }
-   ::-webkit-scrollbar-thumb { background: #555; border: 1px solid #222; }
-   ::-webkit-scrollbar-thumb:hover { background: #777; }
+   /* Sharp pixel-style scrollbars */
+   ::-webkit-scrollbar { width: 10px; height: 10px; }
+   ::-webkit-scrollbar-track { background: #121212; border: 1px solid #2d2d2d; box-shadow: inset 0 0 0 1px #080808; }
+   ::-webkit-scrollbar-thumb { background: linear-gradient(180deg,#8a8a8a,#5a5a5a); border: 1px solid #1a1a1a; box-shadow: inset 1px 1px 0 rgba(255,255,255,0.14), inset -1px -1px 0 rgba(0,0,0,0.4); }
+   ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg,#a4a4a4,#676767); }
    ::-webkit-scrollbar-corner { background: #111; }
-   * { scrollbar-width: thin; scrollbar-color: #555 #1a1a1a; }
+   * { scrollbar-width: thin; scrollbar-color: #666 #121212; }
    
    /* ══ MAIN MENU ══ */
    #main-menu { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; }
@@ -97,6 +97,11 @@
    /* ══ GAME ══ */
    #game-canvas { position: fixed; inset: 0; width: 100%; height: 100%; outline: none; cursor: none; }
    #sky-overlay  { position: fixed; inset: 0; pointer-events: none; z-index: 1; }
+   #status-vignette{
+     position:fixed; inset:0; pointer-events:none; z-index:14; opacity:0;
+     background:radial-gradient(circle at center, rgba(0,0,0,0) 45%, rgba(150,0,0,0.28) 100%);
+     transition:opacity 0.08s linear, background 0.16s linear;
+   }
    
    /* ══ HUD ══ */
    #hud { position: fixed; top: 0; left: 0; padding: 6px 10px; z-index: 10; pointer-events: none; }
@@ -170,12 +175,23 @@
    
    /* ══ STATUS BARS ══ */
 #status-left, #status-right {
-  position: fixed; bottom: 48px; z-index: 15; pointer-events: none;
+  position: fixed; bottom: var(--meter-bottom); z-index: 15; pointer-events: none;
   display: flex; flex-direction: column; gap: 6px;
 }
-#status-left  { left: calc(50% - 188px); align-items: flex-start; }
-#status-right { right: calc(50% - 188px); align-items: flex-end; }
-.stat-row { display: flex; align-items: center; }
+#status-left  { left: calc(50% - var(--meter-offset)); align-items: flex-start; }
+#status-right { right: calc(50% - var(--meter-offset)); align-items: flex-end; }
+.stat-row { display: flex; align-items: center; gap: 6px; }
+.stat-icon{
+  width:18px; height:18px; display:flex; align-items:center; justify-content:center;
+  border:2px solid #4d4d4d; background:#151515; color:#fff; font-size:0.72rem; line-height:1;
+  text-shadow:1px 1px 0 #000; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.stat-icon-health{color:#ff8d8d;}
+.stat-icon-shield{color:#8ea7ff;}
+.stat-icon-armor{color:#d7d7d7;}
+.stat-icon-energy{color:#ffe26f;}
+.stat-icon-hunger{color:#ffb37b;}
+.stat-icon-air{color:#89d7ff;}
 .bar-bg {
   position: relative;
   width: 162px;
@@ -210,7 +226,7 @@
   z-index: 1;
   pointer-events: none;
 }
-.bar-label { left: 6px; letter-spacing: 0.04em; }
+.bar-label { left: 6px; letter-spacing: 0.04em; font-size: 0.5rem; }
 .bar-pct { right: 6px; }
 #energy-bar-wrap { transition: opacity 0.3s; }
 #energy-bar-wrap.hidden { opacity: 0; }
