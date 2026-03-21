@@ -1,5 +1,5 @@
 /* ============================================================
-   CUBENIX — styles.css — v0.0.87a
+   CUBENIX — styles.css — v0.0.88a
    ============================================================ */
    @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&display=swap');
 
@@ -336,3 +336,9 @@
 .touch-btn.active { background:rgba(90,140,90,0.78); border-color:rgba(180,255,180,0.65); }
 #touch-sprint { position:relative; overflow:hidden; }
 #touch-sprint-cooldown { position:absolute; left:0; right:0; bottom:0; height:0%; background:rgba(220,60,60,0.5); pointer-events:none; transition:height 0.12s; }
+
+.setting-locked{opacity:0.72;}
+.setting-locked label::after{content:' • ULTRA';color:#9db0ff;}
+#settings-body::-webkit-scrollbar{width:12px;}
+#settings-body::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#8e8e8e,#525252);border:1px solid #1a1a1a;box-shadow:inset 1px 1px 0 rgba(255,255,255,0.18), inset -1px -1px 0 rgba(0,0,0,0.35);}
+#settings-body::-webkit-scrollbar-track{background:#101010;border-left:1px solid #2d2d2d;}
