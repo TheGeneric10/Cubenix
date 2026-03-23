@@ -2208,7 +2208,6 @@ function getItemName(id){
     stopBreaking();
     bowChargeActive=false;
     bowChargeTime=0;
-    eating.active=false;
     eatAction.active=false;
     resetGameplayInputs(true);
   }
@@ -6139,17 +6138,15 @@ function getItemName(id){
     closeWorldScreens();
     startGame({worldId:world.id,seed:world.seed,starterChest:world.starterChest!==false,developerChest:!!world.developerChest,regenerate:!!recreate});
   }
+  function runWorldLaunch(world,recreate=false){
+    if(!world)return;
+    continueLaunchSelectedWorld(world,recreate);
+  }
   function launchSelectedWorld(recreate=false,worldOverride=null){
     const w=worldOverride||selectedWorld();
     if(!w){openWorldCreate();return;}
     if(!isWorldVersionCompatible(w.version)){openVersionWarning(w,recreate);return;}
     continueLaunchSelectedWorld(w,recreate);
-  }
-  function launchSelectedWorld(recreate=false,worldOverride=null,optimize=false){
-    const w=worldOverride||selectedWorld();
-    if(!w){openWorldCreate();return;}
-    if(!isVersionCompatible(w.version)){openVersionWarning(w,{recreate:!!recreate});return;}
-    runWorldLaunch(w,recreate,optimize);
   }
   document.getElementById('btn-singleplayer').addEventListener('click',()=>{
     worlds=loadWorldDefs();
