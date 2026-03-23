@@ -3068,18 +3068,37 @@ function getItemName(id){
     }
   }
 
-  function dropUnsupportedTorch(wx,wy,wz){
-    if(worldGet(wx,wy,wz)!==B.TORCH)return false;
-    if(isSolid(worldGet(wx,wy-1,wz))||isSolid(worldGet(wx,wy+1,wz)))return false;
+  function canPlantStayOnBlock(id,belowId){
+    if(isCrossPlantBlock(id)&&id!==B.SUGAR_CANE)return belowId===B.GRASS||belowId===B.DIRT||belowId===B.SNOW_BLOCK;
+    if(id===B.SUGAR_CANE)return belowId===B.GRASS||belowId===B.SAND||belowId===B.RED_SAND||belowId===B.SUGAR_CANE;
+    return true;
+  }
+  function hasSugarCaneWaterSupport(wx,wy,wz){
+    return [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>isWaterBlock(worldGet(wx+dx,wy-1,wz+dz))||isWaterBlock(worldGet(wx+dx,wy,wz+dz)));
+  }
+  function isUnsupportedDecorBlock(wx,wy,wz,id){
+    const below=worldGet(wx,wy-1,wz);
+    if(id===B.TORCH)return !isSolid(below)&&!isSolid(worldGet(wx,wy+1,wz));
+    if(isCrossPlantBlock(id)){
+      if(!canPlantStayOnBlock(id,below))return true;
+      if(id===B.SUGAR_CANE&&below!==B.SUGAR_CANE&&!hasSugarCaneWaterSupport(wx,wy,wz))return true;
+      return false;
+    }
+    return false;
+  }
+  function dropUnsupportedDecor(wx,wy,wz){
+    const id=worldGet(wx,wy,wz);
+    if(id===B.AIR||(!isCrossPlantBlock(id)&&id!==B.TORCH))return false;
+    if(!isUnsupportedDecorBlock(wx,wy,wz,id))return false;
     worldSet(wx,wy,wz,B.AIR);
-    spawnDrops(wx,wy,wz,B.TORCH,0.35);
+    spawnDrops(wx,wy,wz,id,0.35);
     buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));
     return true;
   }
-  function updateUnsupportedTorches(){
+  function updateUnsupportedDecor(){
     const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
     for(let dx=-10;dx<=10;dx++)for(let dz=-10;dz<=10;dz++)for(let dy=10;dy>=-8;dy--){
-      dropUnsupportedTorch(px+dx,py+dy,pz+dz);
+      dropUnsupportedDecor(px+dx,py+dy,pz+dz);
     }
   }
 
@@ -3386,10 +3405,13 @@ function getItemName(id){
     spawnParticles(wx,wy,wz,id);
     spawnColorParticles(wx+0.5,wy+0.55,wz+0.5,0xffffff,6,0.35);
    }
+   function isInstantBreakBlock(id){
+    return id===B.TORCH||id===B.FIRE||isCrossPlantBlock(id)||id===B.LADDER||id===B.RAIL;
+   }
    function startBreaking(){
     if(!targetBlock)return;
     const id=worldGet(targetBlock.wx,targetBlock.wy,targetBlock.wz);
-    const t=BREAK_TIME[id]??7.5;if(t===Infinity)return;
+    const t=isInstantBreakBlock(id)?0:(BREAK_TIME[id]??7.5);if(t===Infinity)return;
     const chestFp=getLargeChestFootprint(targetBlock.wx,targetBlock.wy,targetBlock.wz,id);
     if(t<=0){
       breaking={active:false,wx:targetBlock.wx,wy:targetBlock.wy,wz:targetBlock.wz,progress:0,total:0,chestFp,fxTimer:0};
@@ -5610,7 +5632,7 @@ function getItemName(id){
       waterFlowT+=dt;if(waterFlowT>0.12){waterFlowT=0;flowFluidOnce(B.WATER,10);}
       lavaFlowT+=dt;if(lavaFlowT>0.62){lavaFlowT=0;flowFluidOnce(B.LAVA,7);igniteBlocksNearLava(10);}
       fireT+=dt;if(fireT>0.45){fireT=0;updateFireBlocks();}
-      updateUnsupportedTorches();
+      updateUnsupportedDecor();
       updateFallingEntities(dt);
        updateLeavesDecay(dt);
      processChunkQueue(worldLoadLock?2:1,worldLoadLock?7:3);
