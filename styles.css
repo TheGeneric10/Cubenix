@@ -359,3 +359,11 @@
   #touch-actions { grid-template-columns: repeat(2, minmax(0, var(--touch-action-width))); grid-auto-rows: var(--touch-action-height); }
   .world-actions { grid-template-columns: minmax(0, 1fr); }
 }
+
+@media (max-width: 420px) {
+  :root { --touch-move-size: 38px; --touch-action-width: 46px; --touch-action-height: 38px; --touch-bottom-offset: 42px; }
+  #menu-buttons { width: min(292px, 90vw); }
+  .menu-btn, .pause-btn { letter-spacing: 0.02em; }
+  #touch-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); width: min(96px, 44vw); }
+  #touch-move { width: calc(var(--touch-move-size) * 3 + var(--touch-gap) * 2); }
+}

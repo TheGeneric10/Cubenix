@@ -1399,6 +1399,8 @@ function getItemName(id){
         const quads=[
           [[cxm-0.36,y0,czm-0.36],[cxm-0.36,y0+h,czm-0.36],[cxm+0.36,y0+h,czm+0.36],[cxm+0.36,y0,czm+0.36]],
           [[cxm-0.36,y0,czm+0.36],[cxm-0.36,y0+h,czm+0.36],[cxm+0.36,y0+h,czm-0.36],[cxm+0.36,y0,czm-0.36]],
+          [[cxm-0.32,y0,czm],[cxm-0.32,y0+h,czm],[cxm+0.32,y0+h,czm],[cxm+0.32,y0,czm]],
+          [[cxm,y0,czm-0.32],[cxm,y0+h,czm-0.32],[cxm,y0+h,czm+0.32],[cxm,y0,czm+0.32]],
         ];
         for(let f=0;f<quads.length;f++){
           for(let i=0;i<4;i++){
@@ -3326,6 +3328,14 @@ function getItemName(id){
    const outlineMesh=new THREE.Mesh(new THREE.BoxGeometry(1.004,1.004,1.004),outlineM);
    outlineMesh.visible=false;scene.add(outlineMesh);
 
+  function getDecorBounds(id,wx,wy,wz){
+    if(id===B.TORCH)return {minX:wx+0.375,maxX:wx+0.625,minY:wy,maxY:wy+0.75,minZ:wz+0.375,maxZ:wz+0.625};
+    if(isCrossPlantBlock(id)){
+      const h=id===B.SMALL_GRASS||id===B.ROSE||id===B.DANDELION||id===B.OAK_SAPLING?0.9:(id===B.TALL_GRASS?1.35:1.15);
+      return {minX:wx+0.28,maxX:wx+0.72,minY:wy,maxY:wy+h,minZ:wz+0.28,maxZ:wz+0.72};
+    }
+    return null;
+  }
   function applyOutlineForTarget(wx,wy,wz,id){
     const fp=getLargeChestFootprint(wx,wy,wz,id);
     if(fp){
@@ -3339,9 +3349,10 @@ function getItemName(id){
       outlineMesh.position.set((bedFp.minX+bedFp.maxX+1)/2,wy+0.5,(bedFp.minZ+bedFp.maxZ+1)/2);
       return;
     }
-    if(id===B.TORCH){
-      outlineMesh.scale.set(0.25,0.75,0.25);
-      outlineMesh.position.set(wx+0.5,wy+0.375,wz+0.5);
+    const decorBounds=getDecorBounds(id,wx,wy,wz);
+    if(decorBounds){
+      outlineMesh.scale.set(decorBounds.maxX-decorBounds.minX,decorBounds.maxY-decorBounds.minY,decorBounds.maxZ-decorBounds.minZ);
+      outlineMesh.position.set((decorBounds.minX+decorBounds.maxX)/2,(decorBounds.minY+decorBounds.maxY)/2,(decorBounds.minZ+decorBounds.maxZ)/2);
       return;
     }
     const h=getBlockHeight(id);
@@ -3357,9 +3368,10 @@ function getItemName(id){
         return pt.x>=fp.minX&&pt.x<=fp.maxX+1&&pt.y>=fp.minY&&pt.y<=fp.maxY&&pt.z>=fp.minZ&&pt.z<=fp.maxZ+1;
       }
     }
-    if(id===B.TORCH){
+    const decorBounds=getDecorBounds(id,wx,wy,wz);
+    if(decorBounds){
       const pt=new THREE.Vector3(camera.position.x,camera.position.y,camera.position.z).addScaledVector(dir,Math.max(0,dist));
-      return pt.x>=wx+0.375&&pt.x<=wx+0.625&&pt.y>=wy&&pt.y<=wy+0.75&&pt.z>=wz+0.375&&pt.z<=wz+0.625;
+      return pt.x>=decorBounds.minX&&pt.x<=decorBounds.maxX&&pt.y>=decorBounds.minY&&pt.y<=decorBounds.maxY&&pt.z>=decorBounds.minZ&&pt.z<=decorBounds.maxZ;
     }
     const h=getBlockHeight(id);
     if(h>=0.999)return true;
@@ -3768,12 +3780,15 @@ function getItemName(id){
     if(fp){
       breakMesh.scale.set(fp.maxX-fp.minX+1,1,fp.maxZ-fp.minZ+1);
       breakMesh.position.set((fp.minX+fp.maxX+1)/2,breaking.wy+0.5,(fp.minZ+fp.maxZ+1)/2);
-    }else if(worldGet(breaking.wx,breaking.wy,breaking.wz)===B.TORCH){
-      breakMesh.scale.set(0.25,0.75,0.25);
-      breakMesh.position.set(breaking.wx+0.5,breaking.wy+0.375,breaking.wz+0.5);
     }else{
-      breakMesh.scale.set(1,1,1);
-      breakMesh.position.set(breaking.wx+0.5,breaking.wy+0.5,breaking.wz+0.5);
+      const bounds=getDecorBounds(worldGet(breaking.wx,breaking.wy,breaking.wz),breaking.wx,breaking.wy,breaking.wz);
+      if(bounds){
+        breakMesh.scale.set(bounds.maxX-bounds.minX,bounds.maxY-bounds.minY,bounds.maxZ-bounds.minZ);
+        breakMesh.position.set((bounds.minX+bounds.maxX)/2,(bounds.minY+bounds.maxY)/2,(bounds.minZ+bounds.maxZ)/2);
+      }else{
+        breakMesh.scale.set(1,1,1);
+        breakMesh.position.set(breaking.wx+0.5,breaking.wy+0.5,breaking.wz+0.5);
+      }
     }
     if(breaking.fxTimer>=0.18){
       breaking.fxTimer=0;
@@ -3958,7 +3973,8 @@ function getItemName(id){
       if(held.id===B.SUGAR_CANE){
         const base=worldGet(px,py-1,pz);
         const nearWater=[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>isWaterBlock(worldGet(px+dx,py-1,pz+dz))||isWaterBlock(worldGet(px+dx,py,pz+dz)));
-        if(!(base===B.GRASS||base===B.SAND||base===B.RED_SAND)||!nearWater)return;
+        const stackBase=base===B.SUGAR_CANE;
+        if((!(base===B.GRASS||base===B.SAND||base===B.RED_SAND)&&!stackBase)||(!stackBase&&!nearWater))return;
       }
       if(held.id===B.LADDER&&!(isSolid(worldGet(targetBlock.wx,targetBlock.wy,targetBlock.wz))&&targetBlock.face[1]===0))return;
       if(held.id===B.TORCH&&!((targetBlock.face[1]===-1&&isSolid(worldGet(px,py+1,pz)))||isSolid(worldGet(px,py-1,pz))))return;
