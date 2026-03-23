@@ -541,6 +541,7 @@ function getItemName(id){
      const g=c.getContext('2d');draw(g,size);
      const t=new THREE.CanvasTexture(c);
      t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;
+     t.generateMipmaps=false;
      t.wrapS=THREE.ClampToEdgeWrapping;t.wrapT=THREE.ClampToEdgeWrapping;
      return t;
    }
@@ -959,10 +960,12 @@ function getItemName(id){
    function getMats(id){
      if(matCache[id]) return matCache[id];
      const bt=BLOCK_TEX[id]||BLOCK_TEX[B.STONE];
-    const tr=id===B.LEAVES||isFluid(id)||id===B.TORCH||id===B.FIRE||id===B.GLASS;
+    const cutout=id===B.TORCH||id===B.FIRE||isCrossPlantBlock(id)||id===B.LADDER||id===B.RAIL;
+    const tr=id===B.LEAVES||isFluid(id)||id===B.GLASS||cutout;
    const fluidOpacity=isWaterBlock(id)?0.76:(isLavaBlock(id)?0.88:1);
    const opacity=id===B.GLASS?0.42:(isFluid(id)?fluidOpacity:(id===B.LEAVES?0.86:1));
-   const op={transparent:tr,opacity,side:THREE.DoubleSide,depthWrite:!(tr&&id!==B.GLASS),alphaTest:(id===B.TORCH||id===B.FIRE)?0.08:0};
+   const alphaTest=cutout?0.35:0;
+   const op={transparent:tr,opacity,side:THREE.DoubleSide,depthWrite:!(tr&&id!==B.GLASS),alphaTest};
      const base=tr?op:{side:THREE.DoubleSide};
      matCache[id]=[
        new THREE.MeshLambertMaterial({map:bt.side,...base}),
@@ -1272,8 +1275,10 @@ function getItemName(id){
        }
 
       const topId=arr[vKey(lx,h,lz)];
-      const cold=h>CFG.seaLevel+28||frac(Math.abs(h2(wx*0.015-80,wz*0.015+110)))<0.08;
-      if(cold&&topId===B.GRASS){
+      const coldMask=frac(Math.abs(h2(wx*0.015-80,wz*0.015+110)));
+      const coldBiome=coldMask<0.08;
+      const alpineCold=h>CFG.seaLevel+28&&coldMask<0.2;
+      if((coldBiome||alpineCold)&&topId===B.GRASS){
         arr[vKey(lx,h,lz)]=B.SNOW_BLOCK;
         if(h<CFG.seaLevel-1){
           for(let y=h+1;y<=CFG.seaLevel;y++){
@@ -1281,7 +1286,8 @@ function getItemName(id){
           }
         }
       }
-      if(topId===B.GRASS&&h>CFG.seaLevel+1){
+      const surfaceId=arr[vKey(lx,h,lz)];
+      if(surfaceId===B.GRASS&&h>CFG.seaLevel+1){
         const plantRoll=frac(Math.abs(h2(wx*5.7+14,wz*6.1-9)));
         if(arr[vKey(lx,h+1,lz)]===B.AIR){
           if(plantRoll<0.11)arr[vKey(lx,h+1,lz)]=B.SMALL_GRASS;
@@ -1290,11 +1296,11 @@ function getItemName(id){
           else if(plantRoll<0.181)arr[vKey(lx,h+1,lz)]=B.DANDELION;
         }
       }
-      if((topId===B.SAND||topId===B.RED_SAND)&&h>CFG.seaLevel+1&&arr[vKey(lx,h+1,lz)]===B.AIR&&frac(Math.abs(h2(wx*2.7+41,wz*2.3-17)))<0.028){
+      if((surfaceId===B.SAND||surfaceId===B.RED_SAND)&&h>CFG.seaLevel+1&&arr[vKey(lx,h+1,lz)]===B.AIR&&frac(Math.abs(h2(wx*2.7+41,wz*2.3-17)))<0.028){
         const cactusH=1+((frac(Math.abs(h2(wx*4.1,wz*4.1)))<0.45)?1:0)+((frac(Math.abs(h2(wx*7.4-13,wz*6.8+9)))<0.16)?1:0);
         for(let cy=1;cy<=cactusH&&h+cy<CFG.chunkH;cy++)arr[vKey(lx,h+cy,lz)]=B.CACTUS;
       }
-      if((topId===B.GRASS||topId===B.SAND)&&arr[vKey(lx,h+1,lz)]===B.AIR){
+      if((surfaceId===B.GRASS||surfaceId===B.SAND)&&arr[vKey(lx,h+1,lz)]===B.AIR){
         const nearWater=[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>worldGet(wx+dx,h,wz+dz)===B.WATER||worldGet(wx+dx,h+1,wz+dz)===B.WATER);
         if(nearWater&&frac(Math.abs(h2(wx*4.9+71,wz*5.2-44)))<0.055){
           const caneH=2+(frac(Math.abs(h2(wx*8.4-21,wz*8.1+67)))<0.35?1:0);
@@ -2504,8 +2510,9 @@ function getItemName(id){
 
   function applyTouchControllerVisibility(){
     const show=('ontouchstart' in window)||(navigator.maxTouchPoints>0);
-    document.getElementById('touch-ui').style.display=show&&TOUCH.active?'block':'none';
     TOUCH.enabled=show;
+    if(show)TOUCH.active=true;
+    document.getElementById('touch-ui').style.display=show?'block':'none';
     if(!show){
       TOUCH.active=false;
       ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft'].forEach(k=>setVirtualKey(k,'touch',false));
