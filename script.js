@@ -961,19 +961,25 @@ function getItemName(id){
    function getMats(id){
      if(matCache[id]) return matCache[id];
      const bt=BLOCK_TEX[id]||BLOCK_TEX[B.STONE];
-    const cutout=isCrossPlantBlock(id)||id===B.TORCH||id===B.FIRE||id===B.RAIL;
-    const tr=id===B.LEAVES||isFluid(id)||id===B.GLASS||cutout;
-   const fluidOpacity=isWaterBlock(id)?0.76:(isLavaBlock(id)?0.94:1);
-   const opacity=id===B.GLASS?0.42:(isFluid(id)?fluidOpacity:(id===B.LEAVES?0.86:1));
-   const op={transparent:tr,opacity,side:THREE.DoubleSide,depthWrite:!(tr&&id!==B.GLASS),alphaTest:cutout?0.22:0};
-     const base=tr?op:{side:THREE.DoubleSide};
+     const fluidOpacity=isWaterBlock(id)?0.76:(isLavaBlock(id)?0.94:1);
+     const isCutout=isCrossPlantBlock(id)||id===B.TORCH||id===B.FIRE;
+     const shared={side:THREE.DoubleSide};
+     if(id===B.GLASS){
+       Object.assign(shared,{transparent:true,opacity:0.42,depthWrite:false});
+     }else if(isFluid(id)){
+       Object.assign(shared,{transparent:true,opacity:fluidOpacity,depthWrite:false});
+     }else if(id===B.LEAVES){
+       Object.assign(shared,{transparent:true,opacity:0.86,depthWrite:false});
+     }else if(isCutout){
+       Object.assign(shared,{transparent:true,alphaTest:0.22,depthWrite:false});
+     }
      matCache[id]=[
-       new THREE.MeshLambertMaterial({map:bt.side,...base}),
-       new THREE.MeshLambertMaterial({map:bt.side,...base}),
-       new THREE.MeshLambertMaterial({map:bt.top,...base}),
-       new THREE.MeshLambertMaterial({map:bt.bot,...base}),
-       new THREE.MeshLambertMaterial({map:bt.side,...base}),
-       new THREE.MeshLambertMaterial({map:bt.side,...base}),
+       new THREE.MeshLambertMaterial({map:bt.side,...shared}),
+       new THREE.MeshLambertMaterial({map:bt.side,...shared}),
+       new THREE.MeshLambertMaterial({map:bt.top,...shared}),
+       new THREE.MeshLambertMaterial({map:bt.bot,...shared}),
+       new THREE.MeshLambertMaterial({map:bt.side,...shared}),
+       new THREE.MeshLambertMaterial({map:bt.side,...shared}),
      ];
      return matCache[id];
    }
