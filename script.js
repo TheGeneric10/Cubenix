@@ -368,7 +368,7 @@ function getItemName(id){
      [B.GRASS]:0.9,[B.DIRT]:0.75,[B.SAND]:0.75,[B.GRAVEL]:0.75,[B.RED_SAND]:0.75,[B.GRASS_PATH]:0.72,[B.FARMLAND_DRY]:0.7,[B.FARMLAND_WET]:0.7,
      [B.STONE]:4.2,[B.COBBLESTONE]:3.8,[B.COAL_ORE]:4.4,[B.IRON_ORE]:4.6,
      [B.GOLD_ORE]:4.8,[B.DIAMOND_ORE]:5.2,
-    [B.WOOD]:3.0,[B.LEAVES]:0.5,[B.PLANKS]:2.0,[B.BED]:1.4,[B.CRAFTING_TABLE]:3.0,[B.CHEST]:2.6,[B.IRON_CHEST]:3.4,[B.GOLD_CHEST]:3.6,[B.DIAMOND_CHEST]:4.5,[B.DEV_CHEST]:Infinity,[B.TNT]:0.9,[B.IRON_BLOCK]:6.0,[B.GOLD_BLOCK]:6.0,[B.DIAMOND_BLOCK]:6.5,[B.TORCH]:0,[B.FIRE]:0,[B.OAK_SLAB]:1.6,[B.STONE_SLAB]:2.2,[B.COBBLE_SLAB]:2.0,[B.GLASS]:0.45,[B.BRICKS]:4.8,[B.ICE]:0.55,[B.SNOW_BLOCK]:0.6,[B.CACTUS]:0.55,[B.SMALL_GRASS]:0,[B.TALL_GRASS]:0,[B.ROSE]:0,[B.DANDELION]:0,[B.OAK_SAPLING]:0,[B.SUGAR_CANE]:0,[B.LADDER]:0,[B.OAK_STAIRS]:1.9,[B.COBBLE_STAIRS]:2.4,[B.RAIL]:0,[B.WOOD_DOOR]:1.1,
+    [B.WOOD]:3.0,[B.LEAVES]:0,[B.PLANKS]:2.0,[B.BED]:1.4,[B.CRAFTING_TABLE]:3.0,[B.CHEST]:2.6,[B.IRON_CHEST]:3.4,[B.GOLD_CHEST]:3.6,[B.DIAMOND_CHEST]:4.5,[B.DEV_CHEST]:Infinity,[B.TNT]:0.9,[B.IRON_BLOCK]:6.0,[B.GOLD_BLOCK]:6.0,[B.DIAMOND_BLOCK]:6.5,[B.TORCH]:0,[B.FIRE]:0,[B.OAK_SLAB]:1.6,[B.STONE_SLAB]:2.2,[B.COBBLE_SLAB]:2.0,[B.GLASS]:0.45,[B.BRICKS]:4.8,[B.ICE]:0.55,[B.SNOW_BLOCK]:0.6,[B.CACTUS]:0.55,[B.SMALL_GRASS]:0,[B.TALL_GRASS]:0,[B.ROSE]:0,[B.DANDELION]:0,[B.OAK_SAPLING]:0,[B.SUGAR_CANE]:0,[B.LADDER]:0,[B.OAK_STAIRS]:1.9,[B.COBBLE_STAIRS]:2.4,[B.RAIL]:0,[B.WOOD_DOOR]:1.1,
      [B.BEDROCK]:Infinity,[B.WATER]:Infinity,[B.LAVA]:Infinity,
    };
    for(let i=0;i<WOOL_COLORS.length;i++)BREAK_TIME[WOOL_BASE_ID+i]=0.65;
@@ -1341,8 +1341,10 @@ function getItemName(id){
        chunkMeshes.get(key).traverse(o=>{if(o.geometry)o.geometry.dispose();});
        chunkMeshes.delete(key);
      }
-    for(const [k,l] of [...torchLights.entries()]){
-      if(l.userData.chunkKey===key){scene.remove(l);torchLights.delete(k);}
+    for(const store of [torchLights,lavaLights]){
+      for(const [k,l] of [...store.entries()]){
+        if(l.userData.chunkKey===key){scene.remove(l);store.delete(k);}
+      }
     }
     for(const [k,l] of [...lavaLights.entries()]){
       if(l.userData.chunkKey===key){scene.remove(l);lavaLights.delete(k);}
@@ -1558,13 +1560,24 @@ function getItemName(id){
      });
      scene.add(grp);chunkMeshes.set(key,grp);
     for(let lx=0;lx<16;lx++)for(let lz=0;lz<16;lz++)for(let y=1;y<CFG.chunkH;y++){
-      if(arr[vKey(lx,y,lz)]!==B.TORCH)continue;
+      const block=arr[vKey(lx,y,lz)];
       const wx=cx*16+lx,wz=cz*16+lz;
-      const lk=`${wx},${y},${wz}`;
-      const light=new THREE.PointLight(0xffd27a,1.35,15,1.8);
-      light.position.set(wx+0.5,y+0.58,wz+0.5);
-      light.userData={chunkKey:key};
-      scene.add(light);torchLights.set(lk,light);
+      if(block===B.TORCH){
+        const lk=`${wx},${y},${wz}`;
+        const light=new THREE.PointLight(0xffd27a,1.35,15,1.8);
+        light.position.set(wx+0.5,y+0.58,wz+0.5);
+        light.userData={chunkKey:key};
+        scene.add(light);torchLights.set(lk,light);
+      }
+      if(block===B.LAVA||block===B.FLOWING_LAVA){
+        const cover=[worldGet(wx+1,y,wz),worldGet(wx-1,y,wz),worldGet(wx,y,wz+1),worldGet(wx,y,wz-1),worldGet(wx,y+1,wz)].filter(v=>!isFluid(v)&&v!==B.AIR).length;
+        if(cover>=5)continue;
+        const lk=`${wx},${y},${wz}`;
+        const light=new THREE.PointLight(0xff8a24,block===B.LAVA?1.7:1.1,block===B.LAVA?17:12,1.4);
+        light.position.set(wx+0.5,y+0.62,wz+0.5);
+        light.userData={chunkKey:key};
+        scene.add(light);lavaLights.set(lk,light);
+      }
     }
     for(let lx=0;lx<16;lx++)for(let lz=0;lz<16;lz++)for(let y=1;y<CFG.chunkH;y++){
       const id=arr[vKey(lx,y,lz)];
@@ -1754,6 +1767,29 @@ function getItemName(id){
     spawnDropStack(Math.floor(boat.position.x),Math.floor(boat.position.y),Math.floor(boat.position.z),IT.BOAT,1,0.2);
     scene.remove(boat);disposeObject3D(boat);
    }
+  function spawnMiniCart(wx,wy,wz){
+    const root=new THREE.Group();
+    const body=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.42,1.25),new THREE.MeshLambertMaterial({map:TEX.miniCart,color:0xffffff}));
+    body.position.y=0.26; root.add(body);
+    const lip=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.18,0.92),new THREE.MeshLambertMaterial({color:0xbfc6cf}));
+    lip.position.y=0.45; root.add(lip);
+    for(const [x,z] of [[-0.34,-0.38],[0.34,-0.38],[-0.34,0.38],[0.34,0.38]]){
+      const wheel=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.11,0.08,10),new THREE.MeshLambertMaterial({color:0x2a2a2a}));
+      wheel.rotation.z=Math.PI/2; wheel.position.set(x,0.08,z); root.add(wheel);
+    }
+    root.position.set(wx+0.5,wy+0.08,wz+0.5);
+    root.userData={vx:0,vz:0,vy:0,hp:12,riders:0,maxRiders:1};
+    scene.add(root); carts.push(root); requestWorldSave(250); return root;
+  }
+  function nearestCart(maxDist=3.2){let best=null,bestD=maxDist;for(const c of carts){const d=c.position.distanceTo(camera.position);if(d<bestD){best=c;bestD=d;}}return best;}
+  function cartRailAnchor(cart){
+    const wx=Math.floor(cart.position.x),wz=Math.floor(cart.position.z);
+    for(let y=Math.floor(cart.position.y+0.6);y>=Math.floor(cart.position.y-1);y--){if(worldGet(wx,y,wz)===B.RAIL)return {wx,wz,wy:y,shape:railShapeAt(wx,y,wz)};}
+    return null;
+  }
+  function mountNearestCart(){const c=nearestCart(3.1);if(!c||(c.userData.riders||0)>=1)return false;ridingCart=c;c.userData.riders=1;player.onGround=true;return true;}
+  function dismountCart(){if(!ridingCart)return;const off=new THREE.Vector3(Math.sin(player.yaw),0,Math.cos(player.yaw)).multiplyScalar(1.1);player.pos.set(ridingCart.position.x+off.x,ridingCart.position.y+0.2,ridingCart.position.z+off.z);ridingCart.userData.riders=0;ridingCart=null;}
+  function destroyCart(cart){if(!cart)return;if(ridingCart===cart)ridingCart=null;const i=carts.indexOf(cart);if(i>=0)carts.splice(i,1);spawnDropStack(Math.floor(cart.position.x),Math.floor(cart.position.y),Math.floor(cart.position.z),IT.MINI_CART,1,0.2);scene.remove(cart);disposeObject3D(cart);}
   function angleDelta(target,current){
     let d=target-current;
     while(d>Math.PI)d-=Math.PI*2;
@@ -2524,8 +2560,8 @@ function getItemName(id){
     if(matchesKeybind(e,'pause'))togglePause();
     if(matchesKeybind(e,'inventory'))toggleInventory();
     if(matchesKeybind(e,'chat')){e.preventDefault();openChat();return;}
-    if(e.code==='KeyF'){e.preventDefault();if(ridingBoat)dismountBoat();else mountNearestBoat();return;}
-    if(e.code==='KeyG'){e.preventDefault();if(!ridingBoat){const b=nearestBoat(3.4);if(b)destroyBoat(b);}return;}
+    if(e.code==='KeyF'){e.preventDefault();if(ridingBoat)dismountBoat();else if(ridingCart)dismountCart();else if(!mountNearestCart())mountNearestBoat();return;}
+    if(e.code==='KeyG'){e.preventDefault();if(!ridingBoat&&!ridingCart){const c=nearestCart(3.2);if(c)destroyCart(c);else{const b=nearestBoat(3.4);if(b)destroyBoat(b);}}return;}
     if(e.code==='KeyH'){showHud=!showHud;applyHudVisibility();}
     if(matchesKeybind(e,'forward')&&!e.repeat){
        const now=performance.now()*0.001;
@@ -2668,7 +2704,7 @@ function getItemName(id){
     setVirtualKey('Space','pad',jump);
     setVirtualKey('ShiftLeft','pad',sneak);
     if(openChatBtn&&!CONTROLLER.prevButtons[3])openChat();
-    if(rideBtn&&!CONTROLLER.prevButtons[4]){if(ridingBoat)dismountBoat();else mountNearestBoat();}
+    if(rideBtn&&!CONTROLLER.prevButtons[4]){if(ridingBoat)dismountBoat();else if(ridingCart)dismountCart();else if(!mountNearestCart())mountNearestBoat();}
     if(breakBtn&&!CONTROLLER.prevButtons[6])startBreaking();
     if(!breakBtn&&CONTROLLER.prevButtons[6])stopBreaking();
     if(placeBtn&&!CONTROLLER.prevButtons[7]){if(!tryUseShearsOnMob()&&!tryOpenInteractable())placeBlock();}
