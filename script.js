@@ -541,6 +541,7 @@ function getItemName(id){
      const g=c.getContext('2d');draw(g,size);
      const t=new THREE.CanvasTexture(c);
      t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;
+     t.generateMipmaps=false;
      t.wrapS=THREE.ClampToEdgeWrapping;t.wrapT=THREE.ClampToEdgeWrapping;
      return t;
    }
@@ -959,10 +960,12 @@ function getItemName(id){
    function getMats(id){
      if(matCache[id]) return matCache[id];
      const bt=BLOCK_TEX[id]||BLOCK_TEX[B.STONE];
-    const tr=id===B.LEAVES||isFluid(id)||id===B.TORCH||id===B.FIRE||id===B.GLASS;
+    const cutout=id===B.TORCH||id===B.FIRE||isCrossPlantBlock(id)||id===B.LADDER||id===B.RAIL;
+    const tr=id===B.LEAVES||isFluid(id)||id===B.GLASS||cutout;
    const fluidOpacity=isWaterBlock(id)?0.76:(isLavaBlock(id)?0.88:1);
    const opacity=id===B.GLASS?0.42:(isFluid(id)?fluidOpacity:(id===B.LEAVES?0.86:1));
-   const op={transparent:tr,opacity,side:THREE.DoubleSide,depthWrite:!(tr&&id!==B.GLASS),alphaTest:(id===B.TORCH||id===B.FIRE)?0.08:0};
+   const alphaTest=cutout?0.35:0;
+   const op={transparent:tr,opacity,side:THREE.DoubleSide,depthWrite:!(tr&&id!==B.GLASS),alphaTest};
      const base=tr?op:{side:THREE.DoubleSide};
      matCache[id]=[
        new THREE.MeshLambertMaterial({map:bt.side,...base}),
@@ -1272,8 +1275,10 @@ function getItemName(id){
        }
 
       const topId=arr[vKey(lx,h,lz)];
-      const cold=h>CFG.seaLevel+28||frac(Math.abs(h2(wx*0.015-80,wz*0.015+110)))<0.08;
-      if(cold&&topId===B.GRASS){
+      const coldMask=frac(Math.abs(h2(wx*0.015-80,wz*0.015+110)));
+      const coldBiome=coldMask<0.08;
+      const alpineCold=h>CFG.seaLevel+28&&coldMask<0.2;
+      if((coldBiome||alpineCold)&&topId===B.GRASS){
         arr[vKey(lx,h,lz)]=B.SNOW_BLOCK;
         if(h<CFG.seaLevel-1){
           for(let y=h+1;y<=CFG.seaLevel;y++){
@@ -1281,7 +1286,8 @@ function getItemName(id){
           }
         }
       }
-      if(topId===B.GRASS&&h>CFG.seaLevel+1){
+      const surfaceId=arr[vKey(lx,h,lz)];
+      if(surfaceId===B.GRASS&&h>CFG.seaLevel+1){
         const plantRoll=frac(Math.abs(h2(wx*5.7+14,wz*6.1-9)));
         if(arr[vKey(lx,h+1,lz)]===B.AIR){
           if(plantRoll<0.11)arr[vKey(lx,h+1,lz)]=B.SMALL_GRASS;
@@ -1290,11 +1296,11 @@ function getItemName(id){
           else if(plantRoll<0.181)arr[vKey(lx,h+1,lz)]=B.DANDELION;
         }
       }
-      if((topId===B.SAND||topId===B.RED_SAND)&&h>CFG.seaLevel+1&&arr[vKey(lx,h+1,lz)]===B.AIR&&frac(Math.abs(h2(wx*2.7+41,wz*2.3-17)))<0.028){
+      if((surfaceId===B.SAND||surfaceId===B.RED_SAND)&&h>CFG.seaLevel+1&&arr[vKey(lx,h+1,lz)]===B.AIR&&frac(Math.abs(h2(wx*2.7+41,wz*2.3-17)))<0.028){
         const cactusH=1+((frac(Math.abs(h2(wx*4.1,wz*4.1)))<0.45)?1:0)+((frac(Math.abs(h2(wx*7.4-13,wz*6.8+9)))<0.16)?1:0);
         for(let cy=1;cy<=cactusH&&h+cy<CFG.chunkH;cy++)arr[vKey(lx,h+cy,lz)]=B.CACTUS;
       }
-      if((topId===B.GRASS||topId===B.SAND)&&arr[vKey(lx,h+1,lz)]===B.AIR){
+      if((surfaceId===B.GRASS||surfaceId===B.SAND)&&arr[vKey(lx,h+1,lz)]===B.AIR){
         const nearWater=[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>worldGet(wx+dx,h,wz+dz)===B.WATER||worldGet(wx+dx,h+1,wz+dz)===B.WATER);
         if(nearWater&&frac(Math.abs(h2(wx*4.9+71,wz*5.2-44)))<0.055){
           const caneH=2+(frac(Math.abs(h2(wx*8.4-21,wz*8.1+67)))<0.35?1:0);
@@ -2207,6 +2213,7 @@ function getItemName(id){
     enabled:false,active:false,
     keySources:new Map(),
     lookTouchId:null,lastLookX:0,lastLookY:0,
+    moveTouchId:null,moveStartX:0,moveStartY:0,moveAxis:null,
     forceSprint:false,forceSneak:false,
   };
   const CONTROLLER={
@@ -2311,6 +2318,10 @@ function getItemName(id){
     TOUCH.lookTouchId=null;
     TOUCH.lastLookX=0;
     TOUCH.lastLookY=0;
+    TOUCH.moveTouchId=null;
+    TOUCH.moveStartX=0;
+    TOUCH.moveStartY=0;
+    TOUCH.moveAxis=null;
     if(resetTouchToggles){
       TOUCH.forceSprint=false;
       TOUCH.forceSneak=false;
@@ -2499,11 +2510,13 @@ function getItemName(id){
 
   function applyTouchControllerVisibility(){
     const show=('ontouchstart' in window)||(navigator.maxTouchPoints>0);
-    document.getElementById('touch-ui').style.display=show&&TOUCH.active?'block':'none';
     TOUCH.enabled=show;
+    if(show)TOUCH.active=true;
+    document.getElementById('touch-ui').style.display=show?'block':'none';
     if(!show){
       TOUCH.active=false;
       ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft'].forEach(k=>setVirtualKey(k,'touch',false));
+      clearSwipeMovement();
       TOUCH.forceSprint=false;TOUCH.forceSneak=false;
       document.getElementById('touch-sprint')?.classList.remove('active');
       document.getElementById('touch-sneak')?.classList.remove('active');
@@ -2517,6 +2530,38 @@ function getItemName(id){
     el.addEventListener('touchstart',e=>{e.preventDefault();setVirtualKey(code,'touch',true);},{passive:false});
     el.addEventListener('touchend',e=>{e.preventDefault();setVirtualKey(code,'touch',false);},{passive:false});
     el.addEventListener('touchcancel',e=>{e.preventDefault();setVirtualKey(code,'touch',false);},{passive:false});
+  }
+
+  function clearSwipeMovement(){
+    ['KeyW','KeyA','KeyS','KeyD'].forEach(code=>setVirtualKey(code,'touch-swipe',false));
+    TOUCH.moveTouchId=null;
+    TOUCH.moveStartX=0;
+    TOUCH.moveStartY=0;
+    TOUCH.moveAxis=null;
+  }
+
+  function isInteractiveTouchTarget(target){
+    return !!target?.closest('button,input,select,textarea,label,#inventory-screen,#pause-menu,#settings-menu,#worlds-screen,#world-create-screen,#quit-confirm,#world-delete-confirm,#chat-panel,#chat-feed,#hotbar');
+  }
+
+  function updateSwipeMovement(dx,dy){
+    const threshold=18;
+    const absX=Math.abs(dx);
+    const absY=Math.abs(dy);
+    let axis=TOUCH.moveAxis;
+    if(!axis){
+      if(absX<threshold&&absY<threshold){
+        ['KeyW','KeyA','KeyS','KeyD'].forEach(code=>setVirtualKey(code,'touch-swipe',false));
+        return;
+      }
+      axis=absX>absY*1.2?'x':(absY>absX*1.2?'y':null);
+      if(!axis)return;
+      TOUCH.moveAxis=axis;
+    }
+    setVirtualKey('KeyW','touch-swipe',axis==='y'&&dy<-threshold);
+    setVirtualKey('KeyS','touch-swipe',axis==='y'&&dy>threshold);
+    setVirtualKey('KeyA','touch-swipe',axis==='x'&&dx<-threshold);
+    setVirtualKey('KeyD','touch-swipe',axis==='x'&&dx>threshold);
   }
 
   function setupTouchControls(){
@@ -2548,6 +2593,15 @@ function getItemName(id){
       TOUCH.active=true;
       applyTouchControllerVisibility();
       for(const t of e.changedTouches){
+        const target=document.elementFromPoint(t.clientX,t.clientY)||e.target;
+        if(isInteractiveTouchTarget(target))continue;
+        if(TOUCH.moveTouchId===null){
+          TOUCH.moveTouchId=t.identifier;
+          TOUCH.moveStartX=t.clientX;
+          TOUCH.moveStartY=t.clientY;
+          TOUCH.moveAxis=null;
+          continue;
+        }
         if(t.clientX<window.innerWidth*0.55)continue;
         if(TOUCH.lookTouchId!==null)continue;
         TOUCH.lookTouchId=t.identifier;
@@ -2555,8 +2609,12 @@ function getItemName(id){
       }
     },{passive:true});
     gameUi.addEventListener('touchmove',e=>{
-      if(!TOUCH.enabled||TOUCH.lookTouchId===null||isPaused||isInvOpen||isChatOpen)return;
+      if(!TOUCH.enabled||isPaused||isInvOpen||isChatOpen)return;
       for(const t of e.changedTouches){
+        if(t.identifier===TOUCH.moveTouchId){
+          updateSwipeMovement(t.clientX-TOUCH.moveStartX,t.clientY-TOUCH.moveStartY);
+          continue;
+        }
         if(t.identifier!==TOUCH.lookTouchId)continue;
         const dx=t.clientX-TOUCH.lastLookX;
         const dy=t.clientY-TOUCH.lastLookY;
@@ -2572,11 +2630,13 @@ function getItemName(id){
     gameUi.addEventListener('touchend',e=>{
       for(const t of e.changedTouches){
         if(t.identifier===TOUCH.lookTouchId)TOUCH.lookTouchId=null;
+        if(t.identifier===TOUCH.moveTouchId)clearSwipeMovement();
       }
     },{passive:true});
     gameUi.addEventListener('touchcancel',e=>{
       for(const t of e.changedTouches){
         if(t.identifier===TOUCH.lookTouchId)TOUCH.lookTouchId=null;
+        if(t.identifier===TOUCH.moveTouchId)clearSwipeMovement();
       }
     },{passive:true});
   }
@@ -3008,18 +3068,37 @@ function getItemName(id){
     }
   }
 
-  function dropUnsupportedTorch(wx,wy,wz){
-    if(worldGet(wx,wy,wz)!==B.TORCH)return false;
-    if(isSolid(worldGet(wx,wy-1,wz))||isSolid(worldGet(wx,wy+1,wz)))return false;
+  function canPlantStayOnBlock(id,belowId){
+    if(isCrossPlantBlock(id)&&id!==B.SUGAR_CANE)return belowId===B.GRASS||belowId===B.DIRT||belowId===B.SNOW_BLOCK;
+    if(id===B.SUGAR_CANE)return belowId===B.GRASS||belowId===B.SAND||belowId===B.RED_SAND||belowId===B.SUGAR_CANE;
+    return true;
+  }
+  function hasSugarCaneWaterSupport(wx,wy,wz){
+    return [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>isWaterBlock(worldGet(wx+dx,wy-1,wz+dz))||isWaterBlock(worldGet(wx+dx,wy,wz+dz)));
+  }
+  function isUnsupportedDecorBlock(wx,wy,wz,id){
+    const below=worldGet(wx,wy-1,wz);
+    if(id===B.TORCH)return !isSolid(below)&&!isSolid(worldGet(wx,wy+1,wz));
+    if(isCrossPlantBlock(id)){
+      if(!canPlantStayOnBlock(id,below))return true;
+      if(id===B.SUGAR_CANE&&below!==B.SUGAR_CANE&&!hasSugarCaneWaterSupport(wx,wy,wz))return true;
+      return false;
+    }
+    return false;
+  }
+  function dropUnsupportedDecor(wx,wy,wz){
+    const id=worldGet(wx,wy,wz);
+    if(id===B.AIR||(!isCrossPlantBlock(id)&&id!==B.TORCH))return false;
+    if(!isUnsupportedDecorBlock(wx,wy,wz,id))return false;
     worldSet(wx,wy,wz,B.AIR);
-    spawnDrops(wx,wy,wz,B.TORCH,0.35);
+    spawnDrops(wx,wy,wz,id,0.35);
     buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));
     return true;
   }
-  function updateUnsupportedTorches(){
+  function updateUnsupportedDecor(){
     const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
     for(let dx=-10;dx<=10;dx++)for(let dz=-10;dz<=10;dz++)for(let dy=10;dy>=-8;dy--){
-      dropUnsupportedTorch(px+dx,py+dy,pz+dz);
+      dropUnsupportedDecor(px+dx,py+dy,pz+dz);
     }
   }
 
@@ -3326,10 +3405,13 @@ function getItemName(id){
     spawnParticles(wx,wy,wz,id);
     spawnColorParticles(wx+0.5,wy+0.55,wz+0.5,0xffffff,6,0.35);
    }
+   function isInstantBreakBlock(id){
+    return id===B.TORCH||id===B.FIRE||isCrossPlantBlock(id)||id===B.LADDER||id===B.RAIL;
+   }
    function startBreaking(){
     if(!targetBlock)return;
     const id=worldGet(targetBlock.wx,targetBlock.wy,targetBlock.wz);
-    const t=BREAK_TIME[id]??7.5;if(t===Infinity)return;
+    const t=isInstantBreakBlock(id)?0:(BREAK_TIME[id]??7.5);if(t===Infinity)return;
     const chestFp=getLargeChestFootprint(targetBlock.wx,targetBlock.wy,targetBlock.wz,id);
     if(t<=0){
       breaking={active:false,wx:targetBlock.wx,wy:targetBlock.wy,wz:targetBlock.wz,progress:0,total:0,chestFp,fxTimer:0};
@@ -5550,7 +5632,7 @@ function getItemName(id){
       waterFlowT+=dt;if(waterFlowT>0.12){waterFlowT=0;flowFluidOnce(B.WATER,10);}
       lavaFlowT+=dt;if(lavaFlowT>0.62){lavaFlowT=0;flowFluidOnce(B.LAVA,7);igniteBlocksNearLava(10);}
       fireT+=dt;if(fireT>0.45){fireT=0;updateFireBlocks();}
-      updateUnsupportedTorches();
+      updateUnsupportedDecor();
       updateFallingEntities(dt);
        updateLeavesDecay(dt);
      processChunkQueue(worldLoadLock?2:1,worldLoadLock?7:3);
