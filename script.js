@@ -1794,6 +1794,36 @@ function getItemName(id){
     }
     pushBoatOutOfSolids(boat);
   }
+  function updateMiniCarts(dt){
+    if(isPaused)return;
+    for(const cart of carts){
+      if(cart===ridingCart)continue;
+      const anchor=cartRailAnchor(cart);
+      if(!anchor){
+        cart.userData.vx=0;cart.userData.vz=0;
+        continue;
+      }
+      cart.position.y=anchor.wy+0.08;
+      if(anchor.shape==='ns'){
+        cart.position.x=anchor.wx+0.5;
+        cart.userData.vx=0;
+        cart.userData.vz=(cart.userData.vz||0)*0.986;
+        cart.position.z+=(cart.userData.vz||0)*dt;
+        cart.rotation.y=0;
+      }else if(anchor.shape==='ew'){
+        cart.position.z=anchor.wz+0.5;
+        cart.userData.vz=0;
+        cart.userData.vx=(cart.userData.vx||0)*0.986;
+        cart.position.x+=(cart.userData.vx||0)*dt;
+        cart.rotation.y=Math.PI/2;
+      }else{
+        cart.position.x+=(cart.userData.vx||0)*dt;
+        cart.position.z+=(cart.userData.vz||0)*dt;
+        cart.userData.vx=(cart.userData.vx||0)*0.982;
+        cart.userData.vz=(cart.userData.vz||0)*0.982;
+      }
+    }
+  }
   function updateBoats(dt){
     if(isPaused)return;
     for(const boat of boats){
@@ -1802,6 +1832,14 @@ function getItemName(id){
     }
     updateMiniCarts(dt);
   }
+  function tryHitMiniCart(){
+     const cart=nearestCart(3.0);
+     if(!cart)return false;
+     consumeHeldToolDurability(1);
+     cart.userData.hp=Math.max(0,(cart.userData.hp||12)-getAttackDamage());
+     if(cart.userData.hp<=0)destroyCart(cart);
+     return true;
+   }
   function tryHitBoat(){
      const b=nearestBoat(3.0);
      if(!b)return false;
