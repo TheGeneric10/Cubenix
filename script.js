@@ -22,6 +22,8 @@
    ============================================================ */
    'use strict';
 
+   const GAME_VERSION='0.0.93a';
+
    // ═══════════════════════════════════════════════════════════
    // 0.  CONFIG
    // ═══════════════════════════════════════════════════════════
@@ -1331,6 +1333,11 @@ function getItemName(id){
      {dir:[0,0,-1],c:[[0,0,0],[0,1,0],[1,1,0],[1,0,0]]},
    ];
    const QUV=[[0,0],[0,1],[1,1],[1,0]];
+   function isRailAt(wx,wy,wz){return worldGet(wx,wy,wz)===B.RAIL;}
+   function getRailConnections(wx,wy,wz){
+     return {n:isRailAt(wx,wy,wz-1),s:isRailAt(wx,wy,wz+1),w:isRailAt(wx-1,wy,wz),e:isRailAt(wx+1,wy,wz)};
+   }
+
    function showFace(s,n,faceDir=null){
      if(s===B.AIR)return false;
      if(n===B.AIR)return true;
@@ -5244,6 +5251,8 @@ function getItemName(id){
     primedTnts.length=0;
     for(const l of torchLights.values())scene.remove(l);
     torchLights.clear();
+    for(const l of lavaLights.values())scene.remove(l);
+    lavaLights.clear();
     for(let i=projectiles.length-1;i>=0;i--){removeAndDisposeSceneObject(projectiles[i]);}
     projectiles.length=0;
     for(let i=chestShineFx.length-1;i>=0;i--){removeAndDisposeSceneObject(chestShineFx[i]);}
@@ -6015,7 +6024,16 @@ function getItemName(id){
   let editingWorldId=null;
   let worldFormTemplate=null;
   let pendingDeleteWorldId=null;
+  let pendingVersionLaunch=null;
   function selectedWorld(){return worlds.find(w=>w.id===selectedWorldId)||null;}
+  function isVersionCompatible(version){return !version||version===GAME_VERSION;}
+  function openVersionWarning(w,opts){
+    pendingVersionLaunch={world:w,opts};
+    document.getElementById('version-warning-copy').textContent=`${w.name} was last saved in ${w.version||'an unknown version'}. Current version is ${GAME_VERSION}.`;
+    document.getElementById('version-warning-screen').style.display='flex';
+  }
+  function closeVersionWarning(){pendingVersionLaunch=null;document.getElementById('version-warning-screen').style.display='none';}
+
   function formatWorldDescription(w){
     return `Seed: ${w.seed} | Created on ${formatDateStamp(w.createdAt)} | Last played ${formatDateStamp(w.lastPlayedAt||w.createdAt)} | Version: ${w.version||'0.0.93a'}`;
   }
