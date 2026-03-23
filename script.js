@@ -2207,6 +2207,7 @@ function getItemName(id){
     enabled:false,active:false,
     keySources:new Map(),
     lookTouchId:null,lastLookX:0,lastLookY:0,
+    moveTouchId:null,moveStartX:0,moveStartY:0,moveAxis:null,
     forceSprint:false,forceSneak:false,
   };
   const CONTROLLER={
@@ -2311,6 +2312,10 @@ function getItemName(id){
     TOUCH.lookTouchId=null;
     TOUCH.lastLookX=0;
     TOUCH.lastLookY=0;
+    TOUCH.moveTouchId=null;
+    TOUCH.moveStartX=0;
+    TOUCH.moveStartY=0;
+    TOUCH.moveAxis=null;
     if(resetTouchToggles){
       TOUCH.forceSprint=false;
       TOUCH.forceSneak=false;
@@ -2504,6 +2509,7 @@ function getItemName(id){
     if(!show){
       TOUCH.active=false;
       ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft'].forEach(k=>setVirtualKey(k,'touch',false));
+      clearSwipeMovement();
       TOUCH.forceSprint=false;TOUCH.forceSneak=false;
       document.getElementById('touch-sprint')?.classList.remove('active');
       document.getElementById('touch-sneak')?.classList.remove('active');
@@ -2517,6 +2523,38 @@ function getItemName(id){
     el.addEventListener('touchstart',e=>{e.preventDefault();setVirtualKey(code,'touch',true);},{passive:false});
     el.addEventListener('touchend',e=>{e.preventDefault();setVirtualKey(code,'touch',false);},{passive:false});
     el.addEventListener('touchcancel',e=>{e.preventDefault();setVirtualKey(code,'touch',false);},{passive:false});
+  }
+
+  function clearSwipeMovement(){
+    ['KeyW','KeyA','KeyS','KeyD'].forEach(code=>setVirtualKey(code,'touch-swipe',false));
+    TOUCH.moveTouchId=null;
+    TOUCH.moveStartX=0;
+    TOUCH.moveStartY=0;
+    TOUCH.moveAxis=null;
+  }
+
+  function isInteractiveTouchTarget(target){
+    return !!target?.closest('button,input,select,textarea,label,#inventory-screen,#pause-menu,#settings-menu,#worlds-screen,#world-create-screen,#quit-confirm,#world-delete-confirm,#chat-panel,#chat-feed,#hotbar');
+  }
+
+  function updateSwipeMovement(dx,dy){
+    const threshold=18;
+    const absX=Math.abs(dx);
+    const absY=Math.abs(dy);
+    let axis=TOUCH.moveAxis;
+    if(!axis){
+      if(absX<threshold&&absY<threshold){
+        ['KeyW','KeyA','KeyS','KeyD'].forEach(code=>setVirtualKey(code,'touch-swipe',false));
+        return;
+      }
+      axis=absX>absY*1.2?'x':(absY>absX*1.2?'y':null);
+      if(!axis)return;
+      TOUCH.moveAxis=axis;
+    }
+    setVirtualKey('KeyW','touch-swipe',axis==='y'&&dy<-threshold);
+    setVirtualKey('KeyS','touch-swipe',axis==='y'&&dy>threshold);
+    setVirtualKey('KeyA','touch-swipe',axis==='x'&&dx<-threshold);
+    setVirtualKey('KeyD','touch-swipe',axis==='x'&&dx>threshold);
   }
 
   function setupTouchControls(){
@@ -2548,6 +2586,15 @@ function getItemName(id){
       TOUCH.active=true;
       applyTouchControllerVisibility();
       for(const t of e.changedTouches){
+        const target=document.elementFromPoint(t.clientX,t.clientY)||e.target;
+        if(isInteractiveTouchTarget(target))continue;
+        if(TOUCH.moveTouchId===null){
+          TOUCH.moveTouchId=t.identifier;
+          TOUCH.moveStartX=t.clientX;
+          TOUCH.moveStartY=t.clientY;
+          TOUCH.moveAxis=null;
+          continue;
+        }
         if(t.clientX<window.innerWidth*0.55)continue;
         if(TOUCH.lookTouchId!==null)continue;
         TOUCH.lookTouchId=t.identifier;
@@ -2555,8 +2602,12 @@ function getItemName(id){
       }
     },{passive:true});
     gameUi.addEventListener('touchmove',e=>{
-      if(!TOUCH.enabled||TOUCH.lookTouchId===null||isPaused||isInvOpen||isChatOpen)return;
+      if(!TOUCH.enabled||isPaused||isInvOpen||isChatOpen)return;
       for(const t of e.changedTouches){
+        if(t.identifier===TOUCH.moveTouchId){
+          updateSwipeMovement(t.clientX-TOUCH.moveStartX,t.clientY-TOUCH.moveStartY);
+          continue;
+        }
         if(t.identifier!==TOUCH.lookTouchId)continue;
         const dx=t.clientX-TOUCH.lastLookX;
         const dy=t.clientY-TOUCH.lastLookY;
@@ -2572,11 +2623,13 @@ function getItemName(id){
     gameUi.addEventListener('touchend',e=>{
       for(const t of e.changedTouches){
         if(t.identifier===TOUCH.lookTouchId)TOUCH.lookTouchId=null;
+        if(t.identifier===TOUCH.moveTouchId)clearSwipeMovement();
       }
     },{passive:true});
     gameUi.addEventListener('touchcancel',e=>{
       for(const t of e.changedTouches){
         if(t.identifier===TOUCH.lookTouchId)TOUCH.lookTouchId=null;
+        if(t.identifier===TOUCH.moveTouchId)clearSwipeMovement();
       }
     },{passive:true});
   }
