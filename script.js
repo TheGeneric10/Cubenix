@@ -149,6 +149,7 @@ const WORLD_BORDER_BLOCKS=13000000;
   const ITEM_TAGS={
     wool:new Set(Array.from({length:WOOL_COLORS.length},(_,i)=>WOOL_BASE_ID+i)),
   };
+  const RETIRED_IDS=new Set([B.RAIL,IT.MINI_CART]);
   function contentRegistryRecipes(){return [...RECIPES,...CONTENT_REGISTRY.recipes];}
   function resolveFoodStats(foodId){return CONTENT_REGISTRY.foodStats.get(foodId)||FOOD_STATS[foodId]||null;}
   function resolveMobDef(type){return CONTENT_REGISTRY.mobs.get(type)||MOB_DEF[type]||null;}
@@ -181,7 +182,7 @@ const WORLD_BORDER_BLOCKS=13000000;
     [IT.APPLE]:{nutrition:4,sat:2.1},
    };
    function getAllKnownIds(){
-  const ids=[...Object.values(B),...Object.values(IT)].filter(Number.isFinite);
+  const ids=[...Object.values(B),...Object.values(IT)].filter(id=>Number.isFinite(id)&&!RETIRED_IDS.has(id));
   return [...new Set(ids)].sort((a,b)=>a-b);
 }
 function getItemName(id){
@@ -252,7 +253,7 @@ function getItemName(id){
    function isDurableItemId(id){return !!(TOOL_STATS[id]||DURABILITY_MAX[id]);}
    function getMaxStackForId(id){
     if(id===IT.BUCKET||id===IT.EGG)return 9;
-    if(id===IT.WATER_BUCKET||id===IT.LAVA_BUCKET||id===IT.BED||id===IT.MINI_CART)return 1;
+    if(id===IT.WATER_BUCKET||id===IT.LAVA_BUCKET||id===IT.BED)return 1;
     if(id===IT.SNOWBALL)return 16;
     return isDurableItemId(id)||id===IT.BOAT?1:99;
    }
@@ -411,7 +412,7 @@ function getItemName(id){
     [B.LADDER]: [{id:B.LADDER,count:1,ch:1}],
     [B.OAK_STAIRS]: [{id:B.OAK_STAIRS,count:1,ch:1}],
     [B.COBBLE_STAIRS]: [{id:B.COBBLE_STAIRS,count:1,ch:1}],
-    [B.RAIL]: [{id:B.RAIL,count:1,ch:1}],
+    [B.RAIL]: [],
     [B.WOOD_DOOR]: [{id:B.WOOD_DOOR,count:1,ch:1}],
     [B.OAK_SLAB]: [{id:B.OAK_SLAB,count:1,ch:1}],
     [B.STONE_SLAB]: [{id:B.STONE_SLAB,count:1,ch:1}],
@@ -3568,10 +3569,10 @@ function getItemName(id){
     requestWorldSave(350);
   }
   function blockRequiresPickaxeForDrops(blockId){
-    return blockId===B.STONE||blockId===B.COBBLESTONE||blockId===B.COAL_ORE||blockId===B.IRON_ORE||blockId===B.GOLD_ORE||blockId===B.DIAMOND_ORE||blockId===B.IRON_BLOCK||blockId===B.GOLD_BLOCK||blockId===B.DIAMOND_BLOCK||blockId===B.BRICKS||blockId===B.STONE_SLAB||blockId===B.COBBLE_SLAB||blockId===B.COBBLE_STAIRS;
+    return isHardMaterial(blockId)||blockId===B.STONE_SLAB||blockId===B.COBBLE_SLAB||blockId===B.COBBLE_STAIRS;
   }
   function canCollectBlockDrops(blockId,requireHarvestTool=false){
-    if(blockId===B.ICE)return false;
+    if(blockId===B.ICE||blockId===B.RAIL)return false;
     if(!requireHarvestTool)return true;
     if(!blockRequiresPickaxeForDrops(blockId))return true;
     const held=INV.hotbar[INV.active];
@@ -4086,12 +4087,13 @@ function getItemName(id){
      {w:1,h:2,pat:[IT.COAL,IT.STICK],out:{id:B.TORCH,count:6}},
      {w:3,h:2,pat:['tag:wool','tag:wool','tag:wool',B.PLANKS,B.PLANKS,B.PLANKS],out:{id:IT.BED,count:1}},
      {w:2,h:1,pat:[IT.FLINT,IT.IRON_INGOT],out:{id:IT.FLINT_STEEL,count:1}},
-     {w:1,h:2,pat:[IT.IRON_INGOT,0],out:{id:IT.BUCKET,count:1}},
      {w:3,h:1,pat:[IT.STICK,IT.STICK,IT.STICK],out:{id:IT.ARROW,count:6}},
+     {w:3,h:2,pat:[IT.IRON_INGOT,0,IT.IRON_INGOT,0,IT.IRON_INGOT,0],out:{id:IT.BUCKET,count:1}},
      {w:2,h:2,pat:[B.SAND,B.SAND,B.SAND,B.SAND],out:{id:B.GLASS,count:4}},
     {w:2,h:2,pat:[B.RED_SAND,B.RED_SAND,B.RED_SAND,B.RED_SAND],out:{id:B.GLASS,count:4}},
      {w:2,h:2,pat:[B.STONE,B.STONE,B.STONE,B.STONE],out:{id:B.BRICKS,count:4}},
      {w:2,h:2,pat:[B.SNOW_BLOCK,B.SNOW_BLOCK,B.SNOW_BLOCK,B.SNOW_BLOCK],out:{id:IT.SNOWBALL,count:8}},
+     {w:2,h:2,pat:[IT.SNOWBALL,IT.SNOWBALL,IT.SNOWBALL,IT.SNOWBALL],out:{id:B.SNOW_BLOCK,count:1}},
      {w:1,h:3,pat:[0,IT.STICK,0],out:{id:B.LADDER,count:3},mirror:false},
      {w:3,h:3,pat:[IT.STICK,0,IT.STICK,IT.STICK,IT.STICK,IT.STICK,IT.STICK,0,IT.STICK],out:{id:B.LADDER,count:3}},
      {w:2,h:3,pat:[B.PLANKS,B.PLANKS,B.PLANKS,B.PLANKS,B.PLANKS,B.PLANKS],out:{id:B.WOOD_DOOR,count:1}},
