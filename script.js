@@ -253,7 +253,7 @@ function getItemName(id){
    function isDurableItemId(id){return !!(TOOL_STATS[id]||DURABILITY_MAX[id]);}
    function getMaxStackForId(id){
     if(id===IT.BUCKET||id===IT.EGG)return 9;
-    if(id===IT.WATER_BUCKET||id===IT.LAVA_BUCKET||id===IT.BED)return 1;
+    if(id===IT.WATER_BUCKET||id===IT.LAVA_BUCKET||id===IT.BED||id===B.BED)return 1;
     if(id===IT.SNOWBALL)return 16;
     return isDurableItemId(id)||id===IT.BOAT?1:99;
    }
@@ -1372,10 +1372,13 @@ function getItemName(id){
       }
       if(self===B.FIRE){
         const d=getFD(self),base=d.pos.length/3;
-        const cxm=lx+0.5,czm=lz+0.5,y0=y,y1=y+1;
+        const cxm=lx+0.5,czm=lz+0.5,y0=y+0.02,y1=y+0.92;
+        // Four slanted quads forming a compact X+ cross, inset from block edges to kill pixel bleed
         const quads=[
-          [[cxm-0.38,y0,czm-0.38],[cxm-0.38,y1,czm-0.38],[cxm+0.38,y1,czm+0.38],[cxm+0.38,y0,czm+0.38]],
-          [[cxm-0.38,y0,czm+0.38],[cxm-0.38,y1,czm+0.38],[cxm+0.38,y1,czm-0.38],[cxm+0.38,y0,czm-0.38]],
+          [[cxm-0.30,y0,czm-0.30],[cxm-0.30,y1,czm-0.30],[cxm+0.30,y1,czm+0.30],[cxm+0.30,y0,czm+0.30]],
+          [[cxm+0.30,y0,czm-0.30],[cxm+0.30,y1,czm-0.30],[cxm-0.30,y1,czm+0.30],[cxm-0.30,y0,czm+0.30]],
+          [[cxm-0.28,y0,czm],[cxm-0.28,y1,czm],[cxm+0.28,y1,czm],[cxm+0.28,y0,czm]],
+          [[cxm,y0,czm-0.28],[cxm,y1,czm-0.28],[cxm,y1,czm+0.28],[cxm,y0,czm+0.28]],
         ];
         for(let f=0;f<quads.length;f++){
           for(let i=0;i<4;i++){
@@ -1388,13 +1391,19 @@ function getItemName(id){
       }
       if(isCrossPlantBlock(self)){
         const d=getFD(self),base=d.pos.length/3;
-        const h=self===B.SMALL_GRASS||self===B.ROSE||self===B.DANDELION||self===B.OAK_SAPLING?0.9:(self===B.TALL_GRASS?1.35:1.15);
-        const cxm=lx+0.5,czm=lz+0.5,y0=y;
+        // Height per plant type; sugar cane is taller, small plants are short
+        const h=self===B.SMALL_GRASS||self===B.ROSE||self===B.DANDELION||self===B.OAK_SAPLING?0.85:(self===B.TALL_GRASS?1.2:1.0);
+        const cxm=lx+0.5,czm=lz+0.5;
+        // Lift slightly off ground plane to prevent z-fighting with floor
+        const y0=y+0.02;
+        // Sugar cane: thin vertical column model (two orthogonal flat quads, axis-aligned, narrow)
+        // Other plants: classic X cross with two diagonal quads + two axis-aligned quads, all inset
+        const hw=self===B.SUGAR_CANE?0.20:0.26; // half-width inset from block center
         const quads=[
-          [[cxm-0.36,y0,czm-0.36],[cxm-0.36,y0+h,czm-0.36],[cxm+0.36,y0+h,czm+0.36],[cxm+0.36,y0,czm+0.36]],
-          [[cxm-0.36,y0,czm+0.36],[cxm-0.36,y0+h,czm+0.36],[cxm+0.36,y0+h,czm-0.36],[cxm+0.36,y0,czm-0.36]],
-          [[cxm-0.32,y0,czm],[cxm-0.32,y0+h,czm],[cxm+0.32,y0+h,czm],[cxm+0.32,y0,czm]],
-          [[cxm,y0,czm-0.32],[cxm,y0+h,czm-0.32],[cxm,y0+h,czm+0.32],[cxm,y0,czm+0.32]],
+          [[cxm-hw,y0,czm-hw],[cxm-hw,y0+h,czm-hw],[cxm+hw,y0+h,czm+hw],[cxm+hw,y0,czm+hw]],
+          [[cxm+hw,y0,czm-hw],[cxm+hw,y0+h,czm-hw],[cxm-hw,y0+h,czm+hw],[cxm-hw,y0,czm+hw]],
+          [[cxm-hw,y0,czm],[cxm-hw,y0+h,czm],[cxm+hw,y0+h,czm],[cxm+hw,y0,czm]],
+          [[cxm,y0,czm-hw],[cxm,y0+h,czm-hw],[cxm,y0+h,czm+hw],[cxm,y0,czm+hw]],
         ];
         for(let f=0;f<quads.length;f++){
           for(let i=0;i<4;i++){
@@ -3336,8 +3345,9 @@ function getItemName(id){
   function getDecorBounds(id,wx,wy,wz){
     if(id===B.TORCH)return {minX:wx+0.375,maxX:wx+0.625,minY:wy,maxY:wy+0.75,minZ:wz+0.375,maxZ:wz+0.625};
     if(isCrossPlantBlock(id)){
-      const h=id===B.SMALL_GRASS||id===B.ROSE||id===B.DANDELION||id===B.OAK_SAPLING?0.9:(id===B.TALL_GRASS?1.35:1.15);
-      return {minX:wx+0.28,maxX:wx+0.72,minY:wy,maxY:wy+h,minZ:wz+0.28,maxZ:wz+0.72};
+      const h=id===B.SMALL_GRASS||id===B.ROSE||id===B.DANDELION||id===B.OAK_SAPLING?0.85:(id===B.TALL_GRASS?1.2:1.0);
+      const hw=id===B.SUGAR_CANE?0.20:0.26;
+      return {minX:wx+0.5-hw,maxX:wx+0.5+hw,minY:wy+0.02,maxY:wy+h,minZ:wz+0.5-hw,maxZ:wz+0.5+hw};
     }
     return null;
   }
