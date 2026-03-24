@@ -107,7 +107,7 @@ const WORLD_BORDER_BLOCKS=13000000;
      WOOD_BLADE:115,STONE_BLADE:116,IRON_BLADE:117,GOLD_BLADE:118,DIAMOND_BLADE:119,
     BOAT:120,FLINT:121,FLINT_STEEL:122,BOW:123,ARROW:124,WOOD_SHOVEL:125,STONE_SHOVEL:126,IRON_SHOVEL:127,GOLD_SHOVEL:128,DIAMOND_SHOVEL:129,WOOD_HOE:130,STONE_HOE:131,IRON_HOE:132,GOLD_HOE:133,DIAMOND_HOE:134,BUCKET:135,WATER_BUCKET:136,LAVA_BUCKET:137,
     PORKCHOP_RAW:138,PORKCHOP_COOKED:139,LAMB_RAW:140,LAMB_COOKED:141,BEEF_RAW:142,BEEF_COOKED:143,ROTTEN_FLESH:144,CHICKEN_RAW:145,CHICKEN_COOKED:146,SHEARS:147,BED:148,
-    APPLE:149,SNOWBALL:150,LEATHER:151,EGG:152,BOOK:153,
+    APPLE:149,SNOWBALL:150,LEATHER:151,EGG:152,BOOK:153,MINI_CART:154,
      // block items reuse block IDs for placement
    };
    const ITEM_NAMES={
@@ -127,7 +127,7 @@ const WORLD_BORDER_BLOCKS=13000000;
      [IT.LAMB_RAW]:'Lamb (Uncooked)',[IT.LAMB_COOKED]:'Lamb (Cooked)',
      [IT.BEEF_RAW]:'Beef (Uncooked)',[IT.BEEF_COOKED]:'Beef (Cooked)',
      [IT.ROTTEN_FLESH]:'Rotten Flesh',[IT.CHICKEN_RAW]:'Chicken (Uncooked)',[IT.CHICKEN_COOKED]:'Chicken (Cooked)',
-     [IT.APPLE]:'Apple',[IT.SNOWBALL]:'Snowball',[IT.LEATHER]:'Leather',[IT.EGG]:'Egg',[IT.BOOK]:'Book',
+     [IT.APPLE]:'Apple',[IT.SNOWBALL]:'Snowball',[IT.LEATHER]:'Leather',[IT.EGG]:'Egg',[IT.BOOK]:'Book',[IT.MINI_CART]:'Mini Cart',
    };
   const KEYBIND_DEFAULTS={
     forward:'KeyW',left:'KeyA',back:'KeyS',right:'KeyD',
@@ -217,7 +217,7 @@ function getItemName(id){
     [IT.DIAMOND_HOE]:{atk:4,speed:1.05,eff:88,type:'hoe'},
     [IT.BOW]:{atk:5,speed:0.9,type:'bow'},
    };
-  function isHardMaterial(id){return id===B.STONE||id===B.COBBLESTONE||id===B.COAL_ORE||id===B.IRON_ORE||id===B.GOLD_ORE||id===B.DIAMOND_ORE||id===B.IRON_BLOCK||id===B.GOLD_BLOCK||id===B.DIAMOND_BLOCK||id===B.GLASS||id===B.BRICKS||id===B.ICE||id===B.SNOW_BLOCK;}
+  function isHardMaterial(id){return id===B.STONE||id===B.COBBLESTONE||id===B.COAL_ORE||id===B.IRON_ORE||id===B.GOLD_ORE||id===B.DIAMOND_ORE||id===B.IRON_BLOCK||id===B.GOLD_BLOCK||id===B.DIAMOND_BLOCK||id===B.GLASS||id===B.BRICKS||id===B.ICE||id===B.SNOW_BLOCK||id===B.RAIL;}
    function isDirtMaterial(id){return id===B.DIRT||id===B.GRASS||id===B.SAND||id===B.GRAVEL||id===B.RED_SAND||id===B.GRASS_PATH||id===B.FARMLAND_DRY||id===B.FARMLAND_WET||id===B.SNOW_BLOCK||id===B.CACTUS||id===B.SUGAR_CANE;}
    function isWoodMaterial(id){return id===B.WOOD||id===B.PLANKS||id===B.CRAFTING_TABLE||id===B.CHEST||id===B.IRON_CHEST||id===B.GOLD_CHEST||id===B.DIAMOND_CHEST||id===B.DEV_CHEST||id===B.BED||id===B.LADDER||id===B.OAK_STAIRS||id===B.WOOD_DOOR;}
    function isBurnableBlock(id){
@@ -252,7 +252,7 @@ function getItemName(id){
    function isDurableItemId(id){return !!(TOOL_STATS[id]||DURABILITY_MAX[id]);}
    function getMaxStackForId(id){
     if(id===IT.BUCKET||id===IT.EGG)return 9;
-    if(id===IT.WATER_BUCKET||id===IT.LAVA_BUCKET||id===IT.BED)return 1;
+    if(id===IT.WATER_BUCKET||id===IT.LAVA_BUCKET||id===IT.BED||id===IT.MINI_CART)return 1;
     if(id===IT.SNOWBALL)return 16;
     return isDurableItemId(id)||id===IT.BOAT?1:99;
    }
@@ -304,7 +304,7 @@ function getItemName(id){
   }
   function getBlockHeight(id){
     if(id===B.OAK_SLAB||id===B.STONE_SLAB||id===B.COBBLE_SLAB||id===B.OAK_STAIRS||id===B.COBBLE_STAIRS)return 0.5;
-    if(id===B.GRASS_PATH||id===B.FARMLAND_DRY||id===B.FARMLAND_WET)return 0.9;
+    if(id===B.GRASS_PATH||id===B.FARMLAND_DRY||id===B.FARMLAND_WET||id===B.RAIL)return 0.9;
     if(id===B.BED)return 0.56;
     if(id===B.SMALL_GRASS||id===B.ROSE||id===B.DANDELION||id===B.OAK_SAPLING||id===B.LADDER)return 0.01;
     if(id===B.TALL_GRASS||id===B.SUGAR_CANE||id===B.WOOD_DOOR)return 1;
@@ -313,8 +313,7 @@ function getItemName(id){
   }
   function isPartialHeightBlock(id){return getBlockHeight(id)<1;}
   function isCrossPlantBlock(id){return id===B.SMALL_GRASS||id===B.TALL_GRASS||id===B.ROSE||id===B.DANDELION||id===B.OAK_SAPLING||id===B.SUGAR_CANE;}
-  function isThinMountedBlock(id){return id===B.LADDER;}
-  function isRemovedBlockId(id){return id===B.RAIL;}
+  function isThinMountedBlock(id){return id===B.LADDER||id===B.RAIL;}
   function formatKeyCode(code){
     if(!code)return 'Unbound';
     return code.replace(/^Key/,'').replace(/^Digit/,'').replace('Arrow','').replace('Left',' L').replace('Right',' R');
@@ -367,7 +366,7 @@ function getItemName(id){
      [B.GRASS]:0.9,[B.DIRT]:0.75,[B.SAND]:0.75,[B.GRAVEL]:0.75,[B.RED_SAND]:0.75,[B.GRASS_PATH]:0.72,[B.FARMLAND_DRY]:0.7,[B.FARMLAND_WET]:0.7,
      [B.STONE]:4.2,[B.COBBLESTONE]:3.8,[B.COAL_ORE]:4.4,[B.IRON_ORE]:4.6,
      [B.GOLD_ORE]:4.8,[B.DIAMOND_ORE]:5.2,
-    [B.WOOD]:3.0,[B.LEAVES]:0.5,[B.PLANKS]:2.0,[B.BED]:1.4,[B.CRAFTING_TABLE]:3.0,[B.CHEST]:2.6,[B.IRON_CHEST]:3.4,[B.GOLD_CHEST]:3.6,[B.DIAMOND_CHEST]:4.5,[B.DEV_CHEST]:Infinity,[B.TNT]:0.9,[B.IRON_BLOCK]:6.0,[B.GOLD_BLOCK]:6.0,[B.DIAMOND_BLOCK]:6.5,[B.TORCH]:0,[B.FIRE]:0,[B.OAK_SLAB]:1.6,[B.STONE_SLAB]:2.2,[B.COBBLE_SLAB]:2.0,[B.GLASS]:0.45,[B.BRICKS]:4.8,[B.ICE]:0.55,[B.SNOW_BLOCK]:0.6,[B.CACTUS]:0.55,[B.SMALL_GRASS]:0,[B.TALL_GRASS]:0,[B.ROSE]:0,[B.DANDELION]:0,[B.OAK_SAPLING]:0,[B.SUGAR_CANE]:0,[B.LADDER]:0,[B.OAK_STAIRS]:1.9,[B.COBBLE_STAIRS]:2.4 ,[B.WOOD_DOOR]:1.1,
+    [B.WOOD]:3.0,[B.LEAVES]:0.5,[B.PLANKS]:2.0,[B.BED]:1.4,[B.CRAFTING_TABLE]:3.0,[B.CHEST]:2.6,[B.IRON_CHEST]:3.4,[B.GOLD_CHEST]:3.6,[B.DIAMOND_CHEST]:4.5,[B.DEV_CHEST]:Infinity,[B.TNT]:0.9,[B.IRON_BLOCK]:6.0,[B.GOLD_BLOCK]:6.0,[B.DIAMOND_BLOCK]:6.5,[B.TORCH]:0,[B.FIRE]:0,[B.OAK_SLAB]:1.6,[B.STONE_SLAB]:2.2,[B.COBBLE_SLAB]:2.0,[B.GLASS]:0.45,[B.BRICKS]:4.8,[B.ICE]:0.55,[B.SNOW_BLOCK]:0.6,[B.CACTUS]:0.55,[B.SMALL_GRASS]:0,[B.TALL_GRASS]:0,[B.ROSE]:0,[B.DANDELION]:0,[B.OAK_SAPLING]:0,[B.SUGAR_CANE]:0,[B.LADDER]:0,[B.OAK_STAIRS]:1.9,[B.COBBLE_STAIRS]:2.4,[B.RAIL]:0,[B.WOOD_DOOR]:1.1,
      [B.BEDROCK]:Infinity,[B.WATER]:Infinity,[B.LAVA]:Infinity,
    };
    for(let i=0;i<WOOL_COLORS.length;i++)BREAK_TIME[WOOL_BASE_ID+i]=0.65;
@@ -376,7 +375,7 @@ function getItemName(id){
     [B.GRASS]:0.8,[B.DIRT]:0.8,[B.GRASS_PATH]:0.8,[B.FARMLAND_DRY]:0.7,[B.FARMLAND_WET]:0.8,[B.SAND]:0.7,[B.RED_SAND]:0.7,[B.GRAVEL]:0.8,
     [B.WATER]:500,[B.LAVA]:500,[B.WOOD]:2,[B.PLANKS]:2,[B.BED]:1.2,[B.CRAFTING_TABLE]:2.5,[B.CHEST]:2.5,[B.IRON_CHEST]:8,[B.GOLD_CHEST]:7,[B.DIAMOND_CHEST]:12,[B.DEV_CHEST]:1200,
     [B.STONE]:6,[B.COBBLESTONE]:6,[B.COAL_ORE]:4,[B.IRON_ORE]:4.5,[B.GOLD_ORE]:4.5,[B.DIAMOND_ORE]:5,
-    [B.IRON_BLOCK]:10,[B.GOLD_BLOCK]:9,[B.DIAMOND_BLOCK]:12,[B.BEDROCK]:99999,[B.OAK_SLAB]:2,[B.STONE_SLAB]:6,[B.COBBLE_SLAB]:6,[B.GLASS]:0.3,[B.BRICKS]:7,[B.ICE]:0.4,[B.SNOW_BLOCK]:0.6,[B.CACTUS]:0.4,[B.SMALL_GRASS]:0,[B.TALL_GRASS]:0,[B.ROSE]:0,[B.DANDELION]:0,[B.OAK_SAPLING]:0,[B.SUGAR_CANE]:0,[B.LADDER]:0.3,[B.OAK_STAIRS]:2,[B.COBBLE_STAIRS]:6 ,[B.WOOD_DOOR]:1.2,
+    [B.IRON_BLOCK]:10,[B.GOLD_BLOCK]:9,[B.DIAMOND_BLOCK]:12,[B.BEDROCK]:99999,[B.OAK_SLAB]:2,[B.STONE_SLAB]:6,[B.COBBLE_SLAB]:6,[B.GLASS]:0.3,[B.BRICKS]:7,[B.ICE]:0.4,[B.SNOW_BLOCK]:0.6,[B.CACTUS]:0.4,[B.SMALL_GRASS]:0,[B.TALL_GRASS]:0,[B.ROSE]:0,[B.DANDELION]:0,[B.OAK_SAPLING]:0,[B.SUGAR_CANE]:0,[B.LADDER]:0.3,[B.OAK_STAIRS]:2,[B.COBBLE_STAIRS]:6,[B.RAIL]:0.3,[B.WOOD_DOOR]:1.2,
    };
    for(let i=0;i<WOOL_COLORS.length;i++)BLAST_RESISTANCE[WOOL_BASE_ID+i]=0.8;
    
@@ -412,6 +411,7 @@ function getItemName(id){
     [B.LADDER]: [{id:B.LADDER,count:1,ch:1}],
     [B.OAK_STAIRS]: [{id:B.OAK_STAIRS,count:1,ch:1}],
     [B.COBBLE_STAIRS]: [{id:B.COBBLE_STAIRS,count:1,ch:1}],
+    [B.RAIL]: [{id:B.RAIL,count:1,ch:1}],
     [B.WOOD_DOOR]: [{id:B.WOOD_DOOR,count:1,ch:1}],
     [B.OAK_SLAB]: [{id:B.OAK_SLAB,count:1,ch:1}],
     [B.STONE_SLAB]: [{id:B.STONE_SLAB,count:1,ch:1}],
@@ -440,7 +440,7 @@ function getItemName(id){
     shield:0,maxShield:10,armor:0,maxArmor:3,
     energy:100,maxEnergy:100,
     air:100,maxAir:100,
-    saturation:14,maxSaturation:20,
+    saturation:8,maxSaturation:20,
   };
   let hungerPauseT=0;
   let healFlashT=0;
@@ -876,6 +876,7 @@ function getItemName(id){
   BLOCK_NAMES[B.LADDER]='Ladder';
   BLOCK_NAMES[B.OAK_STAIRS]='Oak Stairs';
   BLOCK_NAMES[B.COBBLE_STAIRS]='Cobblestone Stairs';
+  BLOCK_NAMES[B.RAIL]='Rail';
   BLOCK_NAMES[B.WOOD_DOOR]='Wooden Door';
    
    // Texture lookup by block ID
@@ -929,7 +930,8 @@ function getItemName(id){
      [B.LADDER]:{top:TEX.ladder,bot:TEX.ladder,side:TEX.ladder},
      [B.OAK_STAIRS]:{top:TEX.planks,bot:TEX.planks,side:TEX.planks},
      [B.COBBLE_STAIRS]:{top:TEX.cobblestone,bot:TEX.cobblestone,side:TEX.cobblestone},
-      [B.WOOD_DOOR]:{top:TEX.door,bot:TEX.door,side:TEX.door},
+     [B.RAIL]:{top:TEX.rail,bot:TEX.rail,side:TEX.rail},
+     [B.WOOD_DOOR]:{top:TEX.door,bot:TEX.door,side:TEX.door},
      [B.OAK_SLAB]:{top:TEX.planks,bot:TEX.planks,side:TEX.planks},
      [B.STONE_SLAB]:{top:TEX.stone,bot:TEX.stone,side:TEX.stone},
      [B.COBBLE_SLAB]:{top:TEX.cobblestone,bot:TEX.cobblestone,side:TEX.cobblestone},
@@ -952,7 +954,7 @@ function getItemName(id){
      [IT.SHEARS]:TEX.shears,
      [IT.BUCKET]:TEX.bucket,[IT.WATER_BUCKET]:TEX.waterBucket,[IT.LAVA_BUCKET]:TEX.lavaBucket,[IT.BED]:TEX.bedTop,
      [IT.PORKCHOP_RAW]:TEX.porkRaw,[IT.PORKCHOP_COOKED]:TEX.porkCooked,[IT.LAMB_RAW]:TEX.lambRaw,[IT.LAMB_COOKED]:TEX.lambCooked,[IT.BEEF_RAW]:TEX.beefRaw,[IT.BEEF_COOKED]:TEX.beefCooked,[IT.ROTTEN_FLESH]:TEX.rottenFlesh,[IT.CHICKEN_RAW]:TEX.chickenRaw,[IT.CHICKEN_COOKED]:TEX.chickenCooked,
-     [IT.APPLE]:TEX.apple,[IT.SNOWBALL]:TEX.snowball,[IT.LEATHER]:TEX.leather,[IT.EGG]:TEX.egg,[IT.BOOK]:TEX.book,
+     [IT.APPLE]:TEX.apple,[IT.SNOWBALL]:TEX.snowball,[IT.LEATHER]:TEX.leather,[IT.EGG]:TEX.egg,[IT.BOOK]:TEX.book,[IT.MINI_CART]:TEX.miniCart,
    };
    function getItemTex(id){
      if(id<100) return (BLOCK_TEX[id]||BLOCK_TEX[B.STONE]).top;
@@ -963,7 +965,7 @@ function getItemName(id){
    function getMats(id){
      if(matCache[id]) return matCache[id];
      const bt=BLOCK_TEX[id]||BLOCK_TEX[B.STONE];
-    const cutout=id===B.TORCH||id===B.FIRE||isCrossPlantBlock(id)||id===B.LADDER;
+    const cutout=id===B.TORCH||id===B.FIRE||isCrossPlantBlock(id)||id===B.LADDER||id===B.RAIL;
     const tr=id===B.LEAVES||isFluid(id)||id===B.GLASS||cutout;
    const fluidOpacity=isWaterBlock(id)?0.76:(isLavaBlock(id)?0.88:1);
    const opacity=id===B.GLASS?0.42:(isFluid(id)?fluidOpacity:(id===B.LEAVES?0.86:1));
@@ -1076,7 +1078,7 @@ function getItemName(id){
     requestWorldSave();
   }
   function isSolid(id){
-    return id!==B.AIR&&id!==B.LEAVES&&!isFluid(id)&&id!==B.TORCH&&id!==B.FIRE&&id!==B.SMALL_GRASS&&id!==B.TALL_GRASS&&id!==B.ROSE&&id!==B.DANDELION&&id!==B.OAK_SAPLING&&id!==B.SUGAR_CANE&&id!==B.LADDER&&id!==B.WOOD_DOOR;
+    return id!==B.AIR&&id!==B.LEAVES&&!isFluid(id)&&id!==B.TORCH&&id!==B.FIRE&&id!==B.SMALL_GRASS&&id!==B.TALL_GRASS&&id!==B.ROSE&&id!==B.DANDELION&&id!==B.OAK_SAPLING&&id!==B.SUGAR_CANE&&id!==B.LADDER&&id!==B.RAIL&&id!==B.WOOD_DOOR;
   }
    function getFluidFamily(id){return (id===B.WATER||id===B.FLOWING_WATER)?'water':((id===B.LAVA||id===B.FLOWING_LAVA)?'lava':null);}
    function isWaterBlock(id){return getFluidFamily(id)==='water';}
@@ -1306,7 +1308,6 @@ function getItemName(id){
    // ═══════════════════════════════════════════════════════════
    const chunkMeshes=new Map();
   const torchLights=new Map();
-  const lavaLights=new Map();
    const FACES=[
      {dir:[1,0,0], c:[[1,0,0],[1,1,0],[1,1,1],[1,0,1]]},
      {dir:[-1,0,0],c:[[0,0,1],[0,1,1],[0,1,0],[0,0,0]]},
@@ -1341,14 +1342,11 @@ function getItemName(id){
     for(const [k,l] of [...torchLights.entries()]){
       if(l.userData.chunkKey===key){scene.remove(l);torchLights.delete(k);}
     }
-    for(const [k,l] of [...lavaLights.entries()]){
-      if(l.userData.chunkKey===key){scene.remove(l);lavaLights.delete(k);}
-    }
      const arr=getArr(cx,cz,false);if(!arr)return;
      const fd={};
      const getFD=id=>{if(!fd[id])fd[id]={pos:[],nor:[],uvs:[],idx:[]};return fd[id];};
      for(let lx=0;lx<16;lx++)for(let lz=0;lz<16;lz++)for(let y=0;y<CFG.chunkH;y++){
-       const self=arr[vKey(lx,y,lz)];if(self===B.AIR||isRemovedBlockId(self))continue;
+       const self=arr[vKey(lx,y,lz)];if(self===B.AIR)continue;
        const wx=cx*16+lx,wz=cz*16+lz;
        if(self===B.TORCH){
         const d=getFD(self),base=d.pos.length/3;
@@ -1411,6 +1409,14 @@ function getItemName(id){
         const z=lz+0.935;
         const quad=[[lx+0.05,y,z],[lx+0.05,y+1,z],[lx+0.95,y+1,z],[lx+0.95,y,z]];
         for(let i=0;i<4;i++){const v=quad[i];d.pos.push(v[0],v[1],v[2]);d.nor.push(0,0,1);d.uvs.push(QUV[i][0],QUV[i][1]);}
+        d.idx.push(base,base+1,base+2,base,base+2,base+3);
+        continue;
+      }
+      if(self===B.RAIL){
+        const d=getFD(self),base=d.pos.length/3;
+        const yRail=y+0.06;
+        const quad=[[lx,yRail,lz+1],[lx+1,yRail,lz+1],[lx+1,yRail,lz],[lx,yRail,lz]];
+        for(let i=0;i<4;i++){const v=quad[i];d.pos.push(v[0],v[1],v[2]);d.nor.push(0,1,0);d.uvs.push(QUV[i][0],QUV[i][1]);}
         d.idx.push(base,base+1,base+2,base,base+2,base+3);
         continue;
       }
@@ -1538,16 +1544,6 @@ function getItemName(id){
       light.position.set(wx+0.5,y+0.58,wz+0.5);
       light.userData={chunkKey:key};
       scene.add(light);torchLights.set(lk,light);
-    }
-    for(let lx=0;lx<16;lx++)for(let lz=0;lz<16;lz++)for(let y=1;y<CFG.chunkH;y++){
-      const bid=arr[vKey(lx,y,lz)];
-      if(!(bid===B.LAVA||bid===B.FLOWING_LAVA))continue;
-      const wx=cx*16+lx,wz=cz*16+lz;
-      const lk=`lava_${wx},${y},${wz}`;
-      const light=new THREE.PointLight(0xff7a2a,bid===B.LAVA?0.8:0.5,bid===B.LAVA?11:8,2.0);
-      light.position.set(wx+0.5,y+0.5,wz+0.5);
-      light.userData={chunkKey:key};
-      scene.add(light);lavaLights.set(lk,light);
     }
    }
    
@@ -2957,11 +2953,11 @@ function getItemName(id){
     const feetBlock=worldGet(Math.floor(player.pos.x),Math.floor(player.pos.y),Math.floor(player.pos.z));
     if(feetBlock===B.FIRE)applyDamage(10*dt,true);
     if(hungerPauseT>0)hungerPauseT=Math.max(0,hungerPauseT-dt);
-    const hungerDrain=(KEYS['KeyW']&&KEYS[KEYBINDS.forward]&&STATS.energy>0)?0.11:0.018;
+    const hungerDrain=(KEYS['KeyW']&&KEYS[KEYBINDS.forward]&&STATS.energy>0)?0.22:0.045;
     const hungerMul=hungerPauseT>0?0:1;
     STATS.hunger=Math.max(0,STATS.hunger-hungerDrain*dt*hungerMul);
-    STATS.saturation=Math.max(0,STATS.saturation-((hungerDrain*0.25)*dt));
-    if(STATS.hunger<=0)applyDamage(0.5*dt,true);
+    STATS.saturation=Math.max(0,STATS.saturation-((hungerDrain*0.55)*dt));
+    if(STATS.hunger<=0)applyDamage(1.2*dt,true);
     const fedThreshold=STATS.maxHunger*0.2;
     const fullFed=STATS.hunger>=STATS.maxHunger-0.25;
     if(STATS.hunger>=fedThreshold&&STATS.health<STATS.maxHealth){
@@ -3426,7 +3422,7 @@ function getItemName(id){
     spawnColorParticles(wx+0.5,wy+0.55,wz+0.5,0xffffff,6,0.35);
    }
    function isInstantBreakBlock(id){
-    return id===B.TORCH||id===B.FIRE||isCrossPlantBlock(id)||id===B.LADDER;
+    return id===B.TORCH||id===B.FIRE||isCrossPlantBlock(id)||id===B.LADDER||id===B.RAIL;
    }
    function startBreaking(){
     if(!targetBlock)return;
@@ -4198,7 +4194,7 @@ function getItemName(id){
    }
 
 // ── HOTBAR 3D ICON RENDERER ───────────────────────────────
-  function shouldUseFlatIcon(id){return id>=100||id===B.TORCH||isFluid(id)||id===B.FIRE||isCrossPlantBlock(id)||id===B.LADDER;}
+  function shouldUseFlatIcon(id){return id>=100||id===B.TORCH||isFluid(id)||id===B.FIRE||isCrossPlantBlock(id)||id===B.LADDER||id===B.RAIL;}
   function drawFlatIcon(g,w,h,id){
     const tex=getItemTex(id);
     if(!tex?.image)return;
@@ -5215,8 +5211,6 @@ function getItemName(id){
     primedTnts.length=0;
     for(const l of torchLights.values())scene.remove(l);
     torchLights.clear();
-    for(const l of lavaLights.values())scene.remove(l);
-    lavaLights.clear();
     for(let i=projectiles.length-1;i>=0;i--){removeAndDisposeSceneObject(projectiles[i]);}
     projectiles.length=0;
     for(let i=chestShineFx.length-1;i>=0;i--){removeAndDisposeSceneObject(chestShineFx[i]);}
@@ -5648,6 +5642,7 @@ function getItemName(id){
   function loop(){
      requestAnimationFrame(loop);
     const now=performance.now();const dt=Math.min((now-lastNow)*0.001,0.05);lastNow=now;
+    updateSurvivalStats(dt);
     if(!isPaused){
       updateSurvivalStats(dt);
       updateControllerInput();
@@ -5749,7 +5744,7 @@ function getItemName(id){
      }
 
     // Always start a new world in singleplayer for now
-    STATS.health=STATS.maxHealth;STATS.shield=0;STATS.hunger=STATS.maxHunger;STATS.energy=STATS.maxEnergy;STATS.air=STATS.maxAir;STATS.saturation=STATS.maxSaturation*0.75;
+    STATS.health=STATS.maxHealth;STATS.shield=0;STATS.hunger=STATS.maxHunger;STATS.energy=STATS.maxEnergy;STATS.air=STATS.maxAir;STATS.saturation=STATS.maxSaturation*0.5;
     STATS.armor=0;
     INV.hotbar=Array(9).fill(null);
     INV.main=Array(27).fill(null);
@@ -5787,7 +5782,7 @@ function getItemName(id){
       STATS.shield=Math.max(0,Math.min(STATS.maxShield,savedWorldState.stats?.shield??0));
       STATS.hunger=Math.max(0,Math.min(STATS.maxHunger,savedWorldState.stats?.hunger??STATS.maxHunger));
       STATS.energy=Math.max(0,Math.min(STATS.maxEnergy,savedWorldState.stats?.energy??STATS.maxEnergy));
-      STATS.saturation=Math.max(0,Math.min(STATS.maxSaturation,savedWorldState.stats?.saturation??(STATS.maxSaturation*0.75)));
+      STATS.saturation=Math.max(0,Math.min(STATS.maxSaturation,savedWorldState.stats?.saturation??(STATS.maxSaturation*0.5)));
       dayTime=Math.max(0,Math.min(0.9999,savedWorldState.worldTime?.dayTime??0));
       dayCount=Math.max(0,Math.floor(savedWorldState.worldTime?.dayCount??0));
       moonPhase=Math.max(1,Math.min(8,Math.floor(savedWorldState.worldTime?.moonPhase??((dayCount%8)+1))));
