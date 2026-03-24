@@ -3567,7 +3567,18 @@ function getItemName(id){
     scene.add(m);drops.push(m);
     requestWorldSave(350);
   }
-  function spawnDrops(wx,wy,wz,blockId,pickupDelay=0){
+  function blockRequiresPickaxeForDrops(blockId){
+    return blockId===B.STONE||blockId===B.COBBLESTONE||blockId===B.COAL_ORE||blockId===B.IRON_ORE||blockId===B.GOLD_ORE||blockId===B.DIAMOND_ORE||blockId===B.IRON_BLOCK||blockId===B.GOLD_BLOCK||blockId===B.DIAMOND_BLOCK||blockId===B.BRICKS||blockId===B.STONE_SLAB||blockId===B.COBBLE_SLAB||blockId===B.COBBLE_STAIRS;
+  }
+  function canCollectBlockDrops(blockId,requireHarvestTool=false){
+    if(blockId===B.ICE)return false;
+    if(!requireHarvestTool)return true;
+    if(!blockRequiresPickaxeForDrops(blockId))return true;
+    const held=INV.hotbar[INV.active];
+    return !!(held&&TOOL_STATS[held.id]?.type==='pickaxe');
+  }
+  function spawnDrops(wx,wy,wz,blockId,pickupDelay=0,requireHarvestTool=false){
+    if(!canCollectBlockDrops(blockId,requireHarvestTool))return;
     const table=DROP_TABLE[blockId]??[{id:blockId,count:1,ch:1}];
     table.forEach(entry=>{
       if(Math.random()>entry.ch)return;
@@ -3762,7 +3773,7 @@ function getItemName(id){
     const chunkKeys=new Set();
     for(const t of targets){
       spawnParticles(t.wx,t.wy,t.wz,id);
-      spawnDrops(t.wx,t.wy,t.wz,id,0.8);
+      spawnDrops(t.wx,t.wy,t.wz,id,0.8,true);
       worldSet(t.wx,t.wy,t.wz,B.AIR);
       clearChestMeta(worldPosKey(t.wx,t.wy,t.wz));
       clearDoorMeta(worldPosKey(t.wx,t.wy,t.wz));
@@ -3969,7 +3980,7 @@ function getItemName(id){
        buildChunkMesh(Math.floor(px/16),Math.floor(pz/16));buildChunkMesh(Math.floor(hx/16),Math.floor(hz/16));updateHotbarUI();drawHand();requestWorldSave(180);
        return;
      }
-     if(held.id===B.LADDER||held.id===B.RAIL||held.id===B.SMALL_GRASS||held.id===B.TALL_GRASS||held.id===B.ROSE||held.id===B.DANDELION||held.id===B.OAK_SAPLING||held.id===B.SUGAR_CANE||held.id===B.WOOD_DOOR){
+     if(held.id===B.LADDER||held.id===B.SMALL_GRASS||held.id===B.TALL_GRASS||held.id===B.ROSE||held.id===B.DANDELION||held.id===B.OAK_SAPLING||held.id===B.SUGAR_CANE||held.id===B.WOOD_DOOR){
       const [fx,fy,fz]=targetBlock.face;
       const px=targetBlock.wx+fx,py=targetBlock.wy+fy,pz=targetBlock.wz+fz;
       if(worldGet(px,py,pz)!==B.AIR&&!isFluid(worldGet(px,py,pz)))return;
@@ -3982,7 +3993,6 @@ function getItemName(id){
       }
       if(held.id===B.LADDER&&!(isSolid(worldGet(targetBlock.wx,targetBlock.wy,targetBlock.wz))&&targetBlock.face[1]===0))return;
       if(held.id===B.TORCH&&!((targetBlock.face[1]===-1&&isSolid(worldGet(px,py+1,pz)))||isSolid(worldGet(px,py-1,pz))))return;
-      if(held.id===B.RAIL&&!isSolid(worldGet(px,py-1,pz)))return;
       if(held.id===B.WOOD_DOOR&&!isSolid(worldGet(px,py-1,pz)))return;
       worldSet(px,py,pz,held.id);
       if(held.id===B.WOOD_DOOR)setDoorMeta(worldPosKey(px,py,pz),{open:false,axis:Math.abs(Math.sin(player.yaw))>Math.abs(Math.cos(player.yaw))?1:0});
@@ -4079,6 +4089,7 @@ function getItemName(id){
      {w:1,h:2,pat:[IT.IRON_INGOT,0],out:{id:IT.BUCKET,count:1}},
      {w:3,h:1,pat:[IT.STICK,IT.STICK,IT.STICK],out:{id:IT.ARROW,count:6}},
      {w:2,h:2,pat:[B.SAND,B.SAND,B.SAND,B.SAND],out:{id:B.GLASS,count:4}},
+    {w:2,h:2,pat:[B.RED_SAND,B.RED_SAND,B.RED_SAND,B.RED_SAND],out:{id:B.GLASS,count:4}},
      {w:2,h:2,pat:[B.STONE,B.STONE,B.STONE,B.STONE],out:{id:B.BRICKS,count:4}},
      {w:2,h:2,pat:[B.SNOW_BLOCK,B.SNOW_BLOCK,B.SNOW_BLOCK,B.SNOW_BLOCK],out:{id:IT.SNOWBALL,count:8}},
      {w:1,h:3,pat:[0,IT.STICK,0],out:{id:B.LADDER,count:3},mirror:false},
@@ -4086,8 +4097,6 @@ function getItemName(id){
      {w:2,h:3,pat:[B.PLANKS,B.PLANKS,B.PLANKS,B.PLANKS,B.PLANKS,B.PLANKS],out:{id:B.WOOD_DOOR,count:1}},
      {w:3,h:3,pat:[B.PLANKS,0,0,B.PLANKS,B.PLANKS,0,B.PLANKS,B.PLANKS,B.PLANKS],out:{id:B.OAK_STAIRS,count:4}},
      {w:3,h:3,pat:[B.COBBLESTONE,0,0,B.COBBLESTONE,B.COBBLESTONE,0,B.COBBLESTONE,B.COBBLESTONE,B.COBBLESTONE],out:{id:B.COBBLE_STAIRS,count:4}},
-     {w:3,h:3,pat:[IT.IRON_INGOT,0,IT.IRON_INGOT,IT.IRON_INGOT,IT.STICK,IT.IRON_INGOT,IT.IRON_INGOT,0,IT.IRON_INGOT],out:{id:B.RAIL,count:8}},
-     {w:3,h:3,pat:[IT.IRON_INGOT,0,IT.IRON_INGOT,IT.IRON_INGOT,B.IRON_BLOCK,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT],out:{id:IT.MINI_CART,count:1}},
      {w:1,h:1,pat:[B.SNOW_BLOCK],out:{id:IT.SNOWBALL,count:4}},
      {w:2,h:2,pat:[B.PLANKS,IT.APPLE,B.PLANKS,B.PLANKS],out:{id:IT.BOOK,count:1}},
      {w:3,h:1,pat:[B.PLANKS,B.PLANKS,B.PLANKS],out:{id:B.OAK_SLAB,count:6}},
@@ -4126,6 +4135,9 @@ function getItemName(id){
      {w:3,h:3,pat:[IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT,IT.IRON_INGOT],out:{id:B.IRON_BLOCK,count:1}},
      {w:3,h:3,pat:[IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT,IT.GOLD_INGOT],out:{id:B.GOLD_BLOCK,count:1}},
      {w:3,h:3,pat:[IT.DIAMOND,IT.DIAMOND,IT.DIAMOND,IT.DIAMOND,IT.DIAMOND,IT.DIAMOND,IT.DIAMOND,IT.DIAMOND,IT.DIAMOND],out:{id:B.DIAMOND_BLOCK,count:1}},
+    {w:1,h:1,pat:[B.IRON_BLOCK],out:{id:IT.IRON_INGOT,count:9}},
+    {w:1,h:1,pat:[B.GOLD_BLOCK],out:{id:IT.GOLD_INGOT,count:9}},
+    {w:1,h:1,pat:[B.DIAMOND_BLOCK],out:{id:IT.DIAMOND,count:9}},
      {w:3,h:3,pat:[B.IRON_BLOCK,B.IRON_BLOCK,B.IRON_BLOCK,B.IRON_BLOCK,B.CHEST,B.IRON_BLOCK,B.IRON_BLOCK,B.IRON_BLOCK,B.IRON_BLOCK],out:{id:B.IRON_CHEST,count:1}},
      {w:3,h:3,pat:[B.GOLD_BLOCK,B.GOLD_BLOCK,B.GOLD_BLOCK,B.GOLD_BLOCK,B.IRON_CHEST,B.GOLD_BLOCK,B.GOLD_BLOCK,B.GOLD_BLOCK,B.GOLD_BLOCK],out:{id:B.GOLD_CHEST,count:1}},
      {w:3,h:3,pat:[B.DIAMOND_BLOCK,B.DIAMOND_BLOCK,B.DIAMOND_BLOCK,B.DIAMOND_BLOCK,B.GOLD_CHEST,B.DIAMOND_BLOCK,B.DIAMOND_BLOCK,B.DIAMOND_BLOCK,B.DIAMOND_BLOCK],out:{id:B.DIAMOND_CHEST,count:1}},
