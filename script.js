@@ -730,12 +730,17 @@ function getItemName(id){
   });
   TEX.fire=makeTex(g=>{
     g.clearRect(0,0,16,16);
-    g.fillStyle='rgba(255,140,0,0.95)';
-    g.fillRect(6,3,4,11);
-    g.fillStyle='rgba(255,210,80,0.95)';
-    g.fillRect(7,1,2,8);
-    g.fillStyle='rgba(255,60,0,0.7)';
-    g.fillRect(4,7,2,6);g.fillRect(10,8,2,5);
+    g.fillStyle='rgba(255,110,0,0.95)';
+    g.fillRect(5,5,6,9);
+    g.fillRect(6,2,4,4);
+    g.fillStyle='rgba(255,175,40,0.95)';
+    g.fillRect(6,7,4,7);
+    g.fillRect(7,1,2,7);
+    g.fillStyle='rgba(255,225,120,0.92)';
+    g.fillRect(7,4,2,6);
+    g.fillRect(6,10,4,3);
+    g.fillStyle='rgba(255,70,0,0.75)';
+    g.fillRect(4,8,2,5);g.fillRect(10,8,2,5);
   });
   TEX.bedTop=makeTex(g=>{g.fillStyle='#0f0f0f';g.fillRect(0,0,16,16);g.fillStyle='#f4f4f4';g.fillRect(0,0,16,9);g.fillStyle='#ffffff';g.fillRect(1,1,14,6);g.fillStyle='#d9d9d9';g.fillRect(3,2,10,3);g.fillStyle='#000000';g.fillRect(0,9,16,7);});
   TEX.bedSide=makeTex(g=>{g.fillStyle='#050505';g.fillRect(0,0,16,16);g.fillStyle='#ffffff';g.fillRect(0,0,16,7);g.fillStyle='#dcdcdc';g.fillRect(1,1,14,3);g.fillStyle='#111111';g.fillRect(0,7,16,9);g.fillStyle='#2b2b2b';g.fillRect(1,10,14,5);});
@@ -816,13 +821,13 @@ function getItemName(id){
   TEX.snowBlock=makeTex(g=>{g.fillStyle='#eef6ff';g.fillRect(0,0,16,16);g.fillStyle='#dbe8f7';for(let i=0;i<20;i++)g.fillRect((Math.random()*16)|0,(Math.random()*16)|0,1,1);});
   TEX.cactusTop=makeTex(g=>{g.fillStyle='#3d913d';g.fillRect(0,0,16,16);g.fillStyle='#66be58';g.fillRect(2,2,12,12);g.fillStyle='#214d20';g.fillRect(7,7,2,2);});
   TEX.cactusSide=makeTex(g=>{g.fillStyle='#4aa04a';g.fillRect(0,0,16,16);g.fillStyle='#2f7a2f';for(let x=2;x<16;x+=4)g.fillRect(x,0,1,16);g.fillStyle='#78cf62';for(let y=2;y<16;y+=4){g.fillRect(2,y,1,1);g.fillRect(10,y+1,1,1);}});
-  const makePlantTex=(stalk,bloom=null)=>makeTex(g=>{g.clearRect(0,0,16,16);g.fillStyle=stalk;g.fillRect(7,4,2,12);g.fillRect(5,8,2,2);g.fillRect(9,7,2,2);if(bloom){g.fillStyle=bloom;g.fillRect(5,1,6,5);g.fillRect(6,0,4,7);}});
+  const makePlantTex=(stalk,bloom=null)=>makeTex(g=>{g.clearRect(0,0,16,16);g.fillStyle=stalk;g.fillRect(6,4,4,12);g.fillRect(4,10,3,2);g.fillRect(9,9,3,2);g.fillRect(5,13,6,2);if(bloom){g.fillStyle=bloom;g.fillRect(4,1,8,5);g.fillRect(5,0,6,7);g.fillRect(6,6,4,2);}});
   TEX.smallGrass=makePlantTex('#58a53e');
   TEX.tallGrass=makePlantTex('#63b447');
   TEX.rose=makePlantTex('#4a9d39','#d84c67');
   TEX.dandelion=makePlantTex('#4a9d39','#f3d34c');
   TEX.sapling=makePlantTex('#7b5c2c','#5cc04e');
-  TEX.sugarCane=makeTex(g=>{g.clearRect(0,0,16,16);g.fillStyle='#76d68a';g.fillRect(5,1,2,15);g.fillRect(9,0,2,16);g.fillStyle='#4ca76b';for(let y=2;y<16;y+=4){g.fillRect(5,y,2,1);g.fillRect(9,y+1,2,1);}});
+  TEX.sugarCane=makeTex(g=>{g.clearRect(0,0,16,16);g.fillStyle='#76d68a';g.fillRect(4,2,3,14);g.fillRect(7,0,3,16);g.fillRect(10,3,2,13);g.fillStyle='#4ca76b';for(let y=2;y<16;y+=4){g.fillRect(4,y,3,1);g.fillRect(7,y+1,3,1);g.fillRect(10,y+2,2,1);}});
   TEX.ladder=makeTex(g=>{g.clearRect(0,0,16,16);g.fillStyle='#8a5a34';g.fillRect(2,0,2,16);g.fillRect(12,0,2,16);for(let y=3;y<16;y+=4)g.fillRect(3,y,10,2);});
   TEX.rail=makeTex(g=>{g.clearRect(0,0,16,16);g.fillStyle='#8a5a34';for(let x=2;x<16;x+=4)g.fillRect(x,2,2,12);g.fillStyle='#c9cdd2';g.fillRect(1,3,3,10);g.fillRect(12,3,3,10);});
   TEX.door=makeTex(g=>{g.fillStyle='#8d6236';g.fillRect(0,0,16,16);g.fillStyle='#b9874f';g.fillRect(2,2,12,12);g.clearRect(4,4,8,4);g.fillStyle='#5d3d1c';g.fillRect(12,8,1,1);});
@@ -1274,18 +1279,6 @@ function getItemName(id){
          if(base+trunkH<CFG.chunkH)arr[vKey(lx,base+trunkH,lz)]=B.LEAVES;
        }
 
-      const topId=arr[vKey(lx,h,lz)];
-      const coldMask=frac(Math.abs(h2(wx*0.015-80,wz*0.015+110)));
-      const coldBiome=coldMask<0.08;
-      const alpineCold=h>CFG.seaLevel+28&&coldMask<0.2;
-      if((coldBiome||alpineCold)&&topId===B.GRASS){
-        arr[vKey(lx,h,lz)]=B.SNOW_BLOCK;
-        if(h<CFG.seaLevel-1){
-          for(let y=h+1;y<=CFG.seaLevel;y++){
-            if(arr[vKey(lx,y,lz)]===B.WATER)arr[vKey(lx,y,lz)]=B.ICE;
-          }
-        }
-      }
       const surfaceId=arr[vKey(lx,h,lz)];
       if(surfaceId===B.GRASS&&h>CFG.seaLevel+1){
         const plantRoll=frac(Math.abs(h2(wx*5.7+14,wz*6.1-9)));
@@ -1303,7 +1296,7 @@ function getItemName(id){
       if((surfaceId===B.GRASS||surfaceId===B.SAND)&&arr[vKey(lx,h+1,lz)]===B.AIR){
         const nearWater=[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>worldGet(wx+dx,h,wz+dz)===B.WATER||worldGet(wx+dx,h+1,wz+dz)===B.WATER);
         if(nearWater&&frac(Math.abs(h2(wx*4.9+71,wz*5.2-44)))<0.055){
-          const caneH=2+(frac(Math.abs(h2(wx*8.4-21,wz*8.1+67)))<0.35?1:0);
+          const caneH=2+(frac(Math.abs(h2(wx*8.4-21,wz*8.1+67)))<0.55?1:0)+(frac(Math.abs(h2(wx*6.6+13,wz*7.3-29)))<0.24?1:0);
           for(let cy=1;cy<=caneH&&h+cy<CFG.chunkH;cy++)arr[vKey(lx,h+cy,lz)]=B.SUGAR_CANE;
         }
       }
@@ -2084,18 +2077,18 @@ function getItemName(id){
       m.userData.jumpVy=Math.max(waterAhead?-2.5:-8,(m.userData.jumpVy||0)-grav*dt);
       m.position.x=nextX;m.position.z=nextZ;
       m.position.y+=m.userData.jumpVy*dt;
-      const sy=getSurfaceY(Math.floor(m.position.x),Math.floor(m.position.z));
+      const supportY=getMobSupportSurfaceY(Math.floor(m.position.x),Math.floor(m.position.z),m.position.y);
       const fluidHere=worldGet(Math.floor(m.position.x),Math.max(1,Math.floor(m.position.y)),Math.floor(m.position.z));
       if(isFluid(fluidHere)){
         const fluidLift=isWaterBlock(fluidHere)?0.7:0.5;
         const fluidRise=isWaterBlock(fluidHere)?2.4:1.35;
         const fluidFloor=isWaterBlock(fluidHere)?0.35:0.12;
-        const targetY=Math.max(sy+fluidLift,m.position.y);
+        const targetY=Math.max((supportY??m.position.y)+fluidLift,m.position.y);
         m.position.y+=Math.min((targetY-m.position.y),dt*fluidRise);
         m.userData.jumpVy=Math.max(m.userData.jumpVy,fluidFloor);
         if(isWaterBlock(fluidHere)&&Math.random()<0.14*dt*60)spawnColorParticles(m.position.x,m.position.y+0.35,m.position.z,0x66bbff,1,0.12);
         if(isLavaBlock(fluidHere)&&Math.random()<0.18*dt*60)spawnColorParticles(m.position.x,m.position.y+0.4,m.position.z,0xff7b22,2,0.14);
-      }else if(sy>0&&m.position.y<=sy+1){m.position.y=sy+1;m.userData.jumpVy=0;}
+      }else if(supportY!==null&&m.position.y<=supportY){m.position.y=supportY;m.userData.jumpVy=0;}
       const desiredYaw=Math.atan2(m.userData.vx||0,m.userData.vz||0);
       if(Number.isFinite(desiredYaw))m.userData.targetYaw=desiredYaw;
       m.rotation.y+=angleDelta(m.userData.targetYaw||m.rotation.y,m.rotation.y)*Math.min(1,dt*5);
@@ -2145,7 +2138,6 @@ function getItemName(id){
     stopBreaking();
     bowChargeActive=false;
     bowChargeTime=0;
-    eating.active=false;
     eatAction.active=false;
     resetGameplayInputs(true);
   }
@@ -3071,7 +3063,7 @@ function getItemName(id){
   }
 
   function canPlantStayOnBlock(id,belowId){
-    if(isCrossPlantBlock(id)&&id!==B.SUGAR_CANE)return belowId===B.GRASS||belowId===B.DIRT||belowId===B.SNOW_BLOCK;
+    if(isCrossPlantBlock(id)&&id!==B.SUGAR_CANE)return belowId===B.GRASS||belowId===B.DIRT;
     if(id===B.SUGAR_CANE)return belowId===B.GRASS||belowId===B.SAND||belowId===B.RED_SAND||belowId===B.SUGAR_CANE;
     return true;
   }
@@ -3289,6 +3281,18 @@ function getItemName(id){
       if(worldGet(tx,ty,tz)===B.AIR)worldSet(tx,ty,tz,B.LEAVES);
     }
   }
+  function getMobSupportSurfaceY(wx,wz,centerY){
+    const start=Math.max(1,Math.min(CFG.chunkH-2,Math.floor(centerY)+2));
+    const end=Math.max(1,Math.floor(centerY)-3);
+    for(let y=start;y>=end;y--){
+      const id=worldGet(wx,y,wz);
+      if(id===B.AIR||isWaterBlock(id)||isLavaBlock(id))continue;
+      if(!isSolid(id)&&id!==B.FIRE&&!isCrossPlantBlock(id)&&id!==B.TORCH&&!isThinMountedBlock(id))continue;
+      const top=y+Math.max(0.01,getBlockHeight(id));
+      if(worldGet(wx,Math.min(CFG.chunkH-1,y+1),wz)===B.AIR||isFluid(worldGet(wx,Math.min(CFG.chunkH-1,y+1),wz))||isCrossPlantBlock(worldGet(wx,Math.min(CFG.chunkH-1,y+1),wz))||worldGet(wx,Math.min(CFG.chunkH-1,y+1),wz)===B.FIRE)return top;
+    }
+    return null;
+  }
   function updateNatureGrowth(dt){
     sugarCaneTick+=dt;saplingTick+=dt;
     const px=Math.floor(player.pos.x),py=Math.floor(player.pos.y),pz=Math.floor(player.pos.z);
@@ -3299,7 +3303,7 @@ function getItemName(id){
         if(worldGet(wx,wy,wz)!==B.SUGAR_CANE||worldGet(wx,wy+1,wz)!==B.AIR)continue;
         const below=worldGet(wx,wy-1,wz);
         const nearWater=[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>isWaterBlock(worldGet(wx+dx,wy-1,wz+dz))||isWaterBlock(worldGet(wx+dx,wy,wz+dz)));
-        if((below===B.GRASS||below===B.SAND||below===B.RED_SAND||below===B.SUGAR_CANE)&&nearWater&&Math.random()<0.12){
+        if((below===B.GRASS||below===B.SAND||below===B.RED_SAND||below===B.SUGAR_CANE)&&nearWater&&Math.random()<0.16){
           let height=1;for(let y=wy-1;y>=1&&worldGet(wx,y,wz)===B.SUGAR_CANE;y--)height++;
           if(height<3){worldSet(wx,wy+1,wz,B.SUGAR_CANE);buildChunkMesh(Math.floor(wx/16),Math.floor(wz/16));}
         }
@@ -3310,7 +3314,7 @@ function getItemName(id){
       for(let i=0;i<40;i++){
         const wx=px+((Math.random()*34)|0)-17,wz=pz+((Math.random()*34)|0)-17,wy=Math.max(2,Math.min(CFG.chunkH-8,py+((Math.random()*22)|0)-11));
         if(worldGet(wx,wy,wz)!==B.OAK_SAPLING)continue;
-        if(worldGet(wx,wy-1,wz)!==B.GRASS&&worldGet(wx,wy-1,wz)!==B.DIRT&&worldGet(wx,wy-1,wz)!==B.SNOW_BLOCK)continue;
+        if(worldGet(wx,wy-1,wz)!==B.GRASS&&worldGet(wx,wy-1,wz)!==B.DIRT)continue;
         if(Math.random()<0.035){
           worldSet(wx,wy,wz,B.AIR);
           growSimpleTreeAt(wx,wy,wz);
@@ -3969,7 +3973,7 @@ function getItemName(id){
       const [fx,fy,fz]=targetBlock.face;
       const px=targetBlock.wx+fx,py=targetBlock.wy+fy,pz=targetBlock.wz+fz;
       if(worldGet(px,py,pz)!==B.AIR&&!isFluid(worldGet(px,py,pz)))return;
-      if((held.id===B.SMALL_GRASS||held.id===B.TALL_GRASS||held.id===B.ROSE||held.id===B.DANDELION||held.id===B.OAK_SAPLING)&&!([B.GRASS,B.DIRT,B.SNOW_BLOCK].includes(worldGet(px,py-1,pz))))return;
+      if((held.id===B.SMALL_GRASS||held.id===B.TALL_GRASS||held.id===B.ROSE||held.id===B.DANDELION||held.id===B.OAK_SAPLING)&&!([B.GRASS,B.DIRT].includes(worldGet(px,py-1,pz))))return;
       if(held.id===B.SUGAR_CANE){
         const base=worldGet(px,py-1,pz);
         const nearWater=[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>isWaterBlock(worldGet(px+dx,py-1,pz+dz))||isWaterBlock(worldGet(px+dx,py,pz+dz)));
