@@ -970,7 +970,7 @@ function getItemName(id){
     const tr=id===B.LEAVES||isFluid(id)||id===B.GLASS||cutout;
    const fluidOpacity=isWaterBlock(id)?0.76:(isLavaBlock(id)?0.88:1);
    const opacity=id===B.GLASS?0.42:(isFluid(id)?fluidOpacity:(id===B.LEAVES?0.86:1));
-   const alphaTest=cutout?0.35:0;
+   const alphaTest=cutout?0.1:0;
    const op={transparent:tr,opacity,side:THREE.DoubleSide,depthWrite:!(tr&&id!==B.GLASS),alphaTest};
      const base=tr?op:{side:THREE.DoubleSide};
      matCache[id]=[
@@ -1079,7 +1079,7 @@ function getItemName(id){
     requestWorldSave();
   }
   function isSolid(id){
-    return id!==B.AIR&&id!==B.LEAVES&&!isFluid(id)&&id!==B.TORCH&&id!==B.FIRE&&id!==B.SMALL_GRASS&&id!==B.TALL_GRASS&&id!==B.ROSE&&id!==B.DANDELION&&id!==B.OAK_SAPLING&&id!==B.SUGAR_CANE&&id!==B.LADDER&&id!==B.RAIL&&id!==B.WOOD_DOOR;
+    return id!==B.AIR&&id!==B.LEAVES&&!isFluid(id)&&id!==B.TORCH&&id!==B.FIRE&&id!==B.SMALL_GRASS&&id!==B.TALL_GRASS&&id!==B.ROSE&&id!==B.DANDELION&&id!==B.OAK_SAPLING&&id!==B.SUGAR_CANE&&id!==B.LADDER&&id!==B.RAIL&&id!==B.WOOD_DOOR&&id!==B.CACTUS;
   }
    function getFluidFamily(id){return (id===B.WATER||id===B.FLOWING_WATER)?'water':((id===B.LAVA||id===B.FLOWING_LAVA)?'lava':null);}
    function isWaterBlock(id){return getFluidFamily(id)==='water';}
@@ -2954,17 +2954,17 @@ function getItemName(id){
     const feetBlock=worldGet(Math.floor(player.pos.x),Math.floor(player.pos.y),Math.floor(player.pos.z));
     if(feetBlock===B.FIRE)applyDamage(10*dt,true);
     if(hungerPauseT>0)hungerPauseT=Math.max(0,hungerPauseT-dt);
-    const hungerDrain=(KEYS['KeyW']&&KEYS[KEYBINDS.forward]&&STATS.energy>0)?0.22:0.045;
+    const hungerDrain=(KEYS['KeyW']&&KEYS[KEYBINDS.forward]&&STATS.energy>0)?0.12:0.025;
     const hungerMul=hungerPauseT>0?0:1;
     STATS.hunger=Math.max(0,STATS.hunger-hungerDrain*dt*hungerMul);
-    STATS.saturation=Math.max(0,STATS.saturation-((hungerDrain*0.55)*dt));
+    STATS.saturation=Math.max(0,STATS.saturation-((hungerDrain*0.25)*dt));
     if(STATS.hunger<=0)applyDamage(1.2*dt,true);
     const fedThreshold=STATS.maxHunger*0.2;
     const fullFed=STATS.hunger>=STATS.maxHunger-0.25;
     if(STATS.hunger>=fedThreshold&&STATS.health<STATS.maxHealth){
       const regenRate=fullFed&&STATS.saturation>0?(3.15+STATS.saturation*0.24):0.18;
       STATS.health=Math.min(STATS.maxHealth,STATS.health+regenRate*dt);
-      if(fullFed&&STATS.saturation>0)STATS.saturation=Math.max(0,STATS.saturation-1.1*dt);
+      if(fullFed&&STATS.saturation>0)STATS.saturation=Math.max(0,STATS.saturation-0.6*dt);
       healFlashT=Math.min(1.2,healFlashT+dt*(fullFed?0.95:0.2));
     }
   }
@@ -3287,10 +3287,10 @@ function getItemName(id){
     const end=Math.max(1,Math.floor(centerY)-3);
     for(let y=start;y>=end;y--){
       const id=worldGet(wx,y,wz);
-      if(id===B.AIR||isWaterBlock(id)||isLavaBlock(id))continue;
-      if(!isSolid(id)&&id!==B.FIRE&&!isCrossPlantBlock(id)&&id!==B.TORCH&&!isThinMountedBlock(id))continue;
+      if(id===B.AIR||isWaterBlock(id))continue;
+      if(!isSolid(id)&&id!==B.FIRE&&id!==B.LAVA&&id!==B.FLOWING_LAVA&&!isCrossPlantBlock(id)&&id!==B.TORCH&&!isThinMountedBlock(id))continue;
       const top=y+Math.max(0.01,getBlockHeight(id));
-      if(worldGet(wx,Math.min(CFG.chunkH-1,y+1),wz)===B.AIR||isFluid(worldGet(wx,Math.min(CFG.chunkH-1,y+1),wz))||isCrossPlantBlock(worldGet(wx,Math.min(CFG.chunkH-1,y+1),wz))||worldGet(wx,Math.min(CFG.chunkH-1,y+1),wz)===B.FIRE)return top;
+      if(worldGet(wx,Math.min(CFG.chunkH-1,y+1),wz)===B.AIR||isWaterBlock(worldGet(wx,Math.min(CFG.chunkH-1,y+1),wz))||isCrossPlantBlock(worldGet(wx,Math.min(CFG.chunkH-1,y+1),wz))||worldGet(wx,Math.min(CFG.chunkH-1,y+1),wz)===B.FIRE)return top;
     }
     return null;
   }
@@ -4198,6 +4198,7 @@ function getItemName(id){
 // ── HOTBAR 3D ICON RENDERER ───────────────────────────────
   function shouldUseFlatIcon(id){return id>=100||id===B.TORCH||isFluid(id)||id===B.FIRE||isCrossPlantBlock(id)||id===B.LADDER||id===B.RAIL;}
   function drawFlatIcon(g,w,h,id){
+    g.imageSmoothingEnabled=false;
     const tex=getItemTex(id);
     if(!tex?.image)return;
     const s=Math.floor(w*0.78),o=((w-s)/2)|0;
